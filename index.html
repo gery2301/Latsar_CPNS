@@ -24,17 +24,14 @@
 
     // 3️⃣ Ambil data dari Google Apps Script
     fetch("https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec")
-      .then(res => res.text())
-  .then(text => {
-    const json = JSON.parse(text.substr(47).slice(0, -2));
-    const rows = json.table.rows;
-
-    rows.forEach(r => {
-      const nama = r.c[0]?.v;
-      const umur = r.c[1]?.v;
-      console.log(nama, umur);
-    });
-  });
+      .then(res => res.json())
+      .then(data => {
+        // Misal data = [{nama:"Kantor A", lat:-8.5, lon:119.9}, ...]
+        data.forEach(d => {
+          L.marker([d.lat, d.lon]).addTo(map)
+            .bindPopup(`<b>${d.nama}</b>`);
+        });
+      })
       .catch(err => console.error(err));
   </script>
 </body>

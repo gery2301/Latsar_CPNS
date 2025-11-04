@@ -28,7 +28,7 @@
       .then(data => {
         // Misal data = [{nama:"Kantor A", lat:-8.5, lon:119.9}, ...]
         console.log(data);
-        data.forEach(d => {
+        data.data.forEach(d => {
           L.marker([d.lat, d.lon]).addTo(map)
             .bindPopup(`<b>${d.nama}</b>`);
         });

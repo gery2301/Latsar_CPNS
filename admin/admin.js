@@ -46,21 +46,22 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
   const payload = {
     action: "create",
-    nama_sekolah: nama, // Nama kunci harus sama dengan di GAS
-    geometry: geom      // LANGSUNG geom, jangan di-stringify di sini
+    nama: nama,
+    geometry: JSON.stringify(geom)
   };
 
   fetch(GAS_URL, {
     method: "POST",
     body: JSON.stringify(payload)
   })
-  .then(res => res.json())
-  .then(data => {
+  .then(res => res.text())
+  .then(msg => {
     alert("Data tersimpan!");
     layer.bindPopup(`<b>${nama}</b>`).addTo(drawnItems);
   })
   .catch(err => alert("Gagal menyimpan data: " + err));
 });
+
 // ===============================
 // EVENT: EDIT DATA
 // ===============================

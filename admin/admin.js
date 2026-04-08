@@ -102,9 +102,12 @@ fetch(GAS_URL)
  res.data.forEach(d => {
   const geom = d.geometry; // JANGAN PARSE LAGI
 
-  const layer = L.geoJSON(geom).addTo(drawnItems);
-  layer.bindPopup(`<b>${d.nama_sekolah}</b>`);
-  layer.eachLayer(l => l.options.id = d.id);
+  const layerGroup = L.geoJSON(geom);
+
+layerGroup.eachLayer(l => {
+  l.options.id = d.id;
+  l.bindPopup(`<b>${d.nama_sekolah}</b>`);
+  drawnItems.addLayer(l);
 });
   })
   .catch(err => console.error(err));

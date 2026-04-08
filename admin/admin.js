@@ -46,7 +46,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
   const payload = {
     action: "create",
-    nama: nama,
+    nama_sekolah: nama,
     geometry: JSON.stringify(geom)
   };
 
@@ -103,7 +103,7 @@ fetch(GAS_URL)
   const geom = d.geometry; // JANGAN PARSE LAGI
 
   const layer = L.geoJSON(geom).addTo(drawnItems);
-  layer.bindPopup(`<b>${d.nama}</b>`);
+  layer.bindPopup(`<b>${d.nama_sekolah}</b>`);
   layer.eachLayer(l => l.options.id = d.id);
 });
   })

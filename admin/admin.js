@@ -99,11 +99,12 @@ map.on('draw:deleted', function (e) {
 fetch(GAS_URL)
   .then(res => res.json())
   .then(res => {
-    res.data.forEach(d => {
-      const geom = JSON.parse(d.geometry);
-      const layer = L.geoJSON(geom).addTo(drawnItems);
-      layer.bindPopup(`<b>${d.nama}</b>`);
-      layer.eachLayer(l => l.options.id = d.id);
-    });
+ res.data.forEach(d => {
+  const geom = d.geometry; // JANGAN PARSE LAGI
+
+  const layer = L.geoJSON(geom).addTo(drawnItems);
+  layer.bindPopup(`<b>${d.nama}</b>`);
+  layer.eachLayer(l => l.options.id = d.id);
+});
   })
   .catch(err => console.error(err));

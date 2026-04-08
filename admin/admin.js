@@ -45,11 +45,13 @@ map.on(L.Draw.Event.CREATED, function (e) {
   if (!nama) return;
 
   const payload = {
-    action: "create",
-    nama: nama,
-    geometry: JSON.stringify(geom)
-  };
+  nama_sekolah: nama,
+  status: "NEGERI", // sementara
+  geometry: geom     // JANGAN stringify di sini
+};
 
+  console.log(payload);
+  
   fetch(GAS_URL, {
     method: "POST",
     body: JSON.stringify(payload)

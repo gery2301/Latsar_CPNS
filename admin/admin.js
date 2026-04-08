@@ -44,22 +44,20 @@ map.on(L.Draw.Event.CREATED, function (e) {
   const nama = prompt("Masukkan nama lokasi:");
   if (!nama) return;
 
+  const payload = {
+    action: "create",
+    nama: nama,
+    geometry: JSON.stringify(geom)
+  };
+
   fetch(GAS_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      nama: nama,
-      geometry: geom
-    })
+    body: JSON.stringify(payload)
   })
-  .then(res => res.json())
-  .then(res => {
-    layer.options.id = res.id;
-    layer.bindPopup(`<b>${nama}</b>`);
-    drawnItems.addLayer(layer);
+  .then(res => res.text())
+  .then(msg => {
     alert("Data tersimpan!");
+    layer.bindPopup(`<b>${nama}</b>`).addTo(drawnItems);
   })
   .catch(err => alert("Gagal menyimpan data: " + err));
 });
@@ -100,17 +98,12 @@ map.on('draw:deleted', function (e) {
 // ===============================
 fetch(GAS_URL)
   .then(res => res.json())
-  .then(res => {
-    res.data.forEach(d => {
-      const geom = d.geometry;
-
-      const layerGroup = L.geoJSON(geom);
-
-      layerGroup.eachLayer(l => {
-        l.options.id = d.id;
-        l.bindPopup(`<b>${d.nama_sekolah}</b>`);
-        drawnItems.addLayer(l);
-      });
+  .then(data => {
+    data.forEach(d => {
+      const geom = JSON.parse(d.geometry);
+      const layer = L.geoJSON(geom).addTo(drawnItems);
+      layer.bindPopup(`<b>${d.nama}</b>`);
+      layer.eachLayer(l => l.options.id = d.id); // simpan ID
     });
   })
   .catch(err => console.error(err));

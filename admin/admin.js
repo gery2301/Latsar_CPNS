@@ -38,28 +38,55 @@ map.addControl(drawControl);
 // EVENT: TAMBAH DATA
 // ===============================
 map.on(L.Draw.Event.CREATED, function (e) {
+
   const layer = e.layer;
   const geom = layer.toGeoJSON().geometry;
 
-  const nama = prompt("Masukkan nama lokasi:");
-  if (!nama) return;
+  drawnItems.addLayer(layer);
 
-  const payload = {
-    action: "create",
-    nama: nama,
-    geometry: JSON.stringify(geom)
+  const form = `
+    <div>
+      <label>Nama Lokasi</label><br>
+      <input type="text" id="nama_lokasi"><br><br>
+
+      <label>Status</label><br>
+      <input type="text" id="status_lokasi"><br><br>
+
+      <button onclick="simpanData()">Simpan</button>
+    </div>
+  `;
+
+  layer.bindPopup(form).openPopup();
+
+  window.simpanData = function() {
+
+    const nama = document.getElementById("nama_lokasi").value;
+    const status = document.getElementById("status_lokasi").value;
+
+    if (!nama) {
+      alert("Nama harus diisi");
+      return;
+    }
+
+    const payload = {
+      action: "create",
+      nama: nama,
+      status: status,
+      geometry: JSON.stringify(geom)
+    };
+
+    fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.text())
+    .then(msg => {
+      alert("Data tersimpan!");
+      layer.bindPopup(`<b>${nama}</b><br>Status: ${status}`);
+    })
+    .catch(err => alert("Gagal menyimpan data"));
   };
 
-  fetch(GAS_URL, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.text())
-  .then(msg => {
-    alert("Data tersimpan!");
-    layer.bindPopup(`<b>${nama}</b>`).addTo(drawnItems);
-  })
-  .catch(err => alert("Gagal menyimpan data: " + err));
 });
 
 // ===============================

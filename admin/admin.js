@@ -70,7 +70,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
     const payload = {
       action: "create",
-      nama_sekolah: nama,
+      nama: nama,
       status: status,
       geometry: JSON.stringify(geom)
     };

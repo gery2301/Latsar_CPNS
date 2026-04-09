@@ -47,7 +47,8 @@ map.on(L.Draw.Event.CREATED, function (e) {
   const payload = {
     action: "create",
     nama: nama,
-    geometry: JSON.stringify(geom)
+    status: "NEGERI", // Tambahkan ini supaya kolom C terisi
+    geometry: JSON.stringify(geom) // Tetap stringify karena GAS Mas sudah oke dengan ini
   };
 
   fetch(GAS_URL, {

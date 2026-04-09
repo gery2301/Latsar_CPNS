@@ -43,12 +43,13 @@ map.on(L.Draw.Event.CREATED, function (e) {
   const nama = prompt("Masukkan nama lokasi:");
   if (!nama) return;
 
-  const payload = {
-    nama: nama,
-    status: "NEGERI", // Kita kirim statusnya di sini
-    geometry: geom    // Kirim objek mentah (raw object), jangan di-stringify!
-  };
-
+ const payload = {
+  action: "create",
+  nama_sekolah: nama, // Mas ganti ini jadi 'nama_sekolah'
+  status: "NEGERI",
+  geometry: geom      // Kirim objek mentah
+};
+  
   fetch(GAS_URL, {
     method: "POST",
     body: JSON.stringify(payload)

@@ -69,11 +69,11 @@ map.on(L.Draw.Event.CREATED, function (e) {
     }
 
     const payload = {
-      action: "create",
-      nama: nama,
-      status: status,
-      geometry: JSON.stringify(geom)
-    };
+  action: "create",
+  nama: nama,
+  status: status,
+  geometry: geom
+};
 
     fetch(GAS_URL, {
       method: "POST",

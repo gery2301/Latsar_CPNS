@@ -44,10 +44,9 @@ map.on(L.Draw.Event.CREATED, function (e) {
   if (!nama) return;
 
  const payload = {
-  action: "create",
-  nama_sekolah: nama, // Mas ganti ini jadi 'nama_sekolah'
-  status: "NEGERI",
-  geometry: geom      // Kirim objek mentah
+  nama_sekolah: nama, // Kunci: nama_sekolah
+  status: "NEGERI",   // Kunci: status
+  geometry: geom      // Kunci: geometry
 };
   
   fetch(GAS_URL, {

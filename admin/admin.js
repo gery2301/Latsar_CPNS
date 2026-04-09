@@ -40,27 +40,25 @@ map.addControl(drawControl);
 map.on(L.Draw.Event.CREATED, function (e) {
   const layer = e.layer;
   const geom = layer.toGeoJSON().geometry;
-
   const nama = prompt("Masukkan nama lokasi:");
   if (!nama) return;
 
-const payload = {
-    action: "create",
+  const payload = {
     nama: nama,
-    status: "NEGERI", 
-    geometry: geom // <--- HAPUS JSON.stringify-nya, kirim objek mentah saja
+    status: "NEGERI", // Kita kirim statusnya di sini
+    geometry: geom    // Kirim objek mentah (raw object), jangan di-stringify!
   };
 
   fetch(GAS_URL, {
     method: "POST",
     body: JSON.stringify(payload)
   })
-  .then(res => res.text())
-  .then(msg => {
+  .then(res => res.json())
+  .then(data => {
     alert("Data tersimpan!");
     layer.bindPopup(`<b>${nama}</b>`).addTo(drawnItems);
   })
-  .catch(err => alert("Gagal menyimpan data: " + err));
+  .catch(err => alert("Gagal simpan: " + err));
 });
 
 // ===============================

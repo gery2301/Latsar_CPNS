@@ -8,10 +8,21 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // ===============================
 const map = L.map('map').setView([-8.5, 119.9], 10);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// OSM (default)
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+});
+
+// SATELIT ESRI
+const esriSat = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles &copy; Esri'
+});
+
+// Tambah ke map (default OSM)
+osm.addTo(map);
 
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);

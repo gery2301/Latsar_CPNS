@@ -61,6 +61,8 @@ map.addControl(drawControl);
 // ===============================
 // SEARCH LOKASI (GEOCODER)
 // ===============================
+let searchMarker; // penampung marker sementara
+
 const geocoder = L.Control.geocoder({
   defaultMarkGeocode: false,
   geocoder: L.Control.Geocoder.nominatim({
@@ -71,12 +73,25 @@ const geocoder = L.Control.geocoder({
   })
 })
 .on('markgeocode', function(e) {
+
   map.fitBounds(e.geocode.bbox);
 
-  L.marker(e.geocode.center)
+  // kalau ada marker lama, hapus dulu
+  if (searchMarker) {
+    map.removeLayer(searchMarker);
+  }
+
+  // bikin marker baru
+  searchMarker = L.marker(e.geocode.center)
     .addTo(map)
     .bindPopup(e.geocode.name)
     .openPopup();
+
+  // KUNCI NYA DI SINI
+  searchMarker.on('popupclose', function () {
+    map.removeLayer(searchMarker);
+  });
+
 })
 .addTo(map);
 

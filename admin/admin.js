@@ -24,6 +24,13 @@ const esriSat = L.tileLayer(
 // Tambah ke map (default OSM)
 osm.addTo(map);
 
+const baseMaps = {
+  "OpenStreetMap": osm,
+  "Satelit Esri": esriSat
+};
+
+L.control.layers(baseMaps).addTo(map);
+
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 

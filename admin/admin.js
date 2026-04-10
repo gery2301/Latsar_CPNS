@@ -19,6 +19,12 @@ L.Control.geocoder({
   defaultMarkGeocode: true
 }).addTo(map);
 
+//Skala Peta
+L.control.scale().addTo(map);
+
+//Kompas
+new L.Control.Compass({ autoActive: true, showDigit: true }).addTo(map);
+
 // SATELIT ESRI
 const esriSat = L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {

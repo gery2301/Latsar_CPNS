@@ -112,8 +112,15 @@ map.on('draw:edited', function (e) {
 // ===============================
 map.on('draw:deleted', function (e) {
   e.layers.eachLayer(function (layer) {
-    const id = layer.options.id || prompt("Masukkan ID data yang mau dihapus:");
-    fetch(GAS_URL + "?id=" + id, { method: "DELETE" })
+    const id = layer.options.id;
+
+    fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "delete",
+        id: id
+      })
+    })
     .then(res => res.text())
     .then(msg => alert("Data terhapus"))
     .catch(err => alert("Gagal hapus data: " + err));
@@ -131,6 +138,8 @@ map.on('draw:deleted', function (e) {
         data.data.forEach(d => {
            if (!d.geometry) return;
 
+          let layer; // WAJIB ADA INI
+
             const type = d.geometry.type;
             const coords = d.geometry.coordinates;
           
@@ -141,13 +150,15 @@ map.on('draw:deleted', function (e) {
             } 
             else if (type === "LineString") {
               const latlngs = coords.map(([lon, lat]) => [lat, lon]);
-              layer = L.polyline(latlngs, { id: d.id });
+              layer = L.polyline(latlngs, { id: d.id })
+                .bindPopup(`<b>${d.nama_sekolah}</b>`);
             } 
            else if (type === "Polygon") {
               const latlngs = coords.map(ring =>
               ring.map(([lon, lat]) => [lat, lon])
               );
-              layer = L.polygon(latlngs, { id: d.id });
+              layer = L.polygon(latlngs, { id: d.id })
+                .bindPopup(`<b>${d.nama_sekolah}</b>`);
             }
 
   // PENTING: MASUKKAN KE drawnItems, BUKAN map

@@ -14,11 +14,6 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 });
 
-// Geocoder
-L.Control.geocoder({
-  defaultMarkGeocode: true
-}).addTo(map);
-
 //Skala Peta
 L.control.scale().addTo(map);
 
@@ -62,6 +57,41 @@ const drawControl = new L.Control.Draw({
   }
 });
 map.addControl(drawControl);
+
+// ===============================
+// SEARCH LOKASI (GEOCODER)
+// ===============================
+const geocoder = L.Control.geocoder({
+  defaultMarkGeocode: false,
+  geocoder: L.Control.Geocoder.nominatim({
+    geocodingQueryParams: {
+      countrycodes: 'id',
+      limit: 5
+    }
+  })
+})
+.on('markgeocode', function(e) {
+  map.fitBounds(e.geocode.bbox);
+
+  L.marker(e.geocode.center)
+    .addTo(map)
+    .bindPopup(e.geocode.name)
+    .openPopup();
+})
+.addTo(map);
+
+// BIKIN SEARCH IKUT LOKASI MAP
+map.on('moveend', function () {
+  const bounds = map.getBounds();
+
+  geocoder.options.geocoder.options.geocodingQueryParams.viewbox =
+    bounds.getWest() + ',' +
+    bounds.getNorth() + ',' +
+    bounds.getEast() + ',' +
+    bounds.getSouth();
+
+  geocoder.options.geocoder.options.geocodingQueryParams.bounded = 1;
+});
 
 // ===============================
 // EVENT: TAMBAH DATA

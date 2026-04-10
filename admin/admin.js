@@ -89,11 +89,6 @@ const geocoder = L.Control.geocoder({
 })
 .addTo(map);
 
-})
-.addTo(map);
-
-
-
 // ===============================
 // EVENT: TAMBAH DATA
 // ===============================

@@ -136,15 +136,22 @@ map.on('draw:deleted', function (e) {
           
             if (type === "Point") {
               const [lon, lat] = coords;
-              L.marker([lat, lon]).addTo(map)
-                .bindPopup(`<b>${d.nama_sekolah}</b>`);
-            } else if (type === "LineString") {
+              layer = L.marker([lat, lon], { id: d.id });
+              layer.bindPopup(`<b>${d.nama_sekolah}</b>`);
+            } 
+            else if (type === "LineString") {
               const latlngs = coords.map(([lon, lat]) => [lat, lon]);
-              L.polyline(latlngs, {color:'blue'}).addTo(map);
-            } else if (type === "Polygon") {
-              const latlngs = coords.map(ring => ring.map(([lon, lat]) => [lat, lon]));
-              L.polygon(latlngs, {color:'green'}).addTo(map);
+              layer = L.polyline(latlngs, { id: d.id });
+            } 
+           else if (type === "Polygon") {
+              const latlngs = coords.map(ring =>
+              ring.map(([lon, lat]) => [lat, lon])
+              );
+              layer = L.polygon(latlngs, { id: d.id });
             }
-          });
+
+  // PENTING: MASUKKAN KE drawnItems, BUKAN map
+  drawnItems.addLayer(layer);
+});
       })
       .catch(err => console.error(err));

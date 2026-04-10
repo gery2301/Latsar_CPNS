@@ -80,7 +80,9 @@ map.on(L.Draw.Event.CREATED, function (e) {
       body: JSON.stringify(payload)
     })
     .then(res => res.text())
-    .then(msg => {
+    .then(res => res.json())
+.then(resp => {
+  layer.options.id = resp.id;
       alert("Data tersimpan!");
       layer.bindPopup(`<b>${nama}</b><br>Status: ${status}`);
     })

@@ -59,29 +59,26 @@ const drawControl = new L.Control.Draw({
 map.addControl(drawControl);
 
 // ===============================
-// SEARCH LOKASI (GEOCODER - PHOTON)
+// SEARCH LOKASI (PHOTON + BOUND MAP)
 let searchMarker;
+
+const photon = new L.Control.Geocoder.Photon();
 
 const geocoder = L.Control.geocoder({
   defaultMarkGeocode: false,
-  geocoder: new L.Control.Geocoder.Photon()
+  geocoder: photon
 })
 .on('markgeocode', function(e) {
 
   map.fitBounds(e.geocode.bbox);
 
-  // hapus marker lama
-  if (searchMarker) {
-    map.removeLayer(searchMarker);
-  }
+  if (searchMarker) map.removeLayer(searchMarker);
 
-  // marker sementara
   searchMarker = L.marker(e.geocode.center)
     .addTo(map)
     .bindPopup(e.geocode.name)
     .openPopup();
 
-  // hilang saat popup ditutup
   searchMarker.on('popupclose', function () {
     map.removeLayer(searchMarker);
   });

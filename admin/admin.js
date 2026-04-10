@@ -59,38 +59,35 @@ const drawControl = new L.Control.Draw({
 map.addControl(drawControl);
 
 // ===============================
-// SEARCH LOKASI (GEOCODER)
-// ===============================
-let searchMarker; // penampung marker sementara
+// SEARCH LOKASI (GEOCODER - PHOTON)
+let searchMarker;
 
 const geocoder = L.Control.geocoder({
   defaultMarkGeocode: false,
-  geocoder: L.Control.Geocoder.nominatim({
-    geocodingQueryParams: {
-      countrycodes: 'id',
-      limit: 5
-    }
-  })
+  geocoder: new L.Control.Geocoder.Photon()
 })
 .on('markgeocode', function(e) {
 
   map.fitBounds(e.geocode.bbox);
 
-  // kalau ada marker lama, hapus dulu
+  // hapus marker lama
   if (searchMarker) {
     map.removeLayer(searchMarker);
   }
 
-  // bikin marker baru
+  // marker sementara
   searchMarker = L.marker(e.geocode.center)
     .addTo(map)
     .bindPopup(e.geocode.name)
     .openPopup();
 
-  // KUNCI NYA DI SINI
+  // hilang saat popup ditutup
   searchMarker.on('popupclose', function () {
     map.removeLayer(searchMarker);
   });
+
+})
+.addTo(map);
 
 })
 .addTo(map);

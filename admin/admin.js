@@ -92,18 +92,7 @@ const geocoder = L.Control.geocoder({
 })
 .addTo(map);
 
-// BIKIN SEARCH IKUT LOKASI MAP
-map.on('moveend', function () {
-  const bounds = map.getBounds();
 
-  geocoder.options.geocoder.options.geocodingQueryParams.viewbox =
-    bounds.getWest() + ',' +
-    bounds.getNorth() + ',' +
-    bounds.getEast() + ',' +
-    bounds.getSouth();
-
-  geocoder.options.geocoder.options.geocodingQueryParams.bounded = 1;
-});
 
 // ===============================
 // EVENT: TAMBAH DATA

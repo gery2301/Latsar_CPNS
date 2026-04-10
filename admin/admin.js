@@ -86,6 +86,20 @@ const geocoder = L.Control.geocoder({
 })
 .addTo(map);
 
+// UPDATE BBOX PHOTON SESUAI VIEW MAP
+map.on('moveend', function () {
+  const b = map.getBounds();
+
+  photon.options.params = {
+    bbox: [
+      b.getWest(),
+      b.getSouth(),
+      b.getEast(),
+      b.getNorth()
+    ].join(',')
+  };
+});
+
 // ===============================
 // EVENT: TAMBAH DATA
 // ===============================

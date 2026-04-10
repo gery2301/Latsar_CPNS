@@ -76,17 +76,16 @@ map.on(L.Draw.Event.CREATED, function (e) {
 };
 
     fetch(GAS_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
-    .then(res => res.text())
-    .then(res => res.json())
+  method: "POST",
+  body: JSON.stringify(payload)
+})
+.then(res => res.json())
 .then(resp => {
-  layer.options.id = resp.id;
-      alert("Data tersimpan!");
-      layer.bindPopup(`<b>${nama}</b><br>Status: ${status}`);
-    })
-    .catch(err => alert("Gagal menyimpan data"));
+  layer.options.id = resp.id;   // INI PALING PENTING
+  alert("Data tersimpan!");
+  layer.bindPopup(`<b>${nama}</b><br>Status: ${status}`);
+})
+.catch(err => alert("Gagal menyimpan data: " + err));
   };
 
 });

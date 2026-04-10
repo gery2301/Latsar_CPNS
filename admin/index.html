@@ -38,6 +38,13 @@
 <body>
   <div id="map"></div>
 
+  <!-- Pastikan plugin siap sebelum admin.js jalan -->
+<script>
+  window.addEventListener('load', function () {
+    console.log("All plugins loaded");
+  });
+</script>
+
   <!-- Hubungkan file JS terpisah -->
   <script src="admin.js"></script>
 </body>

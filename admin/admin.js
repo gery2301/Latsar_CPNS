@@ -162,11 +162,15 @@ map.on(L.Draw.Event.CREATED, function (e) {
 map.on('draw:edited', function (e) {
   e.layers.eachLayer(function (layer) {
     const geom = layer.toGeoJSON().geometry;
-    const id = layer.options.id || prompt("Masukkan ID data yang mau diupdate:");
+    const id = layer.options.id;
 
-    fetch(GAS_URL + "?id=" + id, {
-      method: "PUT",
-      body: JSON.stringify({ geometry: JSON.stringify(geom) })
+    fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "update",
+        id: id,
+        geometry: geom
+      })
     })
     .then(res => res.text())
     .then(msg => alert("Data berhasil diperbarui"))

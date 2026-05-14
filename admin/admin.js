@@ -4,9 +4,31 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
 
 // ===============================
+// FUNGSI GLOBAL: MENU EDIT PER LAYER
+// ===============================
+function attachEditMenu(layer, data) {
+  layer.on('click', function () {
+    const html = `
+      <b>${data.nama}</b><br><br>
+      Mau edit apa?<br><br>
+      <button onclick="editAtribut('${data.id}', '${data.nama}', '${data.status}')">
+        Edit Nama & Status
+      </button><br><br>
+      <button onclick="editGeometri('${data.id}')">
+        Edit Bentuk Geometri
+      </button>
+    `;
+    layer.bindPopup(html).openPopup();
+  });
+}
+
+// ===============================
 // INISIALISASI MAP
 // ===============================
 const map = L.map('map').setView([-8.5, 119.9], 10);
+
+const drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
 
 // OSM (default)
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -202,38 +224,45 @@ map.on('draw:deleted', function (e) {
 // LOAD DATA AWAL
 // ===============================
  fetch("https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec")
-      .then(res => res.json())
-      .then(data => {
-        // Misal data = [{nama:"Kantor A", lat:-8.5, lon:119.9}, ...]
-        console.log(data);
-        data.data.forEach(d => {
-           if (!d.geometry) return;
+       .then(res => res.json())
+  .then(data => {
+    console.log(data);
 
-          let layer; // WAJIB ADA INI
+    data.forEach(d => {
+      if (!d.geometry) return;
 
-            const type = d.geometry.type;
-            const coords = d.geometry.coordinates;
-          
-            if (type === "Point") {
-              const [lon, lat] = coords;
-              layer = L.marker([lat, lon], { id: d.id });
-              layer.bindPopup(`<b>${d.nama_sekolah}</b>`);
-            } 
-            else if (type === "LineString") {
-              const latlngs = coords.map(([lon, lat]) => [lat, lon]);
-              layer = L.polyline(latlngs, { id: d.id })
-                .bindPopup(`<b>${d.nama_sekolah}</b>`);
-            } 
-           else if (type === "Polygon") {
-              const latlngs = coords.map(ring =>
-              ring.map(([lon, lat]) => [lat, lon])
-              );
-              layer = L.polygon(latlngs, { id: d.id })
-                .bindPopup(`<b>${d.nama_sekolah}</b>`);
-            }
+      let layer = null;
+      const type = d.geometry.type;
+      const coords = d.geometry.coordinates;
 
-  // PENTING: MASUKKAN KE drawnItems, BUKAN map
-  drawnItems.addLayer(layer);
-});
-      })
-      .catch(err => console.error(err));
+      if (type === "Point") {
+        const [lon, lat] = coords;
+        layer = L.marker([lat, lon]);
+      } 
+      else if (type === "LineString") {
+        const latlngs = coords.map(([lon, lat]) => [lat, lon]);
+        layer = L.polyline(latlngs);
+      } 
+      else if (type === "Polygon") {
+        const latlngs = coords.map(ring =>
+          ring.map(([lon, lat]) => [lat, lon])
+        );
+        layer = L.polygon(latlngs);
+      }
+
+      if (!layer) return;
+
+      // simpan ID & atribut di layer (PENTING)
+      layer._id = d.id;
+      layer._data = d;
+
+      // WAJIB: masuk ke drawnItems supaya bisa diedit
+      drawnItems.addLayer(layer);
+
+      // popup edit
+      attachEditMenu(layer, d);
+    });
+
+  })
+  .catch(err => console.error(err));
+

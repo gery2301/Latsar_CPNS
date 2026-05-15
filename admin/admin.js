@@ -7,19 +7,35 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // FUNGSI GLOBAL: MENU EDIT PER LAYER
 // ===============================
 function attachEditMenu(layer, data) {
-  layer.on('click', function () {
-    const html = `
-      <b>${data.nama}</b><br><br>
-      Mau edit apa?<br><br>
-      <button onclick="editAtribut('${data.id}', '${data.nama}', '${data.status}')">
-        Edit Nama & Status
-      </button><br><br>
-      <button onclick="editGeometri('${data.id}')">
-        Edit Bentuk Geometri
-      </button>
-    `;
-    layer.bindPopup(html).openPopup();
-  });
+
+  // POPUP NORMAL (saat layer diklik)
+  const infoHtml = `
+    <b>${data.nama}</b><br>
+    Status: ${data.status}<br><br>
+    <button onclick="bukaMenuEdit('${data.id}', '${data.nama}', '${data.status}')">
+      Edit
+    </button>
+  `;
+
+  layer.bindPopup(infoHtml);
+
+}
+
+function bukaMenuEdit(id, nama, status) {
+
+  const html = `
+    <b>${nama}</b><br><br>
+    Mau edit apa?<br><br>
+    <button onclick="editAtribut('${id}', '${nama}', '${status}')">
+      Edit Nama & Status
+    </button><br><br>
+    <button onclick="editGeometri('${id}')">
+      Edit Bentuk Geometri
+    </button>
+  `;
+
+  // buka popup di posisi terakhir yang diklik
+  map.openPopup(html, map.getCenter());
 }
 
 // ===============================
@@ -167,9 +183,17 @@ map.on(L.Draw.Event.CREATED, function (e) {
 })
 .then(res => res.json())
 .then(resp => {
-  layer.options.id = resp.id;   // INI PALING PENTING
+  layer.options.id = resp.id;
+
+  const dataBaru = {
+    id: resp.id,
+    nama: nama,
+    status: status
+  };
+
+  attachEditMenu(layer, dataBaru);
+
   alert("Data tersimpan!");
-  layer.bindPopup(`<b>${nama}</b><br>Status: ${status}`);
 })
 .catch(err => alert("Gagal menyimpan data: " + err));
   };

@@ -224,8 +224,10 @@ map.on('draw:deleted', function (e) {
  fetch("https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec")
        .then(res => res.json())
   .then(resp => {
-    console.log(data);
+    
     const data = resp.data;
+    console.log(data);
+    
     data.forEach(d => {
       if (!d.geometry) return;
 

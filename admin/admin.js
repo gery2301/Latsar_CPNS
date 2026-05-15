@@ -59,8 +59,6 @@ const baseMaps = {
 
 L.control.layers(baseMaps).addTo(map);
 
-const drawnItems = new L.FeatureGroup();
-map.addLayer(drawnItems);
 
 // ===============================
 // KONTROL DRAW

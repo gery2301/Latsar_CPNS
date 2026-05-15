@@ -285,13 +285,20 @@ map.on('draw:deleted', function (e) {
 
       // simpan ID & atribut di layer (PENTING)
       layer.options.id = d.id;
-      layer._data = d;
 
-      // WAJIB: masuk ke drawnItems supaya bisa diedit
-      drawnItems.addLayer(layer);
+      const dataFix = {
+        id: d.id,
+        nama: d.nama_sekolah,
+        status: d.status
+      };
 
-      // popup edit
-      attachEditMenu(layer, d);
+      layer._data = dataFix;
+
+// WAJIB: masuk ke drawnItems supaya bisa diedit
+drawnItems.addLayer(layer);
+
+// popup edit
+attachEditMenu(layer, dataFix);
     });
 
   })

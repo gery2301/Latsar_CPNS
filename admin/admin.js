@@ -225,7 +225,7 @@ map.on('draw:deleted', function (e) {
        .then(res => res.json())
   .then(data => {
     console.log(data);
-
+    const data = resp.data;
     data.forEach(d => {
       if (!d.geometry) return;
 
@@ -251,7 +251,7 @@ map.on('draw:deleted', function (e) {
       if (!layer) return;
 
       // simpan ID & atribut di layer (PENTING)
-      layer._id = d.id;
+      layer.options.id = d.id;
       layer._data = d;
 
       // WAJIB: masuk ke drawnItems supaya bisa diedit

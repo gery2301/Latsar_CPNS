@@ -8,34 +8,38 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // ===============================
 function attachEditMenu(layer, data) {
 
-  // POPUP NORMAL (saat layer diklik)
-  const infoHtml = `
+  layer.bindPopup(`
     <b>${data.nama}</b><br>
     Status: ${data.status}<br><br>
-    <button onclick="bukaMenuEdit('${data.id}', '${data.nama}', '${data.status}')">
-      Edit
-    </button>
-  `;
+    <button class="btn-edit">Edit</button>
+  `);
 
-  layer.bindPopup(infoHtml);
-
+  layer.on('popupopen', function () {
+    const btn = document.querySelector('.btn-edit');
+    if (btn) {
+      btn.onclick = function () {
+        bukaMenuEdit(layer);
+      };
+    }
+  });
 }
 
-function bukaMenuEdit(id, nama, status) {
+function bukaMenuEdit(layer) {
+
+  const d = layer._data;
 
   const html = `
-    <b>${nama}</b><br><br>
+    <b>${d.nama}</b><br><br>
     Mau edit apa?<br><br>
-    <button onclick="editAtribut('${id}', '${nama}', '${status}')">
+    <button onclick="editAtribut('${d.id}')">
       Edit Nama & Status
     </button><br><br>
-    <button onclick="editGeometri('${id}')">
+    <button onclick="editGeometri('${d.id}')">
       Edit Bentuk Geometri
     </button>
   `;
 
-  // buka popup di posisi terakhir yang diklik
-  map.openPopup(html, map.getCenter());
+  layer.bindPopup(html).openPopup();
 }
 
 // ===============================

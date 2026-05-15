@@ -188,7 +188,11 @@ map.on(L.Draw.Event.CREATED, function (e) {
   const dataBaru = {
     id: resp.id,
     nama: nama,
-    status: status
+    status: status,
+    geometry: geom
+  };
+
+  layer._data = dataBaru;
   };
 
   attachEditMenu(layer, dataBaru);

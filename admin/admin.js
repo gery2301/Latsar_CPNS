@@ -193,8 +193,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   };
 
   layer._data = dataBaru;
-  };
-
+  
   attachEditMenu(layer, dataBaru);
 
   alert("Data tersimpan!");

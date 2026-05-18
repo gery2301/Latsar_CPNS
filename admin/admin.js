@@ -82,11 +82,12 @@ function simpanEditAtribut() {
 }
 
 function editGeometriLayer() {
-  const layer = window.currentLayer;
+  // Cari tombol edit bawaan Leaflet Draw
+  const editBtn = document.querySelector('.leaflet-draw-edit-edit');
 
-  new L.EditToolbar.Edit(map, {
-    featureGroup: drawnItems
-  }).enable();
+  if (editBtn) {
+    editBtn.click(); // otomatis masuk mode edit NORMAL
+  }
 }
 
 // ===============================

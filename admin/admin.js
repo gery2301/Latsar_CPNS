@@ -10,19 +10,23 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 function tampilkanPopupInfo(layer) {
   const d = layer._data;
 
-  layer.setPopupContent(`
+  const html = `
     <b>${d.nama}</b><br>
     Status: ${d.status}<br><br>
     <button class="btn-edit">Edit</button>
-  `);
+  `;
+
+  if (!layer.getPopup()) {
+    layer.bindPopup(html);
+  } else {
+    layer.setPopupContent(html);
+  }
 
   layer.openPopup();
 
   layer.once('popupopen', function (e) {
     const btn = e.popup.getElement().querySelector('.btn-edit');
-    if (btn) {
-      btn.onclick = () => bukaMenuEdit(layer);
-    }
+    if (btn) btn.onclick = () => bukaMenuEdit(layer);
   });
 }
 

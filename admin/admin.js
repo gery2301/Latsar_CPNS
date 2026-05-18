@@ -13,21 +13,15 @@ function tampilkanPopupInfo(layer) {
   const html = `
     <b>${d.nama}</b><br>
     Status: ${d.status}<br><br>
-    <button class="btn-edit">Edit</button>
+    <button id="btnEdit">Edit</button>
   `;
 
-  if (!layer.getPopup()) {
-    layer.bindPopup(html);
-  } else {
-    layer.setPopupContent(html);
-  }
+  layer.setPopupContent(html);
 
-  layer.openPopup();
-
-  layer.once('popupopen', function (e) {
-    const btn = e.popup.getElement().querySelector('.btn-edit');
+  setTimeout(() => {
+    const btn = document.getElementById('btnEdit');
     if (btn) btn.onclick = () => bukaMenuEdit(layer);
-  });
+  }, 50);
 }
 
  function attachEditMenu(layer, data) {

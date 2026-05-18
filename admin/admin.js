@@ -30,25 +30,31 @@ function bukaMenuEdit(layer) {
   const d = layer._data;
   window.currentLayer = layer;
 
-  layer.setPopupContent(`
-    <b>${d.nama}</b><br><br>
-    Mau edit apa?<br><br>
-    <button onclick="editAtributLayer()">Edit Nama & Status</button><br><br>
-    <button onclick="editGeometriLayer()">Edit Bentuk Geometri</button>
-  `).openPopup();
+   L.popup()
+    .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
+    .setContent(`
+      <b>${d.nama}</b><br><br>
+      Mau edit apa?<br><br>
+      <button onclick="editAtributLayer()">Edit Nama & Status</button><br><br>
+      <button onclick="editGeometriLayer()">Edit Bentuk Geometri</button>
+    `)
+    .openOn(map);
 }
 
 function editAtributLayer() {
   const layer = window.currentLayer;
   const d = layer._data;
 
-  layer.setPopupContent(`
-    <label>Nama</label><br>
-    <input id="edit_nama" value="${d.nama}"><br><br>
-    <label>Status</label><br>
-    <input id="edit_status" value="${d.status}"><br><br>
-    <button onclick="simpanEditAtribut()">Simpan</button>
-  `).openPopup();
+  L.popup()
+    .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
+    .setContent(`
+      <label>Nama</label><br>
+      <input id="edit_nama" value="${d.nama}"><br><br>
+      <label>Status</label><br>
+      <input id="edit_status" value="${d.status}"><br><br>
+      <button onclick="simpanEditAtribut()">Simpan</button>
+    `)
+    .openOn(map);
 }
 
 function simpanEditAtribut() {

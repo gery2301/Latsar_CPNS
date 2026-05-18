@@ -18,7 +18,7 @@ function tampilkanPopupInfo(layer) {
 
   layer.openPopup();
 
-  layer.once('popupopen', function () {
+  layer.once('popupopen', function (e) {
     const btn = e.popup.getElement().querySelector('.btn-edit');
     if (btn) {
       btn.onclick = () => bukaMenuEdit(layer);

@@ -6,43 +6,89 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // ===============================
 // FUNGSI GLOBAL: MENU EDIT PER LAYER
 // ===============================
-function attachEditMenu(layer, data) {
 
-  layer.bindPopup(`
-    <b>${data.nama}</b><br>
-    Status: ${data.status}<br><br>
+function tampilkanPopupInfo(layer) {
+  const d = layer._data;
+
+  layer.setPopupContent(`
+    <b>${d.nama}</b><br>
+    Status: ${d.status}<br><br>
     <button class="btn-edit">Edit</button>
   `);
 
-  layer.on('popupopen', function () {
-    const btn = document.querySelector('.btn-edit');
+  layer.openPopup();
+
+  layer.once('popupopen', function () {
+    const btn = e.popup.getElement().querySelector('.btn-edit');
     if (btn) {
-      btn.onclick = function () {
-        bukaMenuEdit(layer);
-      };
+      btn.onclick = () => bukaMenuEdit(layer);
     }
   });
 }
 
-function bukaMenuEdit(layer) {
+ function attachEditMenu(layer, data) {
+  layer._data = data;
+  layer.on('click', function () {
+    tampilkanPopupInfo(layer);
+  });
+}
 
+function bukaMenuEdit(layer) {
   const d = layer._data;
 
-  const html = `
+  layer.setPopupContent(`
     <b>${d.nama}</b><br><br>
     Mau edit apa?<br><br>
-    <button onclick="editAtribut('${d.id}')">
-      Edit Nama & Status
-    </button><br><br>
-    <button onclick="editGeometri('${d.id}')">
-      Edit Bentuk Geometri
-    </button>
-  `;
+    <button onclick="editAtributLayer()">Edit Nama & Status</button><br><br>
+    <button onclick="editGeometriLayer()">Edit Bentuk Geometri</button>
+  `).openPopup();
 
-  L.popup()
-    .setLatLng(layer.getLatLng())
-    .setContent(html)
-    .openOn(map);
+  window.currentLayer = layer;
+}
+
+function editAtributLayer() {
+  const layer = window.currentLayer;
+  const d = layer._data;
+
+  layer.setPopupContent(`
+    <label>Nama</label><br>
+    <input id="edit_nama" value="${d.nama}"><br><br>
+    <label>Status</label><br>
+    <input id="edit_status" value="${d.status}"><br><br>
+    <button onclick="simpanEditAtribut()">Simpan</button>
+  `).openPopup();
+}
+
+function simpanEditAtribut() {
+  const layer = window.currentLayer;
+
+  const nama = document.getElementById('edit_nama').value;
+  const status = document.getElementById('edit_status').value;
+
+  fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "update_atribut",
+      id: layer._data.id,
+      nama: nama,
+      status: status
+    })
+  })
+  .then(res => res.text())
+  .then(() => {
+    layer._data.nama = nama;
+    layer._data.status = status;
+
+    tampilkanPopupInfo(layer); // BALIK KE POPUP A
+  });
+}
+
+function editGeometriLayer() {
+  const layer = window.currentLayer;
+
+  new L.EditToolbar.Edit(map, {
+    featureGroup: drawnItems
+  }).enable();
 }
 
 // ===============================
@@ -165,7 +211,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     </div>
   `;
 
-  layer.bindPopup(form).openPopup();
+ layer.setPopupContent(form).openPopup();
 
   window.simpanData = function() {
 

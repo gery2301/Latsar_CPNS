@@ -39,7 +39,10 @@ function bukaMenuEdit(layer) {
     </button>
   `;
 
-  layer.bindPopup(html).openPopup();
+  L.popup()
+    .setLatLng(layer.getLatLng())
+    .setContent(html)
+    .openOn(map);
 }
 
 // ===============================

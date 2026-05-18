@@ -32,7 +32,8 @@ function tampilkanPopupInfo(layer) {
 
  function attachEditMenu(layer, data) {
   layer._data = data;
-  layer.on('click', function () {
+  layer.bindPopup(''); // WAJIB supaya Leaflet yang handle click
+  layer.on('popupopen', function () {
     tampilkanPopupInfo(layer);
   });
 }

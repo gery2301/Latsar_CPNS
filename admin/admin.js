@@ -7,33 +7,28 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // FUNGSI GLOBAL: MENU EDIT PER LAYER
 // ===============================
 
-function tampilkanPopupInfo(layer) {
-  const d = layer._data;
 
-  const html = `
-    <b>${d.nama}</b><br>
-    Status: ${d.status}<br><br>
-    <button id="btnEdit">Edit</button>
-  `;
-
-  layer.setPopupContent(html);
-
-  setTimeout(() => {
-    const btn = document.getElementById('btnEdit');
-    if (btn) btn.onclick = () => bukaMenuEdit(layer);
-  }, 50);
-}
-
- function attachEditMenu(layer, data) {
+function attachEditMenu(layer, data) {
   layer._data = data;
-  layer.bindPopup(''); // WAJIB supaya Leaflet yang handle click
-  layer.on('popupopen', function () {
-    tampilkanPopupInfo(layer);
+
+  layer.bindPopup(() => {
+    const d = layer._data;
+    window.currentLayer = layer;
+    return `
+      <b>${d.nama}</b><br>
+      Status: ${d.status}<br><br>
+      <button onclick="bukaMenuEdit(window.currentLayer)">Edit</button>
+    `;
+  });
+
+  layer.on('click', function () {
+    window.currentLayer = layer;
   });
 }
 
 function bukaMenuEdit(layer) {
   const d = layer._data;
+  window.currentLayer = layer;
 
   layer.setPopupContent(`
     <b>${d.nama}</b><br><br>
@@ -41,8 +36,6 @@ function bukaMenuEdit(layer) {
     <button onclick="editAtributLayer()">Edit Nama & Status</button><br><br>
     <button onclick="editGeometriLayer()">Edit Bentuk Geometri</button>
   `).openPopup();
-
-  window.currentLayer = layer;
 }
 
 function editAtributLayer() {
@@ -77,8 +70,8 @@ function simpanEditAtribut() {
   .then(() => {
     layer._data.nama = nama;
     layer._data.status = status;
-
-    tampilkanPopupInfo(layer); // BALIK KE POPUP A
+    layer.closePopup();
+    layer.openPopup(); // ini otomatis render popup A lagi
   });
 }
 

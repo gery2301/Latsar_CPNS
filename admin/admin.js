@@ -336,7 +336,7 @@ map.on('draw:deleted', function (e) {
 
       const dataFix = {
         id: d.id,
-        nama: d.nama_sekolah,
+        nama: d.nama,
         status: d.status
       };
 

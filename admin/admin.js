@@ -217,7 +217,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     </div>
   `;
 
- layer.setPopupContent(form).openPopup();
+ layer.bindPopup(form).openPopup();
 
   window.simpanData = function() {
 

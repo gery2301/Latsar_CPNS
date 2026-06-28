@@ -17,6 +17,7 @@ function attachEditMenu(layer, data) {
     return `
       <b>${d.nama}</b><br>
       Status: ${d.status}<br><br>
+      Kategori : ${d.kategori}<br><br>
       Layer : ${d.layer}<br>
       OPD : ${d.owner_opd}<br><br>
       <button onclick="bukaMenuEdit(window.currentLayer)">Edit</button>
@@ -37,7 +38,7 @@ function bukaMenuEdit(layer) {
     .setContent(`
       <b>${d.nama}</b><br><br>
       Mau edit apa?<br><br>
-      <button onclick="editAtributLayer()">Edit Nama & Status</button><br><br>
+      <button onclick="editAtributLayer()">Edit Atribut</button><br><br>
       <button onclick="editGeometriLayer()">Edit Bentuk Geometri</button>
     `)
     .openOn(map);
@@ -52,8 +53,19 @@ function editAtributLayer() {
     .setContent(`
       <label>Nama</label><br>
       <input id="edit_nama" value="${d.nama}"><br><br>
+      
       <label>Status</label><br>
       <input id="edit_status" value="${d.status}"><br><br>
+
+      <label>Kategori</label><br>
+      <input id="edit_kategori" value="${d.kategori}"><br><br>
+
+      <label>Layer</label><br>
+      <input id="edit_layer" value="${d.layer}"><br><br>
+
+      <label>OPD</label><br>
+      <input id="edit_owner_opd" value="${d.owner_opd}"><br><br>
+      
       <button onclick="simpanEditAtribut()">Simpan</button>
     `)
     .openOn(map);
@@ -64,6 +76,9 @@ function simpanEditAtribut() {
 
   const nama = document.getElementById('edit_nama').value;
   const status = document.getElementById('edit_status').value;
+  const kategori = document.getElementById('edit_kategori').value;
+  const layerNama = document.getElementById('edit_layer').value;
+  const ownerOpd = document.getElementById('edit_owner_opd').value;
 
   fetch(GAS_URL, {
     method: "POST",
@@ -71,19 +86,48 @@ function simpanEditAtribut() {
       action: "update_atribut",
       id: layer._data.id,
       nama: nama,
-      status: status
+      status: status,
+      kategori: kategori,
+      layer: layerNama,
+      owner_opd: ownerOpd
     })
   })
   .then(res => res.text())
   .then(() => {
     layer._data.nama = nama;
     layer._data.status = status;
+    layer._data.kategori = kategori;
+    layer._data.layer = layerNama;
+    layer._data.owner_opd = ownerOpd;
     layer.closePopup();
     layer.openPopup(); // ini otomatis render popup A lagi
   });
 }
 
+function registerLayer(layer, data) {
+
+    const key = `${data.owner_opd}_${data.layer}`;
+
+    // kalau grup belum ada, buat dulu
+    if (!layerGroups[key]) {
+
+      layerGroups[key] = L.layerGroup();
+      
+      overlayMaps[key] = layerGroups[key];
+      
+      layerControl.addOverlay(layerGroups[key], key);
+      
+      map.addLayer(layerGroups[key]);
+
+    }
+
+    layerGroups[key].addLayer(layer);
+
+}
+
 function editGeometriLayer() {
+
+  
   // Cari tombol edit bawaan Leaflet Draw
   const editBtn = document.querySelector('.leaflet-draw-edit-edit');
 
@@ -99,6 +143,10 @@ const map = L.map('map').setView([-8.5, 119.9], 10);
 
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
+
+// Menyimpan grup layer berdasarkan OPD + Layer
+const layerGroups = {};
+const overlayMaps = {};
 
 // OSM (default)
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -127,7 +175,10 @@ const baseMaps = {
   "Satelit Esri": esriSat
 };
 
-L.control.layers(baseMaps).addTo(map);
+const layerControl = L.control.layers(
+    baseMaps,
+    overlayMaps
+).addTo(map);
 
 
 // ===============================
@@ -209,6 +260,9 @@ map.on(L.Draw.Event.CREATED, function (e) {
       <label>Status</label><br>
       <input type="text" id="status_lokasi"><br><br>
 
+      <label>Kategori</label><br>
+      <input type="text" id="kategori"><br><br>
+
       <label>Layer</label><br>
       <input type="text" id="layer_lokasi"><br><br>
 
@@ -225,6 +279,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
     const nama = document.getElementById("nama_lokasi").value;
     const status = document.getElementById("status_lokasi").value;
+    const kategori = document.getElementById("kategori").value;
     const layerNama = document.getElementById("layer_lokasi").value;
     const ownerOpd = document.getElementById("owner_opd").value;
 
@@ -237,6 +292,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   action: "create",
   nama: nama,
   status: status,
+  kategori: kategori,
   layer: layerNama,
   owner_opd: ownerOpd,
   geometry: geom
@@ -254,6 +310,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     id: resp.id,
     nama: nama,
     status: status,
+    kategori: kategori,
     layer: layerNama,
     owner_opd: ownerOpd,
     geometry: geom
@@ -262,6 +319,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   layer._data = dataBaru;
   
   attachEditMenu(layer, dataBaru);
+  registerLayer(layer, dataBaru);
 
   alert("Data tersimpan!");
 })
@@ -353,6 +411,7 @@ map.on('draw:deleted', function (e) {
         id: d.id,
         nama: d.nama,
         status: d.status,
+        kategori: d.kategori,
         layer: d.layer,
         owner_opd: d.owner_opd
       };
@@ -364,6 +423,7 @@ drawnItems.addLayer(layer);
 
 // popup edit
 attachEditMenu(layer, dataFix);
+registerLayer(layer, dataFix);
     });
 
   })

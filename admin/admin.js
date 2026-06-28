@@ -192,6 +192,7 @@ map.on('moveend', function () {
 // EVENT: TAMBAH DATA
 // ===============================
 map.on(L.Draw.Event.CREATED, function (e) {
+  console.log("CREATED EVENT JALAN");
 
   const layer = e.layer;
   const geom = layer.toGeoJSON().geometry;

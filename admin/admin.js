@@ -80,6 +80,16 @@ function simpanEditAtribut() {
   const layerNama = document.getElementById('edit_layer').value;
   const ownerOpd = document.getElementById('edit_owner_opd').value;
 
+console.log({
+    action: "update_atribut",
+    id: layer._data.id,
+    nama: nama,
+    status: status,
+    kategori: kategori,
+    layer: layerNama,
+    owner_opd: ownerOpd
+});
+  
   fetch(GAS_URL, {
     method: "POST",
     body: JSON.stringify({

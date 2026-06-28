@@ -378,7 +378,9 @@ map.on('draw:deleted', function (e) {
   .then(resp => {
     
     const data = resp.data;
+    console.log("=== DATA DARI GAS ===");
     console.log(data);
+    console.log(data[0]);
     
     data.forEach(d => {
       if (!d.geometry) return;

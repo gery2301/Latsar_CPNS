@@ -206,6 +206,12 @@ map.on(L.Draw.Event.CREATED, function (e) {
       <label>Status</label><br>
       <input type="text" id="status_lokasi"><br><br>
 
+      <label>Layer</label><br>
+      <input type="text" id="layer_lokasi"><br><br>
+
+      <label>Penanggung Jawab (OPD)</label><br>
+      <input type="text" id="owner_opd"><br><br>
+
       <button onclick="simpanData()">Simpan</button>
     </div>
   `;
@@ -216,6 +222,8 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
     const nama = document.getElementById("nama_lokasi").value;
     const status = document.getElementById("status_lokasi").value;
+    const layerNama = document.getElementById("layer_lokasi").value;
+    const ownerOpd = document.getElementById("owner_opd").value;
 
     if (!nama) {
       alert("Nama harus diisi");
@@ -226,6 +234,8 @@ map.on(L.Draw.Event.CREATED, function (e) {
   action: "create",
   nama: nama,
   status: status,
+  layer: layerNama,
+  owner_opd: ownerOpd,
   geometry: geom
 };
 
@@ -241,6 +251,8 @@ map.on(L.Draw.Event.CREATED, function (e) {
     id: resp.id,
     nama: nama,
     status: status,
+    layer: layerNama,
+    owner_opd: ownerOpd,
     geometry: geom
   };
 
@@ -337,7 +349,9 @@ map.on('draw:deleted', function (e) {
       const dataFix = {
         id: d.id,
         nama: d.nama,
-        status: d.status
+        status: d.status,
+        layer: d.layer,
+        owner_opd: d.owner_opd
       };
 
       layer._data = dataFix;

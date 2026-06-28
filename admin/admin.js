@@ -17,6 +17,8 @@ function attachEditMenu(layer, data) {
     return `
       <b>${d.nama}</b><br>
       Status: ${d.status}<br><br>
+      Layer : ${d.layer}<br>
+      OPD : ${d.owner_opd}<br><br>
       <button onclick="bukaMenuEdit(window.currentLayer)">Edit</button>
     `;
   });

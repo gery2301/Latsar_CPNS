@@ -379,7 +379,7 @@ map.on('draw:deleted', function (e) {
     
     const data = resp.data;
     console.log("=== DATA DARI GAS ===");
-    console.log(data);
+    console.table(data);
     console.log(data[0]);
     
     data.forEach(d => {

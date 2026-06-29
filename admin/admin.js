@@ -11,7 +11,18 @@ let masterLayer = [];
 
 async function loadMasterLayer() {
 
-  function getLayerOptions(selected = "") {
+  const res = await fetch(GAS_URL + "?action=master");
+  masterLayer = await res.json();
+
+  console.log("=== MASTER LAYER ===");
+  console.table(masterLayer);
+
+}
+
+// ===============================
+// MEMBUAT OPTION DROPDOWN
+// ===============================
+function getLayerOptions(selected = "") {
 
   return masterLayer.map(item => {
 
@@ -20,14 +31,6 @@ async function loadMasterLayer() {
     return `<option value="${item.layer}" ${pilih}>${item.layer}</option>`;
 
   }).join("");
-
-}
-
-  const res = await fetch(GAS_URL + "?action=master");
-  masterLayer = await res.json();
-
-  console.log("=== MASTER LAYER ===");
-  console.table(masterLayer);
 
 }
 

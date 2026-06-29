@@ -4,6 +4,22 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
 
 // ===============================
+// MASTER LAYER
+// ===============================
+
+let masterLayer = [];
+
+async function loadMasterLayer() {
+
+  const res = await fetch(GAS_URL + "?action=master");
+  masterLayer = await res.json();
+
+  console.log("=== MASTER LAYER ===");
+  console.table(masterLayer);
+
+}
+
+// ===============================
 // FUNGSI GLOBAL: MENU EDIT PER LAYER
 // ===============================
 
@@ -440,4 +456,5 @@ registerLayer(layer, dataFix);
 
   })
   .catch(err => console.error(err));
+loadMasterLayer();
 

@@ -11,6 +11,18 @@ let masterLayer = [];
 
 async function loadMasterLayer() {
 
+  function getLayerOptions(selected = "") {
+
+  return masterLayer.map(item => {
+
+    const pilih = item.layer === selected ? "selected" : "";
+
+    return `<option value="${item.layer}" ${pilih}>${item.layer}</option>`;
+
+  }).join("");
+
+}
+
   const res = await fetch(GAS_URL + "?action=master");
   masterLayer = await res.json();
 

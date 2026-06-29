@@ -8,12 +8,14 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // ===============================
 
 let masterLayer = [];
+let masterReady = false;
 
 async function loadMasterLayer() {
 
   const res = await fetch(GAS_URL + "?action=master");
   masterLayer = await res.json();
-
+  masterReady = true;
+  
   console.log("=== MASTER LAYER ===");
   console.table(masterLayer);
 
@@ -306,7 +308,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
       <input type="text" id="kategori"><br><br>
 
       <label>Layer</label><br>
-      <input type="text" id="layer_lokasi"><br><br>
+      <select id="layer_lokasi"></select><br><br>
 
       <label>Penanggung Jawab (OPD)</label><br>
       <input type="text" id="owner_opd"><br><br>
@@ -316,6 +318,11 @@ map.on(L.Draw.Event.CREATED, function (e) {
   `;
 
  layer.bindPopup(form).openPopup();
+  setTimeout(() => {
+  if (masterReady && document.getElementById("layer_lokasi")) {
+    document.getElementById("layer_lokasi").innerHTML = getLayerOptions();
+  }
+  }, 100);
 
   window.simpanData = function() {
 

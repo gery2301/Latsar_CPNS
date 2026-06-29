@@ -133,6 +133,7 @@ console.log({
 function registerLayer(layer, data) {
 
     const key = `${data.owner_opd}_${data.layer}`;
+    console.log("REGISTER:", JSON.stringify(key));
 
     // kalau grup belum ada, buat dulu
     if (!layerGroups[key]) {

@@ -90,18 +90,24 @@ function editAtributLayer() {
       <label>Status</label><br>
       <input id="edit_status" value="${d.status}"><br><br>
 
-      <label>Kategori</label><br>
-      <input id="edit_kategori" value="${d.kategori}"><br><br>
-
       <label>Layer</label><br>
-      <input id="edit_layer" value="${d.layer}"><br><br>
-
-      <label>OPD</label><br>
-      <input id="edit_owner_opd" value="${d.owner_opd}"><br><br>
+      <select id="edit_layer"></select><br><br>
       
       <button onclick="simpanEditAtribut()">Simpan</button>
     `)
     .openOn(map);
+
+  setTimeout(() => {
+
+  if (masterReady && document.getElementById("edit_layer")) {
+
+    document.getElementById("edit_layer").innerHTML =
+      getLayerOptions(d.layer);
+
+  }
+
+},100);
+  
 }
 
 function simpanEditAtribut() {
@@ -109,9 +115,15 @@ function simpanEditAtribut() {
 
   const nama = document.getElementById('edit_nama').value;
   const status = document.getElementById('edit_status').value;
-  const kategori = document.getElementById('edit_kategori').value;
   const layerNama = document.getElementById('edit_layer').value;
-  const ownerOpd = document.getElementById('edit_owner_opd').value;
+  const master =
+  masterLayer.find(item => item.layer === layerNama);
+
+  const kategori =
+  master ? master.kategori : "";
+
+  const ownerOpd =
+  master ? master.owner_opd : "";
 
 console.log({
     action: "update_atribut",

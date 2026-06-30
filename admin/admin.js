@@ -304,14 +304,8 @@ map.on(L.Draw.Event.CREATED, function (e) {
       <label>Status</label><br>
       <input type="text" id="status_lokasi"><br><br>
 
-      <label>Kategori</label><br>
-      <input type="text" id="kategori"><br><br>
-
       <label>Layer</label><br>
       <select id="layer_lokasi"></select><br><br>
-
-      <label>Penanggung Jawab (OPD)</label><br>
-      <input type="text" id="owner_opd"><br><br>
 
       <button onclick="simpanData()">Simpan</button>
     </div>
@@ -328,9 +322,13 @@ map.on(L.Draw.Event.CREATED, function (e) {
 
     const nama = document.getElementById("nama_lokasi").value;
     const status = document.getElementById("status_lokasi").value;
-    const kategori = document.getElementById("kategori").value;
     const layerNama = document.getElementById("layer_lokasi").value;
-    const ownerOpd = document.getElementById("owner_opd").value;
+
+    // cari data master berdasarkan layer yang dipilih
+    const master = masterLayer.find(item => item.layer === layerNama);
+    
+    const kategori = master ? master.kategori : "";
+    const ownerOpd = master ? master.owner_opd : "";
 
     if (!nama) {
       alert("Nama harus diisi");

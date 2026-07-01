@@ -383,7 +383,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   setTimeout(() => {
   if (masterReady && document.getElementById("layer_lokasi")) {
     document.getElementById("layer_lokasi").innerHTML = getLayerOptions();
-   
+     layer.getPopup().update();
     const ddl = document.getElementById("layer_lokasi");
 
 function updateInfoLayer(){

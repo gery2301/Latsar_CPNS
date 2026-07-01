@@ -20,3 +20,39 @@
       font-size: 14px;
     }
   
+/* ===============================
+   POPUP FORM
+=============================== */
+
+.popup-input,
+.popup-select {
+    width: 100%;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-top: 4px;
+    margin-bottom: 10px;
+}
+
+.popup-input:focus,
+.popup-select:focus {
+    outline: none;
+    border-color: #1976d2;
+}
+
+.popup-button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #1976d2;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.popup-button:hover {
+    background: #1565c0;
+}

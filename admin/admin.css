@@ -57,12 +57,10 @@
     background: #1565c0;
 }
 
-.leaflet-popup-content{
-    min-width:320px;
+.leaflet-popup-content-wrapper{
+    border-radius:10px;
 }
 
-atau
-
 .leaflet-popup-content{
-    width:320px;
+    margin:16px;
 }

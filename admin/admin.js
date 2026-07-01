@@ -51,6 +51,7 @@ function attachEditMenu(layer, data) {
       <b>${d.nama}</b><br>
       Status: ${d.status}<br><br>
       Kategori : ${d.kategori}<br><br>
+      Tema : ${d.tema}<br><br>
       Layer : ${d.layer}<br>
       OPD : ${d.owner_opd}<br><br>
       <button onclick="bukaMenuEdit(window.currentLayer)">Edit</button>
@@ -92,6 +93,12 @@ function editAtributLayer() {
 
       <label>Layer</label><br>
       <select id="edit_layer"></select><br><br>
+
+      <label>Tema</label><br>
+      <input id="edit_tema" readonly><br><br>
+
+      <label>OPD</label><br>
+      <input id="edit_owner" readonly><br><br>
       
       <button onclick="simpanEditAtribut()">Simpan</button>
     `)
@@ -103,6 +110,25 @@ function editAtributLayer() {
 
     document.getElementById("edit_layer").innerHTML =
       getLayerOptions(d.layer);
+    const ddl = document.getElementById("edit_layer");
+
+function updateInfoLayer(){
+
+    const master = masterLayer.find(
+        item => item.layer === ddl.value
+    );
+
+    document.getElementById("edit_tema").value =
+        master ? master.tema : "";
+
+    document.getElementById("edit_owner").value =
+        master ? master.owner_opd : "";
+
+}
+
+updateInfoLayer();
+
+ddl.addEventListener("change", updateInfoLayer);
 
   }
 
@@ -122,6 +148,9 @@ function simpanEditAtribut() {
   const kategori =
   master ? master.kategori : "";
 
+  const tema =
+  master ? master.tema : "";
+  
   const ownerOpd =
   master ? master.owner_opd : "";
 
@@ -131,6 +160,7 @@ console.log({
     nama: nama,
     status: status,
     kategori: kategori,
+    tema: tema,
     layer: layerNama,
     owner_opd: ownerOpd
 });
@@ -143,20 +173,38 @@ console.log({
       nama: nama,
       status: status,
       kategori: kategori,
+      tema: tema,
       layer: layerNama,
       owner_opd: ownerOpd
     })
   })
   .then(res => res.text())
-  .then(() => {
+  .then(msg => {
+
+    msg = msg.trim();
+    if (msg !== "atribut updated") {
+        alert(msg);
+        return;
+    }
     layer._data.nama = nama;
     layer._data.status = status;
     layer._data.kategori = kategori;
+    layer._data.tema = tema;
     layer._data.layer = layerNama;
     layer._data.owner_opd = ownerOpd;
+
+    // hapus dari seluruh group lama
+    Object.values(layerGroups).forEach(g => g.removeLayer(layer));
+
+    // masukkan lagi sesuai layer baru
+    registerLayer(layer, layer._data);    
+    
     layer.closePopup();
     layer.openPopup(); // ini otomatis render popup A lagi
-  });
+  })
+   .catch(err => {
+    alert("Gagal menyimpan atribut: " + err) ;
+});
 }
 
 function registerLayer(layer, data) {
@@ -319,6 +367,12 @@ map.on(L.Draw.Event.CREATED, function (e) {
       <label>Layer</label><br>
       <select id="layer_lokasi"></select><br><br>
 
+      <label>Tema</label><br>
+      <input id="tema_lokasi" readonly><br><br>
+
+      <label>OPD</label><br>
+      <input id="owner_lokasi" readonly><br><br>
+
       <button onclick="simpanData()">Simpan</button>
     </div>
   `;
@@ -327,6 +381,27 @@ map.on(L.Draw.Event.CREATED, function (e) {
   setTimeout(() => {
   if (masterReady && document.getElementById("layer_lokasi")) {
     document.getElementById("layer_lokasi").innerHTML = getLayerOptions();
+   
+    const ddl = document.getElementById("layer_lokasi");
+
+function updateInfoLayer(){
+
+    const master = masterLayer.find(
+        item => item.layer === ddl.value
+    );
+
+    document.getElementById("tema_lokasi").value =
+        master ? master.tema : "";
+
+    document.getElementById("owner_lokasi").value =
+        master ? master.owner_opd : "";
+
+}
+
+updateInfoLayer();
+
+ddl.addEventListener("change", updateInfoLayer);
+    
   }
   }, 100);
 
@@ -341,6 +416,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     
     const kategori = master ? master.kategori : "";
     const ownerOpd = master ? master.owner_opd : "";
+    const tema = master ? master.tema : "";
 
     if (!nama) {
       alert("Nama harus diisi");
@@ -352,6 +428,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   nama: nama,
   status: status,
   kategori: kategori,
+  tema:tema,   
   layer: layerNama,
   owner_opd: ownerOpd,
   geometry: geom
@@ -370,6 +447,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     nama: nama,
     status: status,
     kategori: kategori,
+    tema: tema,   
     layer: layerNama,
     owner_opd: ownerOpd,
     geometry: geom
@@ -381,6 +459,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
   registerLayer(layer, dataBaru);
 
   alert("Data tersimpan!");
+  map.closePopup();
 })
 .catch(err => alert("Gagal menyimpan data: " + err));
   };
@@ -404,7 +483,16 @@ map.on('draw:edited', function (e) {
       })
     })
     .then(res => res.text())
-    .then(msg => alert("Data berhasil diperbarui"))
+    .then(msg => {
+
+      msg = msg.trim();
+
+      if(msg !== "updated"){
+        alert(msg);
+        return;
+    }
+      alert("Data berhasil diperbarui");
+    })
     .catch(err => alert("Gagal update data: " + err));
   });
 });
@@ -424,7 +512,17 @@ map.on('draw:deleted', function (e) {
       })
     })
     .then(res => res.text())
-    .then(msg => alert("Data terhapus"))
+    .then(msg => {
+      
+    msg = msg.trim();
+
+    if(msg !== "deleted"){
+        alert(msg);
+        return;
+    }
+      
+      alert("Data terhapus");
+    })
     .catch(err => alert("Gagal hapus data: " + err));
   });
 });
@@ -473,6 +571,7 @@ map.on('draw:deleted', function (e) {
         nama: d.nama,
         status: d.status,
         kategori: d.kategori,
+        tema:d.tema,
         layer: d.layer,
         owner_opd: d.owner_opd
       };

@@ -86,21 +86,21 @@ function editAtributLayer() {
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
       <label>Nama</label><br>
-      <input id="edit_nama" value="${d.nama}"><br><br>
+     <input class="popup-input" id="edit_nama" value="${d.nama}"><br><br>
       
       <label>Status</label><br>
-      <input id="edit_status" value="${d.status}"><br><br>
+     <input class="popup-input" id="edit_status" value="${d.status}"><br><br>
 
       <label>Layer</label><br>
-      <select id="edit_layer"></select><br><br>
+      <select class="popup-select" id="edit_layer"></select><br><br>
 
       <label>Tema</label><br>
-      <input id="edit_tema" readonly><br><br>
+      <input class="popup-input" id="edit_tema" readonly><br><br>
 
       <label>OPD</label><br>
-      <input id="edit_owner" readonly><br><br>
+      <input class="popup-input" id="edit_owner" readonly><br><br>
       
-      <button onclick="simpanEditAtribut()">Simpan</button>
+      <button class="popup-button" onclick="simpanEditAtribut()">Simpan</button>
     `)
     .openOn(map);
 
@@ -359,23 +359,25 @@ map.on(L.Draw.Event.CREATED, function (e) {
   const form = `
     <div>
       <label>Nama Lokasi</label><br>
-      <input type="text" id="nama_lokasi"><br><br>
+      <input class="popup-input" type="text" id="nama_lokasi">
 
       <label>Status</label><br>
-      <input type="text" id="status_lokasi"><br><br>
+       <input class="popup-input" type="text" id="status_lokasi">
 
       <label>Layer</label><br>
-      <select id="layer_lokasi"></select><br><br>
+      <select class="popup-select" id="layer_lokasi"></select>
 
       <label>Tema</label><br>
-      <input id="tema_lokasi" readonly><br><br>
+      <input class="popup-input" id="tema_lokasi" readonly>
 
       <label>OPD</label><br>
-      <input id="owner_lokasi" readonly><br><br>
+      <input class="popup-input" id="owner_lokasi" readonly>
 
-      <button onclick="simpanData()">Simpan</button>
-    </div>
-  `;
+      <button class="popup-button" onclick="simpanData()">
+        Simpan
+      </button>
+          </div>
+        `;
 
  layer.bindPopup(form).openPopup();
   setTimeout(() => {

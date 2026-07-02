@@ -82,25 +82,29 @@ function editAtributLayer() {
   const layer = window.currentLayer;
   const d = layer._data;
 
-  L.popup()
+  L.popup({
+    minWidth: 380,
+    maxWidth: 380
+})
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
-      <label>Nama</label><br>
-     <input class="popup-input" id="edit_nama" value="${d.nama}"><br><br>
+    <div class="popup-form">
+      <label class="popup-label">Nama</label><br>
+      <input class="popup-input" id="edit_nama" value="${d.nama}"><br><br>
       
-      <label>Status</label><br>
-     <input class="popup-input" id="edit_status" value="${d.status}"><br><br>
+      <label class="popup-label">Status</label><br>
+      <input class="popup-input" id="edit_status" value="${d.status}"><br><br>
 
-      <label>Layer</label><br>
+      <label class="popup-label">Layer</label><br>
       <select class="popup-select" id="edit_layer"></select><br><br>
 
-      <label>Tema</label><br>
+      <label class="popup-label">Tema</label><br>
       <input class="popup-input" id="edit_tema" readonly><br><br>
 
-      <label>OPD</label><br>
+      <label class="popup-label">OPD</label><br>
       <input class="popup-input" id="edit_owner" readonly><br><br>
       
-      <button class="popup-button" onclick="simpanEditAtribut()">Simpan</button>
+      <button class="popup-button" onclick="simpanEditAtribut()">Simpan</button></div>
     `)
     .openOn(map);
 
@@ -383,6 +387,15 @@ map.on(L.Draw.Event.CREATED, function (e) {
     minWidth:420,
     maxWidth:420
 }).openPopup();
+  let sudahDisimpan = false;
+
+layer.on("popupclose", function () {
+
+    if (!sudahDisimpan) {
+        drawnItems.removeLayer(layer);
+    }
+
+});
   
   setTimeout(() => {
   if (masterReady && document.getElementById("layer_lokasi")) {
@@ -446,6 +459,7 @@ ddl.addEventListener("change", updateInfoLayer);
 })
 .then(res => res.json())
 .then(resp => {
+  sudahDisimpan = true;
   layer.options.id = resp.id;
 
   const dataBaru = {

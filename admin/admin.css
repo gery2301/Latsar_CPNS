@@ -64,3 +64,22 @@
 .leaflet-popup-content{
     margin:16px;
 }
+
+.popup-title{
+    font-size:18px;
+    font-weight:bold;
+    margin-bottom:15px;
+}
+
+.popup-info{
+    margin-bottom:12px;
+    line-height:1.5;
+}
+
+.popup-button-secondary{
+    background:#43a047;
+}
+
+.popup-button-secondary:hover{
+    background:#2e7d32;
+}

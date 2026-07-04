@@ -155,7 +155,10 @@ function editAtributLayer() {
       <label class="popup-label">OPD</label><br>
       <input class="popup-input" id="edit_owner" readonly><br><br>
       
-      <button class="popup-button" onclick="simpanEditAtribut()">Simpan</button></div>
+      <button
+      id="btnEdit"
+      class="popup-button"
+      onclick="simpanEditAtribut()">Simpan</button></div>
     `)
     .openOn(map);
 
@@ -428,8 +431,11 @@ map.on(L.Draw.Event.CREATED, function (e) {
       <label>OPD</label><br>
       <input class="popup-input" id="owner_lokasi" readonly>
 
-      <button class="popup-button" onclick="simpanData()">
-        Simpan
+      <button
+        id="btnSimpan"
+        class="popup-button"
+        onclick="simpanData()">
+            Simpan
       </button>
           </div>
         `;
@@ -493,6 +499,11 @@ ddl.addEventListener("change", updateInfoLayer);
       return;
     }
 
+    const btn = document.getElementById("btnSimpan");
+
+btn.disabled = true;
+btn.innerHTML = "⏳ Menyimpan...";
+
     const payload = {
   action: "create",
   nama: nama,
@@ -529,8 +540,12 @@ ddl.addEventListener("change", updateInfoLayer);
   attachEditMenu(layer, dataBaru);
   registerLayer(layer, dataBaru);
 
-  alert("Data tersimpan!");
-  map.closePopup();
+  btn.innerHTML = "✓ Tersimpan";
+  setTimeout(() => {
+
+    map.closePopup();
+
+}, 400);
 })
 .catch(err => alert("Gagal menyimpan data: " + err));
   };

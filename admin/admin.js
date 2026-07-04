@@ -235,7 +235,7 @@ function registerLayer(layer, data) {
 
 function editGeometriLayer() {
 
-  
+   map.closePopup();
   // Cari tombol edit bawaan Leaflet Draw
   const editBtn = document.querySelector('.leaflet-draw-edit-edit');
 

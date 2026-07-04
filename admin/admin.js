@@ -48,13 +48,38 @@ function attachEditMenu(layer, data) {
     const d = layer._data;
     window.currentLayer = layer;
     return `
-      <b>${d.nama}</b><br>
-      Status: ${d.status}<br><br>
-      Kategori : ${d.kategori}<br><br>
-      Tema : ${d.tema}<br><br>
-      Layer : ${d.layer}<br>
-      OPD : ${d.owner_opd}<br><br>
-      <button onclick="bukaMenuEdit(window.currentLayer)">Edit</button>
+     <div class="popup-form">
+
+      <div class="popup-title">
+      ${d.nama}
+      </div>
+      
+      <div class="popup-info">
+      <b>Status</b><br>
+      ${d.status}
+      </div>
+      
+      <div class="popup-info">
+      <b>Kategori</b><br>
+      ${d.kategori}
+      </div>
+      
+      <div class="popup-info">
+      <b>Tema</b><br>
+      ${d.tema}
+      </div>
+      
+      <div class="popup-info">
+      <b>Layer</b><br>
+      ${d.layer}
+      </div>
+      
+      <div class="popup-info">
+      <b>OPD</b><br>
+      ${d.owner_opd}
+      </div>
+      <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
+      </div>
     `;
   });
 
@@ -70,10 +95,36 @@ function bukaMenuEdit(layer) {
    L.popup()
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
-      <b>${d.nama}</b><br><br>
-      Mau edit apa?<br><br>
-      <button onclick="editAtributLayer()">Edit Atribut</button><br><br>
-      <button onclick="editGeometriLayer()">Edit Bentuk Geometri</button>
+      <div class="popup-form">
+
+      <div class="popup-title">
+      ${d.nama}
+      </div>
+      
+      <div class="popup-info">
+      Pilih tindakan yang ingin dilakukan
+      </div>
+      
+      <button
+      class="popup-button"
+      onclick="editAtributLayer()">
+      
+      ✏ Edit Atribut
+      
+      </button>
+      
+      <br><br>
+      
+      <button
+      class="popup-button popup-button-secondary"
+      onclick="editGeometriLayer()">
+      
+      📐 Edit Geometri
+      
+      </button>
+      
+      </div>
+
     `)
     .openOn(map);
 }

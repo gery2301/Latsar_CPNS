@@ -530,6 +530,16 @@ btn.innerHTML = "⏳ Menyimpan...";
 })
 .then(res => res.json())
 .then(resp => {
+
+.then(resp => {
+
+    if (!resp.id) {
+        alert("Server tidak mengembalikan ID.");
+        return;
+    }
+
+    createState.saved = true;
+  
   createState.saved = true;
   layer.options.id = resp.id;
 
@@ -556,10 +566,17 @@ btn.innerHTML = "⏳ Menyimpan...";
 
 }, 400);
 })
-.catch(err => alert("Gagal menyimpan data: " + err));
-  };
+.catch(err => {
+
+    btn.disabled = false;
+    btn.innerHTML = "Simpan";
+
+    alert("Gagal menyimpan data: " + err);
 
 });
+  };
+
+}); 
 
 // ===============================
 // EVENT: EDIT DATA
@@ -625,7 +642,7 @@ map.on('draw:deleted', function (e) {
 // ===============================
 // LOAD DATA AWAL
 // ===============================
- fetch("https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec")
+fetch(GAS_URL)
        .then(res => res.json())
   .then(resp => {
     

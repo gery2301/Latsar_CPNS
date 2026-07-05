@@ -406,11 +406,20 @@ map.on('moveend', function () {
 // ===============================
 // EVENT: TAMBAH DATA
 // ===============================
+let createState = {
+    layer: null,
+    geom: null,
+    saved: false
+};
 map.on(L.Draw.Event.CREATED, function (e) {
   console.log("CREATED EVENT JALAN");
 
-  const layer = e.layer;
-  const geom = layer.toGeoJSON().geometry;
+   createState.layer = e.layer;
+    createState.geom = e.layer.toGeoJSON().geometry;
+    createState.saved = false;
+
+const layer = createState.layer;
+const geom = createState.geom;
 
   drawnItems.addLayer(layer);
 
@@ -444,11 +453,11 @@ map.on(L.Draw.Event.CREATED, function (e) {
     minWidth:420,
     maxWidth:420
 }).openPopup();
-  let sudahDisimpan = false;
+  
 
 layer.on("popupclose", function () {
 
-    if (!sudahDisimpan) {
+   if (!createState.saved) {
         drawnItems.removeLayer(layer);
     }
 
@@ -521,7 +530,7 @@ btn.innerHTML = "⏳ Menyimpan...";
 })
 .then(res => res.json())
 .then(resp => {
-  sudahDisimpan = true;
+  createState.saved = true;
   layer.options.id = resp.id;
 
   const dataBaru = {

@@ -541,7 +541,7 @@ btn.innerHTML = "⏳ Menyimpan...";
     tema: tema,   
     layer: layerNama,
     owner_opd: ownerOpd,
-    geometry: geom
+    geometry: createState.layer.toGeoJSON().geometry
   };
 
   layer._data = dataBaru;

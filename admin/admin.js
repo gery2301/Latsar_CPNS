@@ -419,7 +419,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     createState.saved = false;
 
 const layer = createState.layer;
-const geom = createState.geom;
+
 
   drawnItems.addLayer(layer);
 
@@ -521,7 +521,7 @@ btn.innerHTML = "⏳ Menyimpan...";
   tema:tema,   
   layer: layerNama,
   owner_opd: ownerOpd,
-  createState.layer.toGeoJSON().geometry
+  geometry: createState.layer.toGeoJSON().geometry
 };
 
     fetch(GAS_URL, {

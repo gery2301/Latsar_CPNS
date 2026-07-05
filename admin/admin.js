@@ -561,6 +561,8 @@ btn.innerHTML = "⏳ Menyimpan...";
   setTimeout(() => {
 
     map.closePopup();
+    attachEditMenu(layer, dataBaru);
+    layer.openPopup();
 
 }, 400);
 })

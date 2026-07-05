@@ -521,7 +521,7 @@ btn.innerHTML = "⏳ Menyimpan...";
   tema:tema,   
   layer: layerNama,
   owner_opd: ownerOpd,
-  geometry: geom
+  createState.layer.toGeoJSON().geometry
 };
 
     fetch(GAS_URL, {

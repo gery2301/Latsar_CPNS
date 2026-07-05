@@ -533,6 +533,7 @@ btn.innerHTML = "⏳ Menyimpan...";
 
 
     if (!resp.id) {
+      console.log(resp);
         alert("Server tidak mengembalikan ID.");
         return;
     }

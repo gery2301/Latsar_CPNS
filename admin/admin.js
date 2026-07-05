@@ -531,14 +531,12 @@ btn.innerHTML = "⏳ Menyimpan...";
 .then(res => res.json())
 .then(resp => {
 
-.then(resp => {
 
     if (!resp.id) {
         alert("Server tidak mengembalikan ID.");
         return;
     }
 
-    createState.saved = true;
   
   createState.saved = true;
   layer.options.id = resp.id;

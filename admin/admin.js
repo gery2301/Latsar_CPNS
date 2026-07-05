@@ -531,9 +531,8 @@ btn.innerHTML = "⏳ Menyimpan...";
 .then(res => res.json())
 .then(resp => {
 
-
+    console.log(resp);
     if (!resp.id) {
-      console.log(resp);
         alert("Server tidak mengembalikan ID.");
         return;
     }

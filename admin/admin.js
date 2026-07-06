@@ -223,6 +223,11 @@ console.log({
     layer: layerNama,
     owner_opd: ownerOpd
 });
+
+const btn = document.getElementById("btnEdit");
+
+btn.disabled = true;
+btn.innerHTML = "⏳ Menyimpan...";
   
   fetch(GAS_URL, {
     method: "POST",
@@ -258,10 +263,21 @@ console.log({
     // masukkan lagi sesuai layer baru
     registerLayer(layer, layer._data);    
     
-    layer.closePopup();
-    layer.openPopup(); // ini otomatis render popup A lagi
+    btn.innerHTML = "✓ Tersimpan";
+
+setTimeout(() => {
+
+    map.closePopup();
+
+    attachEditMenu(layer, layer._data);
+
+    layer.openPopup();
+
+}, 500);
   })
    .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = "Simpan";
     alert("Gagal menyimpan atribut: " + err) ;
 });
 }

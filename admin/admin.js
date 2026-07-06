@@ -80,6 +80,12 @@ function attachEditMenu(layer, data) {
       ${d.owner_opd}
       </div>
       <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
+      <br><br>
+      <button
+      class="popup-button popup-button-danger"
+      onclick="hapusLayerSekarang()">
+      🗑 Hapus Data
+      </button>
       </div>
     `;
   });

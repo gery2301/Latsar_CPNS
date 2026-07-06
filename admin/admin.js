@@ -702,6 +702,7 @@ map.on('draw:edited', function (e) {
     editGroup.clearLayers();
     alert("Gagal update data: " + err);
     });
+  });
 });
 
 // ===============================

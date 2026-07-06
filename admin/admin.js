@@ -123,6 +123,16 @@ function bukaMenuEdit(layer) {
       📐 Edit Geometri
       
       </button>
+
+      <br><br>
+
+      <button
+      class="popup-button popup-button-danger"
+      onclick="hapusLayerSekarang()">
+      
+      🗑 Hapus Data
+      
+      </button>
       
       </div>
 
@@ -313,6 +323,49 @@ function editGeometriLayer() {
   if (editBtn) {
     editBtn.click(); // otomatis masuk mode edit NORMAL
   }
+}
+
+function hapusLayerSekarang(){
+
+    const layer = window.currentLayer;
+
+    if(!layer) return;
+
+    if(!confirm("Yakin ingin menghapus data ini?")){
+        return;
+    }
+
+    fetch(GAS_URL,{
+        method:"POST",
+        body:JSON.stringify({
+            action:"delete",
+            id:layer.options.id
+        })
+    })
+    .then(res=>res.text())
+    .then(msg=>{
+
+        msg = msg.trim();
+
+        if(msg !== "deleted"){
+            alert(msg);
+            return;
+        }
+
+        Object.values(layerGroups)
+            .forEach(g=>g.removeLayer(layer));
+
+        drawnItems.removeLayer(layer);
+
+        map.closePopup();
+
+        alert("Data berhasil dihapus");
+
+    })
+    .catch(err=>{
+        alert("Gagal menghapus : "+err);
+    });
+
 }
 
 // ===============================

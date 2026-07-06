@@ -339,6 +339,7 @@ function editGeometriLayer() {
     });
 
     editToolbar.enable();
+    showEditHint();
 
 }
 function hapusLayerSekarang(){
@@ -397,6 +398,49 @@ const editGroup = new L.FeatureGroup();
 map.addLayer(editGroup);
 
 let editToolbar = null;
+let editHint = null;
+
+function showEditHint(){
+
+    hideEditHint();
+
+    editHint = document.createElement("div");
+
+    editHint.id = "editHint";
+
+    editHint.innerHTML = `
+        ✏ Sedang Edit Geometri<br>
+        <small>Enter = Simpan &nbsp;&nbsp; Esc = Batal</small>
+    `;
+
+    Object.assign(editHint.style,{
+        position:"absolute",
+        top:"15px",
+        right:"15px",
+        background:"#222",
+        color:"#fff",
+        padding:"10px 14px",
+        borderRadius:"8px",
+        zIndex:9999,
+        fontSize:"13px",
+        boxShadow:"0 2px 8px rgba(0,0,0,.3)"
+    });
+
+    document.body.appendChild(editHint);
+
+}
+
+function hideEditHint(){
+
+    if(editHint){
+
+        editHint.remove();
+
+        editHint = null;
+
+    }
+
+}
 
 // Menyimpan grup layer berdasarkan OPD + Layer
 const layerGroups = {};

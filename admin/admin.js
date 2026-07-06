@@ -322,15 +322,25 @@ function registerLayer(layer, data) {
 
 function editGeometriLayer() {
 
-   map.closePopup();
-  // Cari tombol edit bawaan Leaflet Draw
-  const editBtn = document.querySelector('.leaflet-draw-edit-edit');
+  map.closePopup();
 
-  if (editBtn) {
-    editBtn.click(); // otomatis masuk mode edit NORMAL
-  }
+    editGroup.clearLayers();
+
+    const layer = window.currentLayer;
+
+    editGroup.addLayer(layer);
+
+    if (editToolbar) {
+        map.removeControl(editToolbar);
+    }
+
+    editToolbar = new L.EditToolbar.Edit(map, {
+        featureGroup: editGroup
+    });
+
+    editToolbar.enable();
+
 }
-
 function hapusLayerSekarang(){
 
     const layer = window.currentLayer;
@@ -381,6 +391,12 @@ const map = L.map('map').setView([-8.5, 119.9], 10);
 
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
+
+// Layer khusus edit geometri
+const editGroup = new L.FeatureGroup();
+map.addLayer(editGroup);
+
+let editToolbar = null;
 
 // Menyimpan grup layer berdasarkan OPD + Layer
 const layerGroups = {};
@@ -656,7 +672,7 @@ btn.innerHTML = "⏳ Menyimpan...";
 // EVENT: EDIT DATA
 // ===============================
 map.on('draw:edited', function (e) {
-  e.layers.eachLayer(function (layer) {
+  editGroup.eachLayer(function(layer){
     const geom = layer.toGeoJSON().geometry;
     const id = layer.options.id;
 
@@ -678,9 +694,14 @@ map.on('draw:edited', function (e) {
         return;
     }
       alert("Data berhasil diperbarui");
+      editToolbar.disable();
+      editGroup.clearLayers();
     })
-    .catch(err => alert("Gagal update data: " + err));
-  });
+    .catch(err => {
+    editToolbar.disable();
+    editGroup.clearLayers();
+    alert("Gagal update data: " + err);
+    });
 });
 
 // ===============================

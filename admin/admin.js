@@ -43,7 +43,8 @@ function getLayerOptions(selected = "") {
 
 function attachEditMenu(layer, data) {
   layer._data = data;
-
+  layer.off('click');
+  layer.unbindPopup();
   layer.bindPopup(() => {
     const d = layer._data;
     window.currentLayer = layer;
@@ -554,17 +555,15 @@ btn.innerHTML = "⏳ Menyimpan...";
 
   layer._data = dataBaru;
   
-  attachEditMenu(layer, dataBaru);
-  registerLayer(layer, dataBaru);
-
   btn.innerHTML = "✓ Tersimpan";
   setTimeout(() => {
 
     map.closePopup();
     attachEditMenu(layer, dataBaru);
+    registerLayer(layer, dataBaru);
     layer.openPopup();
 
-}, 400);
+}, 600);
 })
 .catch(err => {
 

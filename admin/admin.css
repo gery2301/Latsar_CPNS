@@ -95,3 +95,11 @@
     margin-left: -5px !important;
     margin-top: -5px !important;
 }
+
+.popup-button-danger{
+    background:#d32f2f;
+}
+
+.popup-button-danger:hover{
+    background:#b71c1c;
+}

@@ -399,7 +399,6 @@ const editToolbar = new L.EditToolbar.Edit(map,{
     featureGroup: editGroup
 });
 
-let editToolbar = null;
 let editHint = null;
 let editState = {
     mode: null,

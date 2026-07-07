@@ -339,6 +339,7 @@ function editGeometriLayer() {
     });
 
     editToolbar.enable();
+    map.getContainer().style.cursor = "crosshair";
     showEditHint();
 
 }
@@ -446,7 +447,7 @@ function showEditHint(){
         top:"18px",
         right:"18px",
         minWidth:"260px",
-        background:"rgba(25,25,25,.82)",
+        background:"rgba(30,30,30,.78)",
         backdropFilter:"blur(10px)",
         WebkitBackdropFilter:"blur(10px)",
         color:"#fff",
@@ -456,9 +457,11 @@ function showEditHint(){
         fontSize:"15px",
         fontFamily:"Inter, Segoe UI, sans-serif",
         lineHeight:"1.5",
-        boxShadow:"0 12px 36px rgba(0,0,0,.35)",
+        boxShadow:"0 14px 36px rgba(0,0,0,.28)",
         border:"1px solid rgba(255,255,255,.12)",
-        animation:"fadeHint .18s ease"
+        animation:"fadeHint .18s ease",
+        transition:"all .18s ease",
+        borderRadius:"18px"
     });
 
     document.body.appendChild(editHint);
@@ -779,7 +782,10 @@ map.on('draw:edited', function (e) {
     .catch(err => {
     editToolbar.disable();
     editGroup.clearLayers();
+    map.getContainer().style.cursor = "";
+    hideEditHint();
     alert("Gagal update data: " + err);
+      
     });
   });
 });

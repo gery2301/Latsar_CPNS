@@ -443,16 +443,20 @@ function showEditHint(){
 
     Object.assign(editHint.style,{
         position:"absolute",
-        top:"20px",
-        right:"20px",
+        top:"18px",
+        right:"18px",
         minWidth:"260px",
-        background:"#222",
+        background:"rgba(25,25,25,.82)",
+        backdropFilter:"blur(10px)",
+        WebkitBackdropFilter:"blur(10px)",
         color:"#fff",
-        padding:"16px 18px",
-        borderRadius:"14px",
+        padding:"18px 20px",
+        borderRadius:"18px",
         zIndex:9999,
-        fontSize:"13px",
-        boxShadow:"0 8px 30px rgba(0,0,0,.28)"
+        fontSize:"15px",
+        fontFamily:"Inter, Segoe UI, sans-serif",
+        lineHeight:"1.5",
+        boxShadow:"0 12px 36px rgba(0,0,0,.35)",
         border:"1px solid rgba(255,255,255,.12)",
         animation:"fadeHint .18s ease"
     });

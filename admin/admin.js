@@ -409,21 +409,52 @@ function showEditHint(){
     editHint.id = "editHint";
 
     editHint.innerHTML = `
-        ✏ Sedang Edit Geometri<br>
-        <small>Enter = Simpan &nbsp;&nbsp; Esc = Batal</small>
+       <div style="
+            font-size:17px;
+            font-weight:600;
+            margin-bottom:8px;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        ">
+            ✏️ <span>Mode Edit Geometri</span>
+        </div>
+
+        <div style="
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+            font-size:14px;
+        ">
+
+            <div>
+                <b>⏎ Enter</b>
+                <span style="opacity:.8;">&nbsp;Simpan perubahan</span>
+            </div>
+
+            <div>
+                <b>⎋ Esc</b>
+                <span style="opacity:.8;">&nbsp;Batalkan edit</span>
+            </div>
+
+        </div>
     `;
+
 
     Object.assign(editHint.style,{
         position:"absolute",
-        top:"15px",
-        right:"15px",
+        top:"20px",
+        right:"20px",
+        minWidth:"260px",
         background:"#222",
         color:"#fff",
-        padding:"10px 14px",
-        borderRadius:"8px",
+        padding:"16px 18px",
+        borderRadius:"14px",
         zIndex:9999,
         fontSize:"13px",
-        boxShadow:"0 2px 8px rgba(0,0,0,.3)"
+        boxShadow:"0 8px 30px rgba(0,0,0,.28)"
+        border:"1px solid rgba(255,255,255,.12)",
+        animation:"fadeHint .18s ease"
     });
 
     document.body.appendChild(editHint);

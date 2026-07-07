@@ -445,7 +445,7 @@ function showEditHint(){
     Object.assign(editHint.style,{
         position:"absolute",
         top:"18px",
-        right:"18px",
+        right:"120px",
         minWidth:"260px",
         background:"rgba(30,30,30,.78)",
         backdropFilter:"blur(10px)",
@@ -464,7 +464,7 @@ function showEditHint(){
         borderRadius:"18px"
     });
 
-    document.body.appendChild(editHint);
+    map.getContainer().appendChild(editHint);
 
 }
 
@@ -778,6 +778,8 @@ map.on('draw:edited', function (e) {
       alert("Data berhasil diperbarui");
       editToolbar.disable();
       editGroup.clearLayers();
+      hideEditHint();
+      map.getContainer().style.cursor = "";
     })
     .catch(err => {
     editToolbar.disable();

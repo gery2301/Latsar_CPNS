@@ -335,14 +335,6 @@ function editGeometriLayer() {
 
     editGroup.addLayer(layer);
 
-    if (editToolbar) {
-        map.removeControl(editToolbar);
-    }
-
-    editToolbar = new L.EditToolbar.Edit(map, {
-        featureGroup: editGroup
-    });
-
     editToolbar.enable();
     layer.closePopup();
     map.getContainer().style.cursor = "crosshair";
@@ -403,6 +395,9 @@ map.addLayer(drawnItems);
 // Layer khusus edit geometri
 const editGroup = new L.FeatureGroup();
 map.addLayer(editGroup);
+const editToolbar = new L.EditToolbar.Edit(map,{
+    featureGroup: editGroup
+});
 
 let editToolbar = null;
 let editHint = null;
@@ -919,7 +914,7 @@ map.on("draw:editmove", function () {
 });
 
 map.on('draw:edited', function (e) {
-    editGroup.eachLayer(function(layer){
+    e.layers.eachLayer(function(layer){
         const geom = layer.toGeoJSON().geometry;
         fetch(GAS_URL,{
             method:"POST",

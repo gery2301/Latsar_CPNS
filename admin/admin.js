@@ -928,6 +928,10 @@ map.on('draw:edited', function (e) {
         .then(res=>res.text())
         .then(msg=>{
             msg = msg.trim();
+          console.log("===== SEBELUM DISABLE =====");
+          console.log("drawnItems:", drawnItems.hasLayer(layer));
+          console.log("editGroup :", editGroup.hasLayer(layer));
+          console.log("map       :", map.hasLayer(layer));
             if(msg !== "updated"){
                 alert(msg);
                 return;
@@ -935,6 +939,11 @@ map.on('draw:edited', function (e) {
 
             editToolbar.disable();
             editGroup.clearLayers();
+
+          console.log("===== SESUDAH CLEAR =====");
+          console.log("drawnItems:", drawnItems.hasLayer(layer));
+          console.log("editGroup :", editGroup.hasLayer(layer));
+          console.log("map       :", map.hasLayer(layer));
 
             hideEditHint();
 
@@ -993,6 +1002,9 @@ map.on('draw:deleted', function (e) {
 // SHORTCUT KEYBOARD EDIT GEOMETRI
 // ===============================
 document.addEventListener("keydown", function(e){
+
+    console.log(e.key);
+    console.log(editState);
 
     // hanya aktif saat sedang edit geometri
     if(editState.mode !== "edit") return;

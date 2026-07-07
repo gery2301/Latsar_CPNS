@@ -327,6 +327,11 @@ function editGeometriLayer() {
     editGroup.clearLayers();
 
     const layer = window.currentLayer;
+    editState.mode = "edit";
+    editState.layer = layer;
+    editState.dirty = false;
+    editState.originalGeometry =
+    JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
 
     editGroup.addLayer(layer);
 
@@ -400,6 +405,13 @@ map.addLayer(editGroup);
 
 let editToolbar = null;
 let editHint = null;
+let editState = {
+    mode: null,
+    // "create" atau "edit"
+    layer: null,
+    dirty: false,
+    originalGeometry: null
+};
 
 function showEditHint(){
 
@@ -478,6 +490,141 @@ function hideEditHint(){
 
     }
 
+}
+
+function bukaKonfirmasiSimpan(){
+
+    const layer = editState.layer;
+
+    if(!layer) return;
+
+    L.popup({
+        minWidth:360,
+        maxWidth:360,
+        closeButton:false
+    })
+    .setLatLng(
+        layer.getLatLng ?
+        layer.getLatLng() :
+        layer.getBounds().getCenter()
+    )
+    .setContent(`
+
+        <div class="popup-form">
+
+            <div class="popup-title">
+                💾 Simpan Perubahan?
+            </div>
+
+            <div class="popup-info">
+                Apakah Anda sudah selesai mengedit geometri?
+            </div>
+
+            <br>
+
+            <button
+                class="popup-button"
+                onclick="konfirmasiSimpanYa()">
+
+                ✓ Ya, Simpan
+
+            </button>
+
+            <br><br>
+
+            <button
+                class="popup-button popup-button-secondary"
+                onclick="map.closePopup()">
+
+                ✏ Lanjutkan Edit
+
+            </button>
+
+        </div>
+
+    `)
+    .openOn(map);
+
+}
+
+function bukaKonfirmasiBatal(){
+
+    const layer = editState.layer;
+
+    if(!layer) return;
+
+    L.popup({
+        minWidth:360,
+        maxWidth:360,
+        closeButton:false
+    })
+    .setLatLng(
+        layer.getLatLng ?
+        layer.getLatLng() :
+        layer.getBounds().getCenter()
+    )
+    .setContent(`
+
+        <div class="popup-form">
+            <div class="popup-title">
+                ⚠ Batalkan Edit?
+            </div>
+
+            <div class="popup-info">
+                Semua perubahan geometri akan dibatalkan.
+            </div>
+            <br>
+            <button
+                class="popup-button popup-button-danger"
+                onclick="konfirmasiBatalYa()"> Ya, Batalkan
+            </button>
+            <br><br>
+            <button
+                class="popup-button popup-button-secondary"
+                onclick="map.closePopup()">
+                Kembali Mengedit
+            </button>
+        </div>
+    `)
+    .openOn(map);
+}
+
+// ===============================
+// KONFIRMASI SIMPAN
+// ===============================
+function konfirmasiSimpanYa(){
+    map.closePopup();
+    editToolbar.save();
+}
+
+// ===============================
+// KONFIRMASI BATAL
+// ===============================
+function konfirmasiBatalYa(){
+
+    map.closePopup();
+
+    editToolbar.revertLayers();
+
+    editToolbar.disable();
+
+    editGroup.clearLayers();
+
+    hideEditHint();
+
+    map.getContainer().style.cursor="";
+
+    if(editState.layer){
+        attachEditMenu(
+            editState.layer,
+            editState.layer._data
+        );
+        editState.layer.openPopup();
+    }
+    editState.mode = null;
+    editState.layer = null;
+    editState.dirty = false;
+    editState.originalGeometry = null;
 }
 
 // Menyimpan grup layer berdasarkan OPD + Layer
@@ -753,43 +900,59 @@ btn.innerHTML = "⏳ Menyimpan...";
 // ===============================
 // EVENT: EDIT DATA
 // ===============================
+
+// ===============================
+// DETEKSI PERUBAHAN GEOMETRI
+// ===============================
+
+map.on("draw:editvertex", function () {
+
+    editState.dirty = true;
+
+});
 map.on('draw:edited', function (e) {
-  editGroup.eachLayer(function(layer){
-    const geom = layer.toGeoJSON().geometry;
-    const id = layer.options.id;
+    editGroup.eachLayer(function(layer){
+        const geom = layer.toGeoJSON().geometry;
+        fetch(GAS_URL,{
+            method:"POST",
+            body:JSON.stringify({
 
-    fetch(GAS_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "update",
-        id: id,
-        geometry: geom
-      })
-    })
-    .then(res => res.text())
-    .then(msg => {
+                action:"update",
+                id:layer.options.id,
+                geometry:geom
+            })
+        })
 
-      msg = msg.trim();
+        .then(res=>res.text())
+        .then(msg=>{
+            msg = msg.trim();
+            if(msg !== "updated"){
+                alert(msg);
+                return;
+            }
 
-      if(msg !== "updated"){
-        alert(msg);
-        return;
-    }
-      alert("Data berhasil diperbarui");
-      editToolbar.disable();
-      editGroup.clearLayers();
-      hideEditHint();
-      map.getContainer().style.cursor = "";
-    })
-    .catch(err => {
-    editToolbar.disable();
-    editGroup.clearLayers();
-    map.getContainer().style.cursor = "";
-    hideEditHint();
-    alert("Gagal update data: " + err);
-      
+            editToolbar.disable();
+            editGroup.clearLayers();
+
+            hideEditHint();
+
+            map.getContainer().style.cursor="";
+
+            editState.mode = null;
+            editState.layer = null;
+            editState.dirty = false;
+            editState.originalGeometry = null;
+            attachEditMenu(layer,layer._data);
+            layer.openPopup();
+        })
+        .catch(err=>{
+            editToolbar.disable();
+            editGroup.clearLayers();
+            hideEditHint();
+            map.getContainer().style.cursor="";
+            alert("Gagal update data : "+err);
+        });
     });
-  });
 });
 
 // ===============================
@@ -820,6 +983,26 @@ map.on('draw:deleted', function (e) {
     })
     .catch(err => alert("Gagal hapus data: " + err));
   });
+});
+
+// ===============================
+// SHORTCUT KEYBOARD EDIT GEOMETRI
+// ===============================
+document.addEventListener("keydown", function(e){
+
+    // hanya aktif saat sedang edit geometri
+    if(editState.mode !== "edit") return;
+
+    // ENTER
+    if(e.key === "Enter"){
+        e.preventDefault();
+        bukaKonfirmasiSimpan();
+    }
+    // ESC
+    if(e.key === "Escape"){
+        e.preventDefault();
+        bukaKonfirmasiBatal();
+    }
 });
 
 // ===============================

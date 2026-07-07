@@ -43,7 +43,7 @@ function getLayerOptions(selected = "") {
 
 function attachEditMenu(layer, data) {
   layer._data = data;
-  layer.off('click');
+  layer.off('click.popupMenu');
   layer.unbindPopup();
   layer.bindPopup(() => {
     const d = layer._data;
@@ -90,7 +90,7 @@ function attachEditMenu(layer, data) {
     `;
   });
 
-  layer.on('click', function () {
+  layer.on('click.popupMenu', function () {
     window.currentLayer = layer;
   });
 }
@@ -344,6 +344,7 @@ function editGeometriLayer() {
     });
 
     editToolbar.enable();
+    layer.closePopup();
     map.getContainer().style.cursor = "crosshair";
     showEditHint();
 
@@ -594,7 +595,9 @@ function bukaKonfirmasiBatal(){
 // ===============================
 function konfirmasiSimpanYa(){
     map.closePopup();
-    editToolbar.save();
+    setTimeout(() => {
+        editToolbar.save();
+    },50);
 }
 
 // ===============================
@@ -604,7 +607,9 @@ function konfirmasiBatalYa(){
 
     map.closePopup();
 
+    if(editState.dirty){
     editToolbar.revertLayers();
+    }
 
     editToolbar.disable();
 
@@ -906,10 +911,13 @@ btn.innerHTML = "⏳ Menyimpan...";
 // ===============================
 
 map.on("draw:editvertex", function () {
-
     editState.dirty = true;
-
 });
+
+map.on("draw:editmove", function () {
+    editState.dirty = true;
+});
+
 map.on('draw:edited', function (e) {
     editGroup.eachLayer(function(layer){
         const geom = layer.toGeoJSON().geometry;
@@ -943,8 +951,10 @@ map.on('draw:edited', function (e) {
             editState.dirty = false;
             editState.originalGeometry = null;
             attachEditMenu(layer,layer._data);
-            layer.openPopup();
-        })
+            setTimeout(() => {
+              layer.openPopup();
+            },100);
+          })
         .catch(err=>{
             editToolbar.disable();
             editGroup.clearLayers();

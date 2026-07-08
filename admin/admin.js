@@ -621,7 +621,7 @@ function konfirmasiBatalYa(){
     editToolbar.revertLayers();
     }
 
-    editToolbar.disable();
+    
 
     editGroup.clearLayers();
 
@@ -957,6 +957,11 @@ map.on('draw:edited', function (e) {
             editGroup.clearLayers();
 
           console.log("===== SESUDAH CLEAR =====");
+          console.log("drawnItems:", drawnItems.hasLayer(layer));
+          console.log("editGroup :", editGroup.hasLayer(layer));
+          console.log("map       :", map.hasLayer(layer));
+
+          console.log("SETELAH clearLayers");
           console.log("drawnItems:", drawnItems.hasLayer(layer));
           console.log("editGroup :", editGroup.hasLayer(layer));
           console.log("map       :", map.hasLayer(layer));

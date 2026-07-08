@@ -16,8 +16,7 @@ async function loadMasterLayer() {
   masterLayer = await res.json();
   masterReady = true;
   
-  console.log("=== MASTER LAYER ===");
-  console.table(masterLayer);
+
 
 }
 
@@ -47,7 +46,6 @@ function attachEditMenu(layer, data) {
   layer.unbindPopup();
   layer.bindPopup(() => {
     const d = layer._data;
-    window.currentLayer = layer;
     return `
      <div class="popup-form">
 
@@ -229,16 +227,6 @@ function simpanEditAtribut() {
   const ownerOpd =
   master ? master.owner_opd : "";
 
-console.log({
-    action: "update_atribut",
-    id: layer._data.id,
-    nama: nama,
-    status: status,
-    kategori: kategori,
-    tema: tema,
-    layer: layerNama,
-    owner_opd: ownerOpd
-});
 
 const btn = document.getElementById("btnEdit");
 
@@ -287,23 +275,10 @@ setTimeout(() => {
 
     attachEditMenu(layer, layer._data);
 
-  console.log("=== LAYER YANG BARU DIEDIT ===");
-console.log("_leaflet_id:", layer._leaflet_id);
-console.log("id:", layer.options.id);
-
-console.log("=== ISI drawnItems ===");
-drawnItems.eachLayer(function(l){
-    console.log(
-        "_leaflet_id:", l._leaflet_id,
-        "| id:", l.options.id
-    );
-});
-
 setTimeout(() => {
     layer.openPopup();
 },100);
 
-    layer.openPopup();
 
 }, 500);
   })
@@ -317,7 +292,6 @@ setTimeout(() => {
 function registerLayer(layer, data) {
 
     const key = `${data.owner_opd}_${data.layer}`;
-    console.log("REGISTER:", JSON.stringify(key));
 
     // kalau grup belum ada, buat dulu
     if (!layerGroups[key]) {
@@ -340,7 +314,9 @@ function editGeometriLayer() {
 
   map.closePopup();
 
-    editGroup.clearLayers();
+   editGroup.eachLayer(function(l){
+    editGroup.removeLayer(l);
+    });
 
     const layer = window.currentLayer;
     editState.mode = "edit";
@@ -348,28 +324,10 @@ function editGeometriLayer() {
     editState.dirty = false;
     editState.originalGeometry =
     JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
-
-    console.log("SEBELUM add editGroup");
-    console.log("map :", map.hasLayer(layer));
-    console.log("draw:", drawnItems.hasLayer(layer));
-    console.log("edit:", editGroup.hasLayer(layer));
-    console.log(layer._eventParents);
   
     editGroup.addLayer(layer);
 
-    console.log("SETELAH add editGroup");
-    console.log("map :", map.hasLayer(layer));
-    console.log("draw:", drawnItems.hasLayer(layer));
-    console.log("edit:", editGroup.hasLayer(layer));
-    
-
-
     editToolbar.enable();
-    console.log("SETELAH enable");
-    console.log("map :", map.hasLayer(layer));
-    console.log("draw:", drawnItems.hasLayer(layer));
-    console.log("edit:", editGroup.hasLayer(layer));
-    console.log(layer._eventParents);
   
     layer.closePopup();
     map.getContainer().style.cursor = "crosshair";
@@ -640,9 +598,9 @@ function konfirmasiBatalYa(){
     editToolbar.revertLayers();
     }
 
-    
-
-    editGroup.clearLayers();
+    editGroup.eachLayer(function(l){
+    editGroup.removeLayer(l);
+    });
 
     hideEditHint();
 
@@ -763,14 +721,11 @@ map.on('moveend', function () {
 // ===============================
 let createState = {
     layer: null,
-    geom: null,
     saved: false
 };
 map.on(L.Draw.Event.CREATED, function (e) {
-  console.log("CREATED EVENT JALAN");
 
    createState.layer = e.layer;
-    createState.geom = e.layer.toGeoJSON().geometry;
     createState.saved = false;
 
 const layer = createState.layer;
@@ -886,13 +841,12 @@ btn.innerHTML = "⏳ Menyimpan...";
 .then(res => res.json())
 .then(resp => {
 
-    console.log(resp);
+    
     if (!resp.id) {
         alert("Server tidak mengembalikan ID.");
         return;
     }
-
-  
+ 
   createState.saved = true;
   layer.options.id = resp.id;
 
@@ -963,30 +917,17 @@ map.on('draw:edited', function (e) {
         .then(res=>res.text())
         .then(msg=>{
             msg = msg.trim();
-          console.log("===== SEBELUM DISABLE =====");
-          console.log("drawnItems:", drawnItems.hasLayer(layer));
-          console.log("editGroup :", editGroup.hasLayer(layer));
-          console.log("map       :", map.hasLayer(layer));
+          
             if(msg !== "updated"){
                 alert(msg);
                 return;
             }
 
             editToolbar.disable();
-            
 
-          console.log("===== SESUDAH CLEAR =====");
-          console.log("drawnItems:", drawnItems.hasLayer(layer));
-          console.log("editGroup :", editGroup.hasLayer(layer));
-          console.log("map       :", map.hasLayer(layer));
-
-          editGroup.clearLayers();
-
-          console.log("SETELAH clearLayers");
-          console.log("drawnItems:", drawnItems.hasLayer(layer));
-          console.log("editGroup :", editGroup.hasLayer(layer));
-          console.log("map       :", map.hasLayer(layer));
-          console.log(layer._eventParents);
+          editGroup.eachLayer(function(l){
+          editGroup.removeLayer(l);
+          });
 
             hideEditHint();
 
@@ -997,51 +938,15 @@ map.on('draw:edited', function (e) {
             editState.dirty = false;
             editState.originalGeometry = null;
             attachEditMenu(layer,layer._data);
-
-          console.log("===== SETELAH attachEditMenu =====");
-          console.log("map       :", map.hasLayer(layer));
-          console.log("drawnItems:", drawnItems.hasLayer(layer));
-          console.log("editGroup :", editGroup.hasLayer(layer));
-
-                  console.log("=== LAYER YANG BARU DIEDIT ===");
-                  console.log("_leaflet_id:", layer._leaflet_id);
-                  console.log("id:", layer.options.id);
         
-        console.log("=== ISI drawnItems ===");
-        
-        drawnItems.eachLayer(function(l){
-        
-            console.log(
-                "_leaflet_id:", l._leaflet_id,
-                "| id:", l.options.id,
-                "| map:", map.hasLayer(l)
-            );
-        
-        });
             setTimeout(() => {
-               console.log("===== SEBELUM openPopup =====");
-                console.log("map       :", map.hasLayer(layer));
-                console.log("drawnItems:", drawnItems.hasLayer(layer));
-                console.log("editGroup :", editGroup.hasLayer(layer));
+              
               layer.openPopup();
             },100);
           })
         .catch(err=>{
             editToolbar.disable();
             editGroup.clearLayers();
-
-            drawnItems.eachLayer(function(l){
-
-                console.log(
-                    "ID:",
-                    l.options.id,
-                    "| map:",
-                    map.hasLayer(l),
-                    "| drawnItems:",
-                    drawnItems.hasLayer(l)
-                );
-            
-            });
           
             hideEditHint();
             map.getContainer().style.cursor="";
@@ -1085,9 +990,6 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
-    console.log(e.key);
-    console.log(editState);
-
     // hanya aktif saat sedang edit geometri
     if(editState.mode !== "edit") return;
 
@@ -1111,9 +1013,6 @@ fetch(GAS_URL)
   .then(resp => {
     
     const data = resp.data;
-    console.log("=== DATA DARI GAS ===");
-    console.table(data);
-    console.log(data[0]);
     
     data.forEach(d => {
       if (!d.geometry) return;
@@ -1163,6 +1062,9 @@ registerLayer(layer, dataFix);
     });
 
   })
-  .catch(err => console.error(err));
+  
+  .catch(err => {
+    alert("Gagal memuat data.");
+});
 loadMasterLayer();
 

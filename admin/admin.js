@@ -45,6 +45,7 @@ function attachEditMenu(layer, data) {
   layer.off('click.popupMenu');
   layer.unbindPopup();
   layer.bindPopup(() => {
+     window.currentLayer = layer;
     const d = layer._data;
     return `
      <div class="popup-form">
@@ -88,9 +89,6 @@ function attachEditMenu(layer, data) {
     `;
   });
 
-  layer.on('click.popupMenu', function () {
-    window.currentLayer = layer;
-  });
 }
 
 function bukaMenuEdit(layer) {

@@ -353,6 +353,7 @@ function editGeometriLayer() {
     console.log("map :", map.hasLayer(layer));
     console.log("draw:", drawnItems.hasLayer(layer));
     console.log("edit:", editGroup.hasLayer(layer));
+    console.log(layer._eventParents);
   
     editGroup.addLayer(layer);
 
@@ -360,6 +361,7 @@ function editGeometriLayer() {
     console.log("map :", map.hasLayer(layer));
     console.log("draw:", drawnItems.hasLayer(layer));
     console.log("edit:", editGroup.hasLayer(layer));
+    
 
 
     editToolbar.enable();
@@ -367,6 +369,7 @@ function editGeometriLayer() {
     console.log("map :", map.hasLayer(layer));
     console.log("draw:", drawnItems.hasLayer(layer));
     console.log("edit:", editGroup.hasLayer(layer));
+    console.log(layer._eventParents);
   
     layer.closePopup();
     map.getContainer().style.cursor = "crosshair";
@@ -983,6 +986,7 @@ map.on('draw:edited', function (e) {
           console.log("drawnItems:", drawnItems.hasLayer(layer));
           console.log("editGroup :", editGroup.hasLayer(layer));
           console.log("map       :", map.hasLayer(layer));
+          console.log(layer._eventParents);
 
             hideEditHint();
 

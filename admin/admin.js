@@ -574,13 +574,13 @@ function bukaKonfirmasiBatal(){
 // KONFIRMASI SIMPAN
 // ===============================
 function konfirmasiSimpanYa(){
-   console.log("SAVE START");
-
-    editToolbar.save();
-
-    console.log("SAVE CALLED");
-}
-
+   map.closePopup();
+      // Delay kecil supaya popup benar-benar tertutup
+      // sebelum Leaflet.Draw melakukan save
+      setTimeout(() => {
+        editToolbar.save();
+      },50);
+    }
 // ===============================
 // KONFIRMASI BATAL
 // ===============================

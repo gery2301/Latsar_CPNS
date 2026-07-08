@@ -961,6 +961,20 @@ map.on('draw:edited', function (e) {
         .catch(err=>{
             editToolbar.disable();
             editGroup.clearLayers();
+
+            drawnItems.eachLayer(function(l){
+
+                console.log(
+                    "ID:",
+                    l.options.id,
+                    "| map:",
+                    map.hasLayer(l),
+                    "| drawnItems:",
+                    drawnItems.hasLayer(l)
+                );
+            
+            });
+          
             hideEditHint();
             map.getContainer().style.cursor="";
             alert("Gagal update data : "+err);

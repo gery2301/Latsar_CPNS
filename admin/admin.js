@@ -349,9 +349,25 @@ function editGeometriLayer() {
     editState.originalGeometry =
     JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
 
+    console.log("SEBELUM add editGroup");
+    console.log("map :", map.hasLayer(layer));
+    console.log("draw:", drawnItems.hasLayer(layer));
+    console.log("edit:", editGroup.hasLayer(layer));
+  
     editGroup.addLayer(layer);
 
+    console.log("SETELAH add editGroup");
+    console.log("map :", map.hasLayer(layer));
+    console.log("draw:", drawnItems.hasLayer(layer));
+    console.log("edit:", editGroup.hasLayer(layer));
+
+
     editToolbar.enable();
+    console.log("SETELAH enable");
+    console.log("map :", map.hasLayer(layer));
+    console.log("draw:", drawnItems.hasLayer(layer));
+    console.log("edit:", editGroup.hasLayer(layer));
+  
     layer.closePopup();
     map.getContainer().style.cursor = "crosshair";
     showEditHint();
@@ -954,12 +970,14 @@ map.on('draw:edited', function (e) {
             }
 
             editToolbar.disable();
-            editGroup.clearLayers();
+            
 
           console.log("===== SESUDAH CLEAR =====");
           console.log("drawnItems:", drawnItems.hasLayer(layer));
           console.log("editGroup :", editGroup.hasLayer(layer));
           console.log("map       :", map.hasLayer(layer));
+
+          editGroup.clearLayers();
 
           console.log("SETELAH clearLayers");
           console.log("drawnItems:", drawnItems.hasLayer(layer));
@@ -976,9 +994,14 @@ map.on('draw:edited', function (e) {
             editState.originalGeometry = null;
             attachEditMenu(layer,layer._data);
 
+          console.log("===== SETELAH attachEditMenu =====");
+          console.log("map       :", map.hasLayer(layer));
+          console.log("drawnItems:", drawnItems.hasLayer(layer));
+          console.log("editGroup :", editGroup.hasLayer(layer));
+
                   console.log("=== LAYER YANG BARU DIEDIT ===");
-        console.log("_leaflet_id:", layer._leaflet_id);
-        console.log("id:", layer.options.id);
+                  console.log("_leaflet_id:", layer._leaflet_id);
+                  console.log("id:", layer.options.id);
         
         console.log("=== ISI drawnItems ===");
         
@@ -992,6 +1015,10 @@ map.on('draw:edited', function (e) {
         
         });
             setTimeout(() => {
+               console.log("===== SEBELUM openPopup =====");
+                console.log("map       :", map.hasLayer(layer));
+                console.log("drawnItems:", drawnItems.hasLayer(layer));
+                console.log("editGroup :", editGroup.hasLayer(layer));
               layer.openPopup();
             },100);
           })

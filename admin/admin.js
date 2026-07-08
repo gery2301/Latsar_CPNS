@@ -311,26 +311,18 @@ function registerLayer(layer, data) {
 function editGeometriLayer() {
 
   map.closePopup();
+   const layer = window.currentLayer;
 
-   editGroup.eachLayer(function(l){
-    editGroup.removeLayer(l);
-    });
-
-    const layer = window.currentLayer;
     editState.mode = "edit";
     editState.layer = layer;
     editState.dirty = false;
+
     editState.originalGeometry =
-    JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
-  
-    editGroup.addLayer(layer);
+        JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
 
     editToolbar.enable();
-  
-    layer.closePopup();
     map.getContainer().style.cursor = "crosshair";
     showEditHint();
-
 }
 function hapusLayerSekarang(){
 
@@ -383,11 +375,9 @@ const map = L.map('map').setView([-8.5, 119.9], 10);
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 
-// Layer khusus edit geometri
-const editGroup = new L.FeatureGroup();
-map.addLayer(editGroup);
+// Edit langsung pada drawnItems
 const editToolbar = new L.EditToolbar.Edit(map,{
-    featureGroup: editGroup
+    featureGroup: drawnItems
 });
 
 let editHint = null;
@@ -595,10 +585,6 @@ function konfirmasiBatalYa(){
     if(editState.dirty){
     editToolbar.revertLayers();
     }
-
-    editGroup.eachLayer(function(l){
-    editGroup.removeLayer(l);
-    });
 
     hideEditHint();
 
@@ -921,11 +907,7 @@ map.on('draw:edited', function (e) {
                 return;
             }
 
-            editToolbar.disable();
-
-          editGroup.eachLayer(function(l){
-          editGroup.removeLayer(l);
-          });
+          editToolbar.disable();
 
             hideEditHint();
 
@@ -944,7 +926,6 @@ map.on('draw:edited', function (e) {
           })
         .catch(err=>{
             editToolbar.disable();
-            editGroup.clearLayers();
           
             hideEditHint();
             map.getContainer().style.cursor="";

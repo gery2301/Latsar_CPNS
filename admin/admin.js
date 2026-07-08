@@ -319,8 +319,13 @@ function editGeometriLayer() {
 
     editState.originalGeometry =
         JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
+      // nonaktifkan edit semua layer
+    drawnItems.eachLayer(function(l){
+        l.editing.disable();
+    });
 
-    editToolbar.enable();
+    // aktifkan edit layer yang dipilih
+    layer.editing.enable();
     map.getContainer().style.cursor = "crosshair";
     showEditHint();
 }

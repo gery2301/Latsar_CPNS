@@ -574,10 +574,11 @@ function bukaKonfirmasiBatal(){
 // KONFIRMASI SIMPAN
 // ===============================
 function konfirmasiSimpanYa(){
-    map.closePopup();
-    setTimeout(() => {
-        editToolbar.save();
-    },50);
+   console.log("SAVE START");
+
+    editToolbar.save();
+
+    console.log("SAVE CALLED");
 }
 
 // ===============================

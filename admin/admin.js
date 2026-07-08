@@ -287,6 +287,22 @@ setTimeout(() => {
 
     attachEditMenu(layer, layer._data);
 
+  console.log("=== LAYER YANG BARU DIEDIT ===");
+console.log("_leaflet_id:", layer._leaflet_id);
+console.log("id:", layer.options.id);
+
+console.log("=== ISI drawnItems ===");
+drawnItems.eachLayer(function(l){
+    console.log(
+        "_leaflet_id:", l._leaflet_id,
+        "| id:", l.options.id
+    );
+});
+
+setTimeout(() => {
+    layer.openPopup();
+},100);
+
     layer.openPopup();
 
 }, 500);

@@ -591,6 +591,9 @@ function konfirmasiBatalYa(){
     if(editState.dirty){
     editToolbar.revertLayers();
     }
+    if(editState.layer){
+    editState.layer.editing.disable();
+    }
 
     hideEditHint();
 
@@ -912,7 +915,7 @@ map.on('draw:edited', function (e) {
                 alert(msg);
                 return;
             }
-
+          layer.editing.disable();
           editToolbar.disable();
 
             hideEditHint();
@@ -931,8 +934,8 @@ map.on('draw:edited', function (e) {
             },100);
           })
         .catch(err=>{
+            layer.editing.disable();
             editToolbar.disable();
-          
             hideEditHint();
             map.getContainer().style.cursor="";
             alert("Gagal update data : "+err);

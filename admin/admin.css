@@ -163,13 +163,17 @@ transform:translateY(0);
 .layer-picker{
 position:relative;
 margin-bottom:15px;
+border:1px solid #cfcfcf;
+border-radius:8px;
+background:white;
 }
 
 .layer-search{
 border:none!important;
-border-radius:0!important;
-box-shadow:none!important;
+border-radius:8px!important;
 margin:0!important;
+box-shadow:none!important;
+padding:10px 12px;
 }
 
 .layer-search:focus{
@@ -180,8 +184,8 @@ outline:none;
 display:none;
 position:absolute;
 top:calc(100% + 4px);
-left:0;
-right:0;
+left:-1px;
+right:-1px;
 width:100%;
 background:#fff;
 border:1px solid #d0d7de;
@@ -191,8 +195,7 @@ box-shadow:
 max-height:220px;
 overflow-y:auto;
 z-index:99999;
-padding:6px 0;
-margin:0;
+
 }
 
 .layer-list option{

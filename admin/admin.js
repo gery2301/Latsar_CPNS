@@ -251,23 +251,25 @@ function editAtributLayer() {
   if (masterReady && document.getElementById("edit_layer")) {
 
      const ddl = document.getElementById("edit_layer");
-
-    
-    const search = document.getElementById("search_layer");
+     const search = document.getElementById("search_layer");
     // isi awal
 //filterLayerDropdown("", "edit_layer", d.layer);
-
+filterLayerDropdown("", "edit_layer", d.layer);
 ddl.value = d.layer;
+search.value = d.layer;
 
     // TAMPILKAN LIST SAAT INPUT DIKLIK
 search.addEventListener("focus", function(){
+ ddl.style.display = "block";
     filterLayerDropdown(
         "",
         "edit_layer",
         ddl.value
     );
 });
-search.addEventListener("input", function(){
+
+   search.addEventListener("input", function(){
+    ddl.style.display = "block";
     filterLayerDropdown(
         search.value,
         "edit_layer",
@@ -276,7 +278,21 @@ search.addEventListener("input", function(){
     updateInfoLayer();
 });
 
+
+document.addEventListener("click", function(e){
+   
+     if(!search.contains(e.target) &&
+       !ddl.contains(e.target)){
+        ddl.style.display = "none";
+    }
+});
+
 function updateInfoLayer(){
+  if(!ddl.value){
+        document.getElementById("edit_tema").value="";
+        document.getElementById("edit_owner").value="";
+        return;
+    }
 
     const master = masterLayer.find(
         item => item.layer === ddl.value
@@ -292,7 +308,11 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-ddl.addEventListener("change", updateInfoLayer);
+ddl.addEventListener("change", function(){
+    updateInfoLayer();
+    search.value = ddl.value;
+    ddl.style.display = "none";
+});
 
   }
 
@@ -308,6 +328,10 @@ function simpanEditAtribut() {
   const layerNama = document.getElementById('edit_layer').value;
   const master =
   masterLayer.find(item => item.layer === layerNama);
+   if(!master){
+      alert("Layer belum dipilih.");
+      return;
+  }
 
   const kategori =
   master ? master.kategori : "";
@@ -414,11 +438,15 @@ function editGeometriLayer() {
         JSON.parse(JSON.stringify(layer.toGeoJSON().geometry));
       // nonaktifkan edit semua layer
     drawnItems.eachLayer(function(l){
+        if(l.editing){
         l.editing.disable();
+    }
     });
 
     // aktifkan edit layer yang dipilih
+    if(layer.editing){
     layer.editing.enable();
+    }
     map.getContainer().style.cursor = "crosshair";
     showEditHint();
 }
@@ -879,34 +907,47 @@ layer.on("popupclose", function () {
     const ddl = document.getElementById("layer_lokasi");
     const search = document.getElementById("search_layer_create");
 
+   // awalnya dropdown disembunyikan
+   ddl.style.display = "none";
+
     // TAMPILKAN LIST SAAT INPUT DIKLIK
     search.addEventListener("focus", function(){
-
+    ddl.style.display = "block";
     filterLayerDropdown(
         "",
         "layer_lokasi",
         ddl.value
     );
-
 });
 
 //filterLayerDropdown("", "layer_lokasi");
-
+//mengetik
 search.addEventListener("input", function(){
-
+ ddl.style.display = "block";
     filterLayerDropdown(
         search.value,
         "layer_lokasi",
         ddl.value
     );
-
     updateInfoLayer();
+});
 
+// klik di luar
+document.addEventListener("click", function(e){
+    if(!search.contains(e.target) &&
+       !ddl.contains(e.target)){
+        ddl.style.display = "none";
+    }
 });
 
 
 function updateInfoLayer(){
-
+ if(!ddl.value){
+        document.getElementById("edit_tema").value="";
+        document.getElementById("edit_owner").value="";
+        return;
+    }
+ 
     const master = masterLayer.find(
         item => item.layer === ddl.value
     );
@@ -921,8 +962,11 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-ddl.addEventListener("change", updateInfoLayer);
-    
+ddl.addEventListener("change", function(){
+    updateInfoLayer();
+    search.value = ddl.value;
+    ddl.style.display = "none";
+});
   }
   }, 100);
 
@@ -934,6 +978,10 @@ ddl.addEventListener("change", updateInfoLayer);
 
     // cari data master berdasarkan layer yang dipilih
     const master = masterLayer.find(item => item.layer === layerNama);
+    if(!master){
+     alert("Layer belum dipilih.");
+     return;
+     }
     
     const kategori = master ? master.kategori : "";
     const ownerOpd = master ? master.owner_opd : "";
@@ -1130,7 +1178,13 @@ document.addEventListener("keydown", function(e){
 // LOAD DATA AWAL
 // ===============================
 fetch(GAS_URL)
-       .then(res => res.json())
+       .then(res=>{
+    if(!res.ok){
+        throw new Error("HTTP "+res.status);
+    }
+    return res.json();
+    })
+ 
   .then(resp => {
     
     const data = resp.data;

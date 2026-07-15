@@ -263,9 +263,17 @@ function editAtributLayer() {
     
     const search = document.getElementById("search_layer");
     // isi awal
-filterLayerDropdown("", "edit_layer", d.layer);
+//filterLayerDropdown("", "edit_layer", d.layer);
 
 ddl.value = d.layer;
+
+    // TAMPILKAN LIST SAAT INPUT DIKLIK
+search.addEventListener("focus", function(){
+    filterLayerDropdown(
+        "",
+        "edit_layer",
+        ddl.value
+    );
 
 search.addEventListener("input", function(){
     filterLayerDropdown(
@@ -885,7 +893,18 @@ layer.on("popupclose", function () {
     const ddl = document.getElementById("layer_lokasi");
     const search = document.getElementById("search_layer_create");
 
-filterLayerDropdown("", "layer_lokasi");
+    // TAMPILKAN LIST SAAT INPUT DIKLIK
+    search.addEventListener("focus", function(){
+
+    filterLayerDropdown(
+        "",
+        "layer_lokasi",
+        ddl.value
+    );
+
+});
+
+//filterLayerDropdown("", "layer_lokasi");
 
 search.addEventListener("input", function(){
 

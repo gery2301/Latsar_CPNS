@@ -2,7 +2,7 @@
 // KONFIGURASI 
 // ===============================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
-
+ 
 // ===============================
 // MASTER LAYER
 // ===============================

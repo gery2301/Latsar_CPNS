@@ -200,7 +200,14 @@ color:white;
 }
 
 .layer-list{
-    display:none;
+display:none;
+position:absolute;
+top:100%;
+left:0;
+right:0;
+z-index:9999;
+max-height:220px;
+overflow-y:auto;
 }
 
 .layer-list.show{

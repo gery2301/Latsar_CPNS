@@ -205,10 +205,16 @@ function editAtributLayer() {
       <br><br>
 
       <label class="popup-label">Tema</label><br>
-      <input class="popup-input" id="edit_tema" readonly><br><br>
+      <input
+      class="popup-input popup-readonly"
+      id="edit_tema"
+      readonly><br><br>
 
       <label class="popup-label">OPD</label><br>
-      <input class="popup-input" id="edit_owner" readonly><br><br>
+      <input
+      class="popup-input popup-readonly"
+      id="edit_owner"
+      readonly><br><br>
       
       <button
       id="btnEdit"

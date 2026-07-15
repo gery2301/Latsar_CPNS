@@ -36,6 +36,35 @@ function getLayerOptions(selected = "") {
 }
 
 // ===============================
+// FILTER DROPDOWN LAYER
+// ===============================
+function getFilteredLayerOptions(keyword = "", selected = "") {
+
+    keyword = keyword.toLowerCase();
+
+    const hasil = masterLayer.filter(item =>
+        item.layer.toLowerCase().includes(keyword)
+    );
+
+    if (hasil.length === 0) {
+        return `<option value="">Tidak ada layer ditemukan</option>`;
+    }
+
+    return hasil.map(item => {
+
+        const pilih = item.layer === selected ? "selected" : "";
+
+        return `
+            <option value="${item.layer}" ${pilih}>
+                ${item.layer}
+            </option>
+        `;
+
+    }).join("");
+
+}
+
+// ===============================
 // FUNGSI GLOBAL: MENU EDIT PER LAYER
 // ===============================
 
@@ -159,8 +188,21 @@ function editAtributLayer() {
       <label class="popup-label">Status</label><br>
       <input class="popup-input" id="edit_status" value="${d.status}"><br><br>
 
-      <label class="popup-label">Layer</label><br>
-      <select class="popup-select" id="edit_layer"></select><br><br>
+      <label class="popup-label">Cari Layer</label><br>
+      <div class="popup-search">
+      <input
+      class="popup-input"
+      id="search_layer"
+      placeholder="Ketik nama layer...">
+      </div>
+      <br><br>
+      
+      <select
+      class="popup-select"
+      id="edit_layer">
+      </select>
+      
+      <br><br>
 
       <label class="popup-label">Tema</label><br>
       <input class="popup-input" id="edit_tema" readonly><br><br>
@@ -181,7 +223,15 @@ function editAtributLayer() {
 
     document.getElementById("edit_layer").innerHTML =
       getLayerOptions(d.layer);
-    const ddl = document.getElementById("edit_layer");
+    ddl.innerHTML = getFilteredLayerOptions("", d.layer);
+    const search = document.getElementById("search_layer");
+    search.addEventListener("input", function () {
+    ddl.innerHTML = getFilteredLayerOptions(
+        search.value,
+        d.layer
+    );
+
+});
 
 function updateInfoLayer(){
 

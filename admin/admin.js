@@ -258,9 +258,12 @@ filterLayerDropdown("", "edit_layer", d.layer);
 ddl.value = d.layer;
 search.value = d.layer;
 
+ // SEMBUNYIKAN DULU
+ddl.style.display = "none";
+
     // TAMPILKAN LIST SAAT INPUT DIKLIK
 search.addEventListener("focus", function(){
- ddl.style.display = "block";
+  ddl.classList.add("show");
     filterLayerDropdown(
         "",
         "edit_layer",
@@ -269,7 +272,7 @@ search.addEventListener("focus", function(){
 });
 
    search.addEventListener("input", function(){
-    ddl.style.display = "block";
+    ddl.classList.add("show");
     filterLayerDropdown(
         search.value,
         "edit_layer",
@@ -283,7 +286,7 @@ document.addEventListener("click", function(e){
    
      if(!search.contains(e.target) &&
        !ddl.contains(e.target)){
-        ddl.style.display = "none";
+        ddl.classList.remove("show");
     }
 });
 
@@ -311,7 +314,7 @@ updateInfoLayer();
 ddl.addEventListener("change", function(){
     updateInfoLayer();
     search.value = ddl.value;
-    ddl.style.display = "none";
+    ddl.classList.remove("show");
 });
 
   }
@@ -908,11 +911,11 @@ layer.on("popupclose", function () {
     const search = document.getElementById("search_layer_create");
 
    // awalnya dropdown disembunyikan
-   ddl.style.display = "none";
+   ddl.classList.remove("show");
 
     // TAMPILKAN LIST SAAT INPUT DIKLIK
     search.addEventListener("focus", function(){
-    ddl.style.display = "block";
+    ddl.classList.add("show");
     filterLayerDropdown(
         "",
         "layer_lokasi",
@@ -923,7 +926,7 @@ layer.on("popupclose", function () {
 //filterLayerDropdown("", "layer_lokasi");
 //mengetik
 search.addEventListener("input", function(){
- ddl.style.display = "block";
+ ddl.classList.add("show");
     filterLayerDropdown(
         search.value,
         "layer_lokasi",
@@ -936,15 +939,15 @@ search.addEventListener("input", function(){
 document.addEventListener("click", function(e){
     if(!search.contains(e.target) &&
        !ddl.contains(e.target)){
-        ddl.style.display = "none";
+        ddl.classList.remove("show");
     }
 });
 
 
 function updateInfoLayer(){
  if(!ddl.value){
-        document.getElementById("edit_tema").value="";
-        document.getElementById("edit_owner").value="";
+        document.getElementById("tema_lokasi").value="";
+        document.getElementById("owner_lokasi").value="";
         return;
     }
  
@@ -965,7 +968,7 @@ updateInfoLayer();
 ddl.addEventListener("change", function(){
     updateInfoLayer();
     search.value = ddl.value;
-    ddl.style.display = "none";
+    ddl.classList.remove("show");
 });
   }
   }, 100);

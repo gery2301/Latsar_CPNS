@@ -64,6 +64,57 @@ function getFilteredLayerOptions(keyword = "", selected = "") {
 
 }
 
+function filterLayerDropdown(keyword, selectId, selected = "") {
+
+    const ddl = document.getElementById(selectId);
+    if (!ddl) return;
+
+    keyword = keyword.trim().toLowerCase();
+
+    let hasil;
+
+    if (keyword === "") {
+
+        // tampilkan maksimal 8 layer pertama
+        hasil = masterLayer.slice(0,8);
+
+    } else {
+
+        hasil = masterLayer.filter(item =>
+            item.layer.toLowerCase().includes(keyword)
+        );
+
+    }
+
+    if (hasil.length === 0){
+
+        ddl.innerHTML = `
+            <option value="">
+                Tidak ada layer ditemukan
+            </option>
+        `;
+
+        return;
+
+    }
+
+    ddl.innerHTML = hasil.map(item => {
+
+        const pilih =
+            item.layer === selected ? "selected" : "";
+
+        return `
+            <option value="${item.layer}" ${pilih}>
+                ${item.layer}
+            </option>
+        `;
+
+    }).join("");
+  ddl.selectedIndex = 0;
+  ddl.dispatchEvent(new Event("change"));
+
+}
+
 // ===============================
 // FUNGSI GLOBAL: MENU EDIT PER LAYER
 // ===============================
@@ -229,14 +280,18 @@ function editAtributLayer() {
 
      const ddl = document.getElementById("edit_layer");
 
-    ddl.innerHTML = getFilteredLayerOptions("", d.layer);
-    ddl.value = d.layer;
+    
     const search = document.getElementById("search_layer");
+    // isi awal
+filterLayerDropdown("", "edit_layer", d.layer);
+
+ddl.value = d.layer;
 
 search.addEventListener("input", function(){
 
-    ddl.innerHTML = getFilteredLayerOptions(
+    filterLayerDropdown(
         search.value,
+        "edit_layer",
         ddl.value
     );
 

@@ -116,3 +116,39 @@ opacity:1;
 transform:translateY(0);
 }
 }
+
+/* ==========================
+   SEARCH LAYER
+========================== */
+
+.popup-search{
+    position:relative;
+}
+
+.popup-search::before{
+    content:"🔍";
+    position:absolute;
+    left:12px;
+    top:50%;
+    transform:translateY(-50%);
+    opacity:.55;
+    pointer-events:none;
+    font-size:15px;
+}
+
+.popup-search input{
+    padding-left:38px;
+}
+
+.popup-select{
+    max-height:180px;
+    overflow-y:auto;
+}
+
+.popup-readonly{
+    background:#f3f4f6;
+    color:#6b7280;
+    cursor:not-allowed;
+    border:1px solid #d1d5db;
+    user-select:none;
+}

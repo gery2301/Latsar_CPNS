@@ -38,31 +38,6 @@ function getLayerOptions(selected = "") {
 // ===============================
 // FILTER DROPDOWN LAYER
 // ===============================
-function getFilteredLayerOptions(keyword = "", selected = "") {
-
-    keyword = keyword.toLowerCase();
-
-    const hasil = masterLayer.filter(item =>
-        item.layer.toLowerCase().includes(keyword)
-    );
-
-    if (hasil.length === 0) {
-        return `<option value="">Tidak ada layer ditemukan</option>`;
-    }
-
-    return hasil.map(item => {
-
-        const pilih = item.layer === selected ? "selected" : "";
-
-        return `
-            <option value="${item.layer}" ${pilih}>
-                ${item.layer}
-            </option>
-        `;
-
-    }).join("");
-
-}
 
 function filterLayerDropdown(keyword, selectId, selected = "") {
 
@@ -288,15 +263,21 @@ filterLayerDropdown("", "edit_layer", d.layer);
 ddl.value = d.layer;
 
 search.addEventListener("input", function(){
-
     filterLayerDropdown(
         search.value,
         "edit_layer",
         ddl.value
     );
-
     updateInfoLayer();
+});
 
+    search.addEventListener("keydown", function(e){
+    if(e.key !== "Enter") return;
+    e.preventDefault();
+    if(ddl.options.length > 0){
+        ddl.selectedIndex = 0;
+        ddl.dispatchEvent(new Event("change"));
+    }
 });
 
 function updateInfoLayer(){
@@ -851,7 +832,19 @@ const layer = createState.layer;
        <input class="popup-input" type="text" id="status_lokasi">
 
       <label>Layer</label><br>
-      <select class="popup-select" id="layer_lokasi"></select>
+      <div class="popup-search">
+      <input
+          class="popup-input"
+          id="search_layer_create"
+          placeholder="Ketik nama layer...">
+      </div>
+      
+      <br>
+      
+      <select
+          class="popup-select"
+          id="layer_lokasi">
+      </select>
 
       <label>Tema</label><br>
       <input class="popup-input" id="tema_lokasi" readonly>
@@ -887,6 +880,36 @@ layer.on("popupclose", function () {
     document.getElementById("layer_lokasi").innerHTML = getLayerOptions();
      
     const ddl = document.getElementById("layer_lokasi");
+    const search = document.getElementById("search_layer_create");
+
+filterLayerDropdown("", "layer_lokasi");
+
+search.addEventListener("input", function(){
+
+    filterLayerDropdown(
+        search.value,
+        "layer_lokasi",
+        ddl.value
+    );
+
+    updateInfoLayer();
+
+});
+
+search.addEventListener("keydown", function(e){
+
+    if(e.key !== "Enter") return;
+
+    e.preventDefault();
+
+    if(ddl.options.length > 0){
+
+        ddl.selectedIndex = 0;
+        ddl.dispatchEvent(new Event("change"));
+
+    }
+
+});
 
 function updateInfoLayer(){
 

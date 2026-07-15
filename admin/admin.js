@@ -873,10 +873,16 @@ const layer = createState.layer;
       <br>
 
       <label>Tema</label><br>
-      <input class="popup-input" id="tema_lokasi" readonly>
+      <input
+      class="popup-input popup-readonly"
+      id="tema_lokasi"
+      readonly>
 
       <label>OPD</label><br>
-      <input class="popup-input" id="owner_lokasi" readonly>
+      <input
+      class="popup-input popup-readonly"
+      id="owner_lokasi"
+      readonly>
 
       <button
         id="btnSimpan"

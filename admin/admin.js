@@ -226,14 +226,6 @@ function editAtributLayer() {
       </select>
       </div>
       <br><br>
-      
-      <select
-      class="popup-select"
-      id="edit_layer"
-      size="8">
-      </select>
-      
-      <br><br>
 
       <label class="popup-label">Tema</label><br>
       <input
@@ -274,7 +266,7 @@ search.addEventListener("focus", function(){
         "edit_layer",
         ddl.value
     );
-
+});
 search.addEventListener("input", function(){
     filterLayerDropdown(
         search.value,
@@ -850,12 +842,6 @@ const layer = createState.layer;
       </div>
       
       <br>
-      
-      <select
-          class="popup-select"
-          id="layer_lokasi"
-          size="8">
-      </select>
 
       <label>Tema</label><br>
       <input class="popup-input" id="tema_lokasi" readonly>

@@ -198,3 +198,11 @@ font-size:14px;
 background:#2196f3;
 color:white;
 }
+
+.layer-list{
+    display:none;
+}
+
+.layer-list.show{
+    display:block;
+}

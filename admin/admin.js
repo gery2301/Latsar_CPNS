@@ -258,8 +258,7 @@ filterLayerDropdown("", "edit_layer", d.layer);
 ddl.value = d.layer;
 search.value = d.layer;
 
- // SEMBUNYIKAN DULU
-ddl.style.display = "none";
+
 
     // TAMPILKAN LIST SAAT INPUT DIKLIK
 search.addEventListener("focus", function(){
@@ -282,12 +281,11 @@ search.addEventListener("focus", function(){
 });
 
 
-document.addEventListener("click", function(e){
-   
-     if(!search.contains(e.target) &&
-       !ddl.contains(e.target)){
+search.addEventListener("blur", function(){
+    setTimeout(function(){
         ddl.classList.remove("show");
-    }
+    },150);
+
 });
 
 function updateInfoLayer(){
@@ -936,11 +934,10 @@ search.addEventListener("input", function(){
 });
 
 // klik di luar
-document.addEventListener("click", function(e){
-    if(!search.contains(e.target) &&
-       !ddl.contains(e.target)){
+search.addEventListener("blur", function(){
+    setTimeout(function(){
         ddl.classList.remove("show");
-    }
+    },150);
 });
 
 

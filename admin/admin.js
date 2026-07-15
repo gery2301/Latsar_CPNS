@@ -227,15 +227,20 @@ function editAtributLayer() {
 
   if (masterReady && document.getElementById("edit_layer")) {
 
-    document.getElementById("edit_layer").innerHTML =
-      getLayerOptions(d.layer);
+     const ddl = document.getElementById("edit_layer");
+
     ddl.innerHTML = getFilteredLayerOptions("", d.layer);
+    ddl.value = d.layer;
     const search = document.getElementById("search_layer");
-    search.addEventListener("input", function () {
+
+search.addEventListener("input", function(){
+
     ddl.innerHTML = getFilteredLayerOptions(
         search.value,
-        d.layer
+        ddl.value
     );
+
+    updateInfoLayer();
 
 });
 

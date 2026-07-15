@@ -85,8 +85,6 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
         `;
 
     }).join("");
-  ddl.selectedIndex = 0;
-  ddl.dispatchEvent(new Event("change"));
 
 }
 
@@ -215,17 +213,24 @@ function editAtributLayer() {
       <input class="popup-input" id="edit_status" value="${d.status}"><br><br>
 
       <label class="popup-label">Cari Layer</label><br>
-      <div class="popup-search">
+      <div class="layer-picker">
       <input
-      class="popup-input"
+      class="popup-input layer-search"
       id="search_layer"
-      placeholder="Ketik nama layer...">
+      placeholder="🔍 Cari layer...">
+      
+      <select
+      class="popup-select layer-list"
+      id="edit_layer"
+      size="8">
+      </select>
       </div>
       <br><br>
       
       <select
       class="popup-select"
-      id="edit_layer">
+      id="edit_layer"
+      size="8">
       </select>
       
       <br><br>
@@ -269,15 +274,6 @@ search.addEventListener("input", function(){
         ddl.value
     );
     updateInfoLayer();
-});
-
-    search.addEventListener("keydown", function(e){
-    if(e.key !== "Enter") return;
-    e.preventDefault();
-    if(ddl.options.length > 0){
-        ddl.selectedIndex = 0;
-        ddl.dispatchEvent(new Event("change"));
-    }
 });
 
 function updateInfoLayer(){
@@ -831,19 +827,26 @@ const layer = createState.layer;
       <label>Status</label><br>
        <input class="popup-input" type="text" id="status_lokasi">
 
-      <label>Layer</label><br>
-      <div class="popup-search">
+      <div class="layer-picker">
+
       <input
-          class="popup-input"
-          id="search_layer_create"
-          placeholder="Ketik nama layer...">
+      class="popup-input layer-search"
+      id="search_layer_create"
+      placeholder="🔍 Cari layer...">
+      
+      <select
+      class="popup-select layer-list"
+      id="layer_lokasi"
+      size="8">
+      </select>
       </div>
       
       <br>
       
       <select
           class="popup-select"
-          id="layer_lokasi">
+          id="layer_lokasi"
+          size="8">
       </select>
 
       <label>Tema</label><br>
@@ -896,20 +899,6 @@ search.addEventListener("input", function(){
 
 });
 
-search.addEventListener("keydown", function(e){
-
-    if(e.key !== "Enter") return;
-
-    e.preventDefault();
-
-    if(ddl.options.length > 0){
-
-        ddl.selectedIndex = 0;
-        ddl.dispatchEvent(new Event("change"));
-
-    }
-
-});
 
 function updateInfoLayer(){
 

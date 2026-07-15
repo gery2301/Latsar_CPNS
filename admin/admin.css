@@ -152,3 +152,49 @@ transform:translateY(0);
     border:1px solid #d1d5db;
     user-select:none;
 }
+
+.popup-select{
+
+    width:100%;
+    height:220px;
+    overflow-y:auto;
+}
+
+.layer-picker{
+
+border:1px solid #cfcfcf;
+border-radius:8px;
+overflow:hidden;
+margin-bottom:15px;
+background:white;
+}
+
+.layer-search{
+border:none!important;
+border-radius:0!important;
+box-shadow:none!important;
+margin:0!important;
+}
+
+.layer-search:focus{
+outline:none;
+}
+
+.layer-list{
+
+border:none!important;
+border-top:1px solid #ddd;
+border-radius:0!important;
+height:180px;
+margin:0!important;
+}
+
+.layer-list option{
+padding:8px 12px;
+font-size:14px;
+}
+
+.layer-list option:hover{
+background:#2196f3;
+color:white;
+}

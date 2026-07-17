@@ -459,7 +459,7 @@ function renderLayerTree(){
                     tree[kategori][tema][layer].length;
                 html += `
                     <div class="tree-layer">
-                        <label style="margin-left:35px;display:block;">
+                       <label class="tree-layer-label">
                         <input
                         type="checkbox"
                         checked

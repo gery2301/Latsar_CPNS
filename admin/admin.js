@@ -1259,6 +1259,7 @@ registerTree(dataFix);
   })
   
   .catch(err => {
+    console.error(err);
     alert("Gagal memuat data.");
 });
 loadMasterLayer();

@@ -298,10 +298,10 @@ TREE LAYER
 
 .tree-layer-label{
     display:flex;
-    align-items:space-between;
+    align-items:flex-start;
     align-items:center;
     gap:6px;
-    margin-left:14px;
+    margin-left:6px;
     cursor:pointer;
     width:100%;
     font-size:14px;
@@ -313,16 +313,9 @@ TREE LAYER
     flex-shrink:0;
 }
 
-.tree-layer-left{
-    display:flex;
-    align-items:flex-start;
-    gap:6px;
-    flex:1;
-}
-
-.tree-layer-left input{
-    margin-top:2px;
-    flex-shrink:0;
+.tree-layer-name{
+    line-height:1.4;
+    word-break:break-word;
 }
 
 .tree-count{

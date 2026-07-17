@@ -386,16 +386,11 @@ btn.innerHTML = "⏳ Menyimpan...";
     btn.innerHTML = "✓ Tersimpan";
 
 setTimeout(() => {
-
     map.closePopup();
-
     attachEditMenu(layer, layer._data);
-
 setTimeout(() => {
     layer.openPopup();
 },100);
-
-
 }, 500);
   })
    .catch(err => {
@@ -411,19 +406,17 @@ function registerLayer(layer, data) {
 
     // kalau grup belum ada, buat dulu
     if (!layerGroups[key]) {
-
       layerGroups[key] = L.layerGroup();
-      
       overlayMaps[key] = layerGroups[key];
-      
       layerControl.addOverlay(layerGroups[key], key);
-      
       map.addLayer(layerGroups[key]);
-
     }
-
     layerGroups[key].addLayer(layer);
+}
 
+function renderLayerTree(){
+    const div = document.getElementById("treeContent");
+    div.innerHTML = "";
 }
 
 function registerTree(data){
@@ -1210,9 +1203,10 @@ fetch(GAS_URL)
     return res.json();
     })
  
-  .then(resp => {
-    
+  .then(resp => { 
     const data = resp.data;
+    window.layerTree = buildLayerTree(data);
+    renderLayerTree();
     
     data.forEach(d => {
       if (!d.geometry) return;

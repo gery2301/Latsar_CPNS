@@ -417,6 +417,31 @@ function registerLayer(layer, data) {
 function renderLayerTree(){
     const div = document.getElementById("treeContent");
     div.innerHTML = "";
+   const tree = window.layerTree;
+
+    for(const kategori in tree){
+        div.innerHTML += `<h3>${kategori}</h3>`;
+        for(const tema in tree[kategori]){
+            div.innerHTML += `
+                <div style="margin-left:15px;font-weight:bold;">
+                    ${tema}
+                </div>
+            `;
+
+            for(const layer in tree[kategori][tema]){
+                const jumlah =
+                    tree[kategori][tema][layer].length;
+                div.innerHTML += `
+                    <div style="margin-left:35px;">
+                        📂 ${layer}
+                        <span style="color:#777;">
+                            (${jumlah})
+                        </span>
+                    </div>
+                `;
+            }
+        }
+    }
 }
 
 function registerTree(data){
@@ -748,6 +773,27 @@ const overlayMaps = {};
 // TREE LAYER
 // ===============================
 const treeLayers = {};
+
+function buildLayerTree(data){
+    const tree = {};
+    data.forEach(item=>{
+        const kategori = item.kategori || "Tanpa Kategori";
+        const tema = item.tema || "Tanpa Tema";
+        const layer = item.layer || "Tanpa Layer";
+
+        if(!tree[kategori]){
+            tree[kategori] = {};
+        }
+        if(!tree[kategori][tema]){
+            tree[kategori][tema] = {};
+        }
+        if(!tree[kategori][tema][layer]){
+            tree[kategori][tema][layer] = [];
+        }
+        tree[kategori][tema][layer].push(item);
+    });
+    return tree;
+}
 
 // OSM (default)
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

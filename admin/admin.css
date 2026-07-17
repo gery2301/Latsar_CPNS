@@ -291,15 +291,10 @@ TREE LAYER
     transform:translateX(3px);
 }
 
-.tree-count{
-    color:#777;
-    font-size:12px;
-}
 
 .tree-layer-label{
     display:flex;
     align-items:flex-start;
-    align-items:center;
     gap:6px;
     margin-left:6px;
     cursor:pointer;
@@ -320,7 +315,11 @@ TREE LAYER
 
 .tree-count{
     color:#666;
-    font-size:13px;
     margin-left:8px;
-    flex-shrink:0;
+    white-space:nowrap;
+}
+
+.tree-layer-text{
+    flex:1;
+    word-break:break-word;
 }

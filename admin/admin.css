@@ -209,6 +209,36 @@ background:#2196f3;
 color:white;
 }
 
+/* ==================================
+   LAYER TREE
+================================== */
+
+#layerTree{
+position:absolute;
+top:10px;
+left:60px;
+width:280px;
+max-height:80vh;
+overflow:auto;
+background:white;
+border-radius:10px;
+box-shadow:0 5px 20px rgba(0,0,0,.25);
+z-index:999;
+font-family:Segoe UI,sans-serif;
+}
+
+.tree-header{
+padding:12px;
+font-weight:bold;
+background:#1976d2;
+color:white;
+font-size:16px;
+}
+
+#treeContent{
+padding:8px;
+}
+
 .layer-list.show{
 display:block;
 animation:dropdownFade .15s ease;

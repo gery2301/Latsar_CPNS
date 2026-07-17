@@ -274,8 +274,8 @@ TREE LAYER
 }
 
 .tree-body{
-    margin-left:20px;
-    margin-top:5px;
+    margin-left:16px;
+    margin-top:4px;
 }
 
 .tree-layer{
@@ -322,4 +322,11 @@ TREE LAYER
 .tree-layer-text{
     flex:1;
     word-break:break-word;
+}
+
+.tree-tema > .tree-header{
+    padding:6px 10px;
+    font-size:14px;
+    font-weight:600;
+    border-radius:7px;
 }

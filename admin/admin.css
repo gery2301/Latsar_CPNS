@@ -263,12 +263,14 @@ TREE LAYER
     user-select:none;
     padding:8px 10px;
     border-radius:8px;
-    transition:.2s;
+    transition:all .18s ease;
     font-weight:600;
 }
 
 .tree-header:hover{
-    background:#f3f3f3;
+    background:#ede9fe;
+    color:#5b21b6;
+    transform:translateX(3px);
 }
 
 .tree-body{
@@ -280,10 +282,13 @@ TREE LAYER
     padding:5px 10px;
     margin:2px 0;
     border-radius:6px;
+    transition:all .18s ease;
 }
 
 .tree-layer:hover{
-    background:#f7f7f7;
+    background:#f5f3ff;
+    color:#5b21b6;
+    transform:translateX(3px);
 }
 
 .tree-count{

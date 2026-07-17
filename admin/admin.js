@@ -465,7 +465,8 @@ function renderLayerTree(){
                          type="checkbox"
                          checked
                          onchange="toggleLayer('${layer}',this.checked)">
-                         📂 ${layer}
+                         <span class="tree-layer-text">
+                         📂 ${layer}</span>
                         
                         <span class="tree-count">
                          (${jumlah})

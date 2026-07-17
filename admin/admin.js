@@ -460,13 +460,15 @@ function renderLayerTree(){
                 html += `
                     <div class="tree-layer">
                        <label class="tree-layer-label">
-                        <input
-                        type="checkbox"
-                        checked
-                        onchange="toggleLayer('${layer}',this.checked)">
-                        📂 ${layer}
-                        <span style="color:#777;">
-                        (${jumlah})
+                       <span class="tree-layer-left">
+                         <input
+                         type="checkbox"
+                         checked
+                         onchange="toggleLayer('${layer}',this.checked)">
+                         📂 ${layer}</span>
+                        </span>
+                        <span class="tree-count">
+                         (${jumlah})
                         </span>
                         </label>
                     </div>

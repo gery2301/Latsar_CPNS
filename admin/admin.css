@@ -243,3 +243,50 @@ padding:8px;
 display:block;
 animation:dropdownFade .15s ease;
 }
+
+/* ===============================
+TREE LAYER
+=============================== */
+
+#treeContent{
+    padding:8px;
+    font-size:14px;
+}
+
+.tree-kategori,
+.tree-tema{
+    margin-bottom:6px;
+}
+
+.tree-header{
+    cursor:pointer;
+    user-select:none;
+    padding:8px 10px;
+    border-radius:8px;
+    transition:.2s;
+    font-weight:600;
+}
+
+.tree-header:hover{
+    background:#f3f3f3;
+}
+
+.tree-body{
+    margin-left:20px;
+    margin-top:5px;
+}
+
+.tree-layer{
+    padding:5px 10px;
+    margin:2px 0;
+    border-radius:6px;
+}
+
+.tree-layer:hover{
+    background:#f7f7f7;
+}
+
+.tree-count{
+    color:#777;
+    font-size:12px;
+}

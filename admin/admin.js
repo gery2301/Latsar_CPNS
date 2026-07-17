@@ -426,6 +426,19 @@ function registerLayer(layer, data) {
 
 }
 
+function registerTree(data){
+    if(!treeLayers[data.kategori]){
+        treeLayers[data.kategori] = {};
+    }
+    if(!treeLayers[data.kategori][data.tema]){
+        treeLayers[data.kategori][data.tema] = {};
+    }
+    if(!treeLayers[data.kategori][data.tema][data.layer]){
+        treeLayers[data.kategori][data.tema][data.layer] = [];
+    }
+    treeLayers[data.kategori][data.tema][data.layer].push(data);
+}
+
 function editGeometriLayer() {
 
   map.closePopup();
@@ -738,6 +751,11 @@ function konfirmasiBatalYa(){
 const layerGroups = {};
 const overlayMaps = {};
 
+// ===============================
+// TREE LAYER
+// ===============================
+const treeLayers = {};
+
 // OSM (default)
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
@@ -1049,6 +1067,7 @@ btn.innerHTML = "⏳ Menyimpan...";
     map.closePopup();
     attachEditMenu(layer, dataBaru);
     registerLayer(layer, dataBaru);
+    registerTree(dataBaru);
     layer.openPopup();
 
 }, 600);
@@ -1240,6 +1259,7 @@ drawnItems.addLayer(layer);
 // popup edit
 attachEditMenu(layer, dataFix);
 registerLayer(layer, dataFix);
+registerTree(dataFix);
     });
 
   })

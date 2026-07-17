@@ -420,29 +420,48 @@ function renderLayerTree(){
    const tree = window.layerTree;
 
     for(const kategori in tree){
-        div.innerHTML += `<h3>${kategori}</h3>`;
-        for(const tema in tree[kategori]){
-            div.innerHTML += `
-                <div style="margin-left:15px;font-weight:bold;">
-                    ${tema}
+          let html = `
+            <div class="tree-kategori">
+                <div class="tree-header kategori-header">
+                    ▶ ${kategori}
                 </div>
+                <div class="tree-body">
+        `;
+
+        for(const tema in tree[kategori]){
+            html += `
+                <div class="tree-tema">
+                    <div class="tree-header tema-header">
+                        ▶ ${tema}
+                    </div>
+                    <div class="tree-body">
             `;
 
             for(const layer in tree[kategori][tema]){
                 const jumlah =
                     tree[kategori][tema][layer].length;
-                div.innerHTML += `
-                    <div style="margin-left:35px;">
+                html += `
+                    <div class="tree-layer">
                         📂 ${layer}
-                        <span style="color:#777;">
+                        <span class="tree-count">
                             (${jumlah})
                         </span>
                     </div>
                 `;
             }
+            html += `
+                    </div>
+                </div>
+            `;
         }
+        html += `
+                </div>
+            </div>
+        `;
+        div.innerHTML += html;
     }
 }
+
 
 function registerTree(data){
     if(!treeLayers[data.kategori]){

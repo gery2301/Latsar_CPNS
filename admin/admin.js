@@ -412,6 +412,23 @@ function registerLayer(layer, data) {
       map.addLayer(layerGroups[key]);
     }
     layerGroups[key].addLayer(layer);
+     if (!treeLayerObjects[data.layer]) {
+        treeLayerObjects[data.layer] = [];
+    }
+
+treeLayerObjects[data.layer].push(layer);
+}
+
+function toggleLayer(layerName, visible){
+
+    if(!treeLayerObjects[layerName]) return;
+    treeLayerObjects[layerName].forEach(layer=>{
+        if(visible){
+            map.addLayer(layer);
+        }else{
+            map.removeLayer(layer);
+        }
+    });
 }
 
 function renderLayerTree(){
@@ -442,10 +459,16 @@ function renderLayerTree(){
                     tree[kategori][tema][layer].length;
                 html += `
                     <div class="tree-layer">
+                        <label style="margin-left:35px;display:block;">
+                        <input
+                        type="checkbox"
+                        checked
+                        onchange="toggleLayer('${layer}',this.checked)">
                         📂 ${layer}
-                        <span class="tree-count">
-                            (${jumlah})
+                        <span style="color:#777;">
+                        (${jumlah})
                         </span>
+                        </label>
                     </div>
                 `;
             }
@@ -788,6 +811,9 @@ function konfirmasiBatalYa(){
 const layerGroups = {};
 const overlayMaps = {};
 
+// daftar layer berdasarkan nama layer
+const treeLayerObjects = {};
+
 // ===============================
 // TREE LAYER
 // ===============================
@@ -812,6 +838,17 @@ function buildLayerTree(data){
         tree[kategori][tema][layer].push(item);
     });
     return tree;
+}
+
+function toggleLayer(layerName, visible){
+    Object.keys(layerGroups).forEach(key=>{
+        if(!key.endsWith("_" + layerName)) return;
+        if(visible){
+            map.addLayer(layerGroups[key]);
+        }else{
+            map.removeLayer(layerGroups[key]);
+        }
+    });
 }
 
 // OSM (default)

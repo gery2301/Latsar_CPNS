@@ -439,8 +439,8 @@ function renderLayerTree(){
     for(const kategori in tree){
           let html = `
             <div class="tree-kategori">
-                <div class="tree-header kategori-header">
-                   data-title=${kategori}>
+                <div class="tree-header kategori-header"
+                   data-title="${kategori}">
                    ▶ ${kategori}
                 </div>
                 <div class="tree-body show">
@@ -449,8 +449,8 @@ function renderLayerTree(){
         for(const tema in tree[kategori]){
             html += `
                 <div class="tree-tema">
-                    <div class="tree-header tema-header">
-                         data-title= ${tema}>
+                    <div class="tree-header tema-header"
+                         data-title="${tema}">
                          ▶ ${tema}
                     </div>
                     <div class="tree-body show">
@@ -512,8 +512,8 @@ function initTreeCollapse(){
         header.addEventListener("click",function(){
             const body = this.nextElementSibling;
             body.classList.toggle("show");
-            const judul = this.textContent.replace(/^▶\s|^▼\s/, "");
-            this.textContent =
+            const judul = this.dataset.title;
+            this.innerHTML =
                 (body.classList.contains("show") ? "▼ " : "▶ ")
                 + judul;
         });

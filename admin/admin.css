@@ -280,11 +280,13 @@ TREE LAYER
     margin-top:4px;
     overflow:hidden;
     max-height:0;
-    transition:max-height .25s ease;
+    transition:max-height .25s ease,
+    opacity .18s ease;
 }
 
 .tree-body.show{
     max-height:2000px;
+    opacity:1;
 }
 
 .tree-layer{
@@ -338,4 +340,15 @@ TREE LAYER
     font-size:14px;
     font-weight:600;
     border-radius:7px;
+}
+
+.tree-header::before{
+    content:"▶";
+    display:inline-block;
+    margin-right:8px;
+    transition:transform .2s ease;
+}
+
+.tree-header.open::before{
+    transform:rotate(90deg);
 }

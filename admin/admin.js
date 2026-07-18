@@ -490,36 +490,47 @@ function renderLayerTree(){
     }
 }
 
+function setCollapse(header, open){
+    const body = header.nextElementSibling;
+
+    if(open){
+        body.classList.add("show");
+        body.style.maxHeight = body.scrollHeight + "px";
+        body.style.opacity = "1";
+        header.innerHTML = "▼ " + header.dataset.title;
+     
+    }else{
+        body.classList.remove("show");
+        body.style.maxHeight = "0px";
+        body.style.opacity = "0";
+        header.innerHTML = "▶ " + header.dataset.title;
+    }
+}
+
 function initTreeCollapse(){
 
     // HEADER KATEGORI
-    document.querySelectorAll(".kategori-header").forEach(header=>{
+    document.querySelectorAll(".kategori-header, .tema-header")
+    .forEach(header=>{
 
-        header.addEventListener("click",function(){
-            const body = this.nextElementSibling;
-            body.classList.toggle("show");
-             const judul = this.dataset.title;
+     const body = header.nextElementSibling;
 
-            this.innerHTML =
-                (body.classList.contains("show") ? "▼ " : "▶ ")
-                + judul;
-                    });
-                });
-             
-
-    // HEADER TEMA
-    document.querySelectorAll(".tema-header").forEach(header=>{
-        header.addEventListener("click",function(){
-            const body = this.nextElementSibling;
-            body.classList.toggle("show");
-            const judul = this.dataset.title;
-            this.innerHTML =
-                (body.classList.contains("show") ? "▼ " : "▶ ")
-                + judul;
+         // sinkronkan kondisi awal
+        if(body.classList.contains("show")){
+            body.style.maxHeight = body.scrollHeight + "px";
+            body.style.opacity = "1";
+            header.innerHTML = "▼ " + header.dataset.title;
+        }else{
+            body.style.maxHeight = "0px";
+            body.style.opacity = "0";
+            header.innerHTML = "▶ " + header.dataset.title;
+        }
+        header.addEventListener("click",()=>{
+            const buka = !body.classList.contains("show");
+            setCollapse(header,buka);
         });
     });
 }
-
 function registerTree(data){
     if(!treeLayers[data.kategori]){
         treeLayers[data.kategori] = {};

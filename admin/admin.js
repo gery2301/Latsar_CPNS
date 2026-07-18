@@ -442,7 +442,7 @@ function renderLayerTree(){
                 <div class="tree-header kategori-header">
                     ▶ ${kategori}
                 </div>
-                <div class="tree-body">
+                <div class="tree-body show">
         `;
 
         for(const tema in tree[kategori]){
@@ -451,7 +451,7 @@ function renderLayerTree(){
                     <div class="tree-header tema-header">
                         ▶ ${tema}
                     </div>
-                    <div class="tree-body">
+                    <div class="tree-body show">
             `;
 
             for(const layer in tree[kategori][tema]){
@@ -488,6 +488,31 @@ function renderLayerTree(){
     }
 }
 
+function initTreeCollapse(){
+
+    // HEADER KATEGORI
+    document.querySelectorAll(".kategori-header").forEach(header=>{
+
+        header.addEventListener("click",function(){
+            const body = this.nextElementSibling;
+            body.classList.toggle("show");
+            this.textContent =
+                (body.classList.contains("show") ? "▼ " : "▶ ")
+                + this.textContent.substring(2);
+        });
+    });
+
+    // HEADER TEMA
+    document.querySelectorAll(".tema-header").forEach(header=>{
+        header.addEventListener("click",function(){
+            const body = this.nextElementSibling;
+            body.classList.toggle("show");
+            this.textContent =
+                (body.classList.contains("show") ? "▼ " : "▶ ")
+                + this.textContent.substring(2);
+        });
+    });
+}
 
 function registerTree(data){
     if(!treeLayers[data.kategori]){
@@ -1326,6 +1351,7 @@ fetch(GAS_URL)
     const data = resp.data;
     window.layerTree = buildLayerTree(data);
     renderLayerTree();
+    initTreeCollapse();
     
     data.forEach(d => {
       if (!d.geometry) return;

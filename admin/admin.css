@@ -233,6 +233,8 @@ font-weight:bold;
 background:#1976d2;
 color:white;
 font-size:16px;
+cursor:pointer;
+user-select:none;
 }
 
 #treeContent{
@@ -276,6 +278,13 @@ TREE LAYER
 .tree-body{
     margin-left:16px;
     margin-top:4px;
+    overflow:hidden;
+    max-height:0;
+    transition:max-height .25s ease;
+}
+
+.tree-body.show{
+    max-height:2000px;
 }
 
 .tree-layer{

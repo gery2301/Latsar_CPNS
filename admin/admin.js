@@ -505,7 +505,7 @@ function initTreeCollapse(){
                 + judul;
                     });
                 });
-             } 
+             
 
     // HEADER TEMA
     document.querySelectorAll(".tema-header").forEach(header=>{

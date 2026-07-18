@@ -280,13 +280,9 @@ TREE LAYER
     margin-top:4px;
     overflow:hidden;
     max-height:0;
+    opacity:0;
     transition:max-height .25s ease,
     opacity .18s ease;
-}
-
-.tree-body.show{
-    max-height:2000px;
-    opacity:1;
 }
 
 .tree-layer{

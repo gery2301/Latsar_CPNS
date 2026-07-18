@@ -1376,7 +1376,11 @@ fetch(GAS_URL)
     window.layerTree = buildLayerTree(data);
     renderLayerTree();
     initTreeCollapse();
-    setTimeout(refreshTreeHeight,50);
+    requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        refreshTreeHeight();
+    });
+});
     
     data.forEach(d => {
       if (!d.geometry) return;

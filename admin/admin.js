@@ -496,20 +496,22 @@ function initTreeCollapse(){
         header.addEventListener("click",function(){
             const body = this.nextElementSibling;
             body.classList.toggle("show");
+            const judul = this.textContent.replace(/^▶\s|^▼\s/, "");
             this.textContent =
                 (body.classList.contains("show") ? "▼ " : "▶ ")
-                + this.textContent.substring(2);
-        });
-    });
+                + judul;
+                    });
+                });
 
     // HEADER TEMA
     document.querySelectorAll(".tema-header").forEach(header=>{
         header.addEventListener("click",function(){
             const body = this.nextElementSibling;
             body.classList.toggle("show");
+            const judul = this.textContent.replace(/^▶\s|^▼\s/, "");
             this.textContent =
                 (body.classList.contains("show") ? "▼ " : "▶ ")
-                + this.textContent.substring(2);
+                + judul;
         });
     });
 }

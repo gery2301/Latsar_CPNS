@@ -507,6 +507,13 @@ function setCollapse(header, open){
     }
 }
 
+function refreshTreeHeight(){
+
+    document.querySelectorAll(".tree-body.show").forEach(body=>{
+        body.style.maxHeight = body.scrollHeight + "px";
+    });
+}
+
 function initTreeCollapse(){
 
     // HEADER KATEGORI
@@ -1369,6 +1376,7 @@ fetch(GAS_URL)
     window.layerTree = buildLayerTree(data);
     renderLayerTree();
     initTreeCollapse();
+    requestAnimationFrame(refreshTreeHeight);
     
     data.forEach(d => {
       if (!d.geometry) return;

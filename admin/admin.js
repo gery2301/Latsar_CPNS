@@ -822,6 +822,20 @@ const treeLayerObjects = {};
 // ===============================
 const treeLayers = {};
 
+function toggleLayer(layerName, visible){
+
+    Object.keys(layerGroups).forEach(key=>{
+        // key = "Dinas PU_Jalan Nasional"
+        const namaLayer = key.split("_")[1];
+        if(namaLayer !== layerName) return;
+        if(visible){
+            map.addLayer(layerGroups[key]);
+        }else{
+            map.removeLayer(layerGroups[key]);
+        }
+    });
+}
+
 function buildLayerTree(data){
     const tree = {};
     data.forEach(item=>{

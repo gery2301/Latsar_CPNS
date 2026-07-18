@@ -440,7 +440,7 @@ function renderLayerTree(){
           let html = `
             <div class="tree-kategori">
                 <div class="tree-header kategori-header">
-                    ▶ ${kategori}
+                     ${kategori}
                 </div>
                 <div class="tree-body show">
         `;
@@ -449,7 +449,7 @@ function renderLayerTree(){
             html += `
                 <div class="tree-tema">
                     <div class="tree-header tema-header">
-                        ▶ ${tema}
+                         ${tema}
                     </div>
                     <div class="tree-body show">
             `;

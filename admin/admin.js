@@ -440,7 +440,8 @@ function renderLayerTree(){
           let html = `
             <div class="tree-kategori">
                 <div class="tree-header kategori-header">
-                     ${kategori}
+                   data-title=${kategori}>
+                   ▶ ${kategori}
                 </div>
                 <div class="tree-body show">
         `;
@@ -449,7 +450,8 @@ function renderLayerTree(){
             html += `
                 <div class="tree-tema">
                     <div class="tree-header tema-header">
-                         ${tema}
+                         data-title= ${tema}>
+                         ▶ ${tema}
                     </div>
                     <div class="tree-body show">
             `;
@@ -496,12 +498,14 @@ function initTreeCollapse(){
         header.addEventListener("click",function(){
             const body = this.nextElementSibling;
             body.classList.toggle("show");
-            const judul = this.textContent.replace(/^▶\s|^▼\s/, "");
-            this.textContent =
+             const judul = this.dataset.title;
+
+            this.innerHTML =
                 (body.classList.contains("show") ? "▼ " : "▶ ")
                 + judul;
                     });
                 });
+             } 
 
     // HEADER TEMA
     document.querySelectorAll(".tema-header").forEach(header=>{

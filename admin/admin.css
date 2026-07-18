@@ -341,14 +341,3 @@ TREE LAYER
     font-weight:600;
     border-radius:7px;
 }
-
-.tree-header::before{
-    content:"▶";
-    display:inline-block;
-    margin-right:8px;
-    transition:transform .2s ease;
-}
-
-.tree-header.open::before{
-    transform:rotate(90deg);
-}

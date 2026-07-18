@@ -510,7 +510,9 @@ function setCollapse(header, open){
 function refreshTreeHeight(){
 
     document.querySelectorAll(".tree-body.show").forEach(body=>{
-        body.style.maxHeight = body.scrollHeight + "px";
+        body.style.maxHeight = "none";
+        const h = body.scrollHeight;
+        body.style.maxHeight = h + "px";
     });
 }
 
@@ -1429,7 +1431,7 @@ attachEditMenu(layer, dataFix);
 registerLayer(layer, dataFix);
 registerTree(dataFix);
     });
-
+setTimeout(refreshTreeHeight,300);
   })
   
   .catch(err => {

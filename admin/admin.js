@@ -908,23 +908,6 @@ function buildLayerTree(data){
     return tree;
 }
 
-async function refreshLayerTree(){
-
-    const res = await fetch(GAS_URL);
-    const resp = await res.json();
-
-    window.layerTree = buildLayerTree(resp.data);
-
-    renderLayerTree();
-    initTreeCollapse();
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            refreshTreeHeight();
-        });
-    });
-
-}
-
 function toggleLayer(layerName, visible){
     Object.keys(layerGroups).forEach(key=>{
         if(!key.endsWith("_" + layerName)) return;
@@ -1392,7 +1375,19 @@ fetch(GAS_URL)
  
   .then(resp => { 
     const data = resp.data;
-   
+    window.layerTree = buildLayerTree(data);
+    renderLayerTree();
+    initTreeCollapse();
+    requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        refreshTreeHeight();
+     setTimeout(() => {
+    document
+        .getElementById("layerTree")
+        .classList.add("tree-ready");
+},200);
+    });
+});
     
     data.forEach(d => {
       if (!d.geometry) return;
@@ -1441,21 +1436,7 @@ attachEditMenu(layer, dataFix);
 registerLayer(layer, dataFix);
 registerTree(dataFix);
     });
-
- window.layerTree = buildLayerTree(data);
-    renderLayerTree();
-    initTreeCollapse();
-    requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-        refreshTreeHeight();
-     setTimeout(() => {
-    document
-        .getElementById("layerTree")
-        .classList.add("tree-ready");
-},200);
-    });
-});
-   
+setTimeout(refreshTreeHeight,300);
   })
   
   .catch(err => {

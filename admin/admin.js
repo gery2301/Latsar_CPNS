@@ -505,7 +505,6 @@ function setCollapse(header, open){
         body.style.opacity = "0";
         header.innerHTML = "▶ " + header.dataset.title;
     }
-    
 }
 
 function refreshTreeHeight(){
@@ -538,8 +537,6 @@ function initTreeCollapse(){
         header.addEventListener("click",()=>{
             const buka = !body.classList.contains("show");
             setCollapse(header,buka);
-
-         
         });
     });
 }
@@ -1381,9 +1378,11 @@ fetch(GAS_URL)
     window.layerTree = buildLayerTree(data);
     renderLayerTree();
     initTreeCollapse();
-    setTimeout(() => {
-    refreshTreeHeight();
-    }, 100);
+    requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        refreshTreeHeight();
+    });
+});
     
     data.forEach(d => {
       if (!d.geometry) return;
@@ -1432,7 +1431,7 @@ attachEditMenu(layer, dataFix);
 registerLayer(layer, dataFix);
 registerTree(dataFix);
     });
-
+setTimeout(refreshTreeHeight,300);
   })
   
   .catch(err => {
@@ -1440,4 +1439,3 @@ registerTree(dataFix);
     alert("Gagal memuat data.");
 });
 loadMasterLayer();
-

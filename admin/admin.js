@@ -1365,6 +1365,9 @@ document.addEventListener("keydown", function(e){
 // ===============================
 // LOAD DATA AWAL
 // ===============================
+
+async function loadDataAwal() {
+
 fetch(GAS_URL)
        .then(res=>{
     if(!res.ok){
@@ -1443,4 +1446,6 @@ setTimeout(refreshTreeHeight,300);
     console.error(err);
     alert("Gagal memuat data.");
 });
+ }
+loadDataAwal();
 loadMasterLayer();

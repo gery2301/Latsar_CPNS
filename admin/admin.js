@@ -1381,6 +1381,11 @@ fetch(GAS_URL)
     requestAnimationFrame(() => {
     requestAnimationFrame(() => {
         refreshTreeHeight();
+     setTimeout(() => {
+    document
+        .getElementById("layerTree")
+        .classList.add("tree-ready");
+},200);
     });
 });
     

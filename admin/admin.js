@@ -1392,11 +1392,9 @@ fetch(GAS_URL)
     window.layerTree = buildLayerTree(data);
     renderLayerTree();
     initTreeCollapse();
-    requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-        refreshTreeHeight();
-    });
-});
+    setTimeout(() => {
+    refreshTreeHeight();
+    }, 100);
     
     data.forEach(d => {
       if (!d.geometry) return;
@@ -1445,7 +1443,7 @@ attachEditMenu(layer, dataFix);
 registerLayer(layer, dataFix);
 registerTree(dataFix);
     });
-setTimeout(refreshTreeHeight,300);
+
   })
   
   .catch(err => {

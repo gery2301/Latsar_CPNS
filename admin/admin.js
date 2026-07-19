@@ -1436,39 +1436,36 @@ function renderLayerData(data){
 
 async function loadDataAwal() {
 
-fetch(GAS_URL)
-       .then(res=>{
-    if(!res.ok){
-        throw new Error("HTTP "+res.status);
-    }
-    return res.json();
-    })
+try{
+        const res = await fetch(GAS_URL);
  
-  .then(resp => { 
-    const data = resp.data;
-    clearRenderedData();
-    window.layerTree = buildLayerTree(data);
-    renderLayerTree();
-    initTreeCollapse();
-    requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-        refreshTreeHeight();
-     setTimeout(() => {
-    document
-        .getElementById("layerTree")
-        .classList.add("tree-ready");
-},200);
-    });
-});
-    
-renderLayerData(data);   
-setTimeout(refreshTreeHeight,300);
-  })
-  
-  .catch(err => {
-    console.error(err);
-    alert("Gagal memuat data.");
-});
- }
+        if(!res.ok){
+            throw new Error("HTTP " + res.status);
+        }
+        const resp = await res.json();
+        const data = resp.data;
+
+        clearRenderedData();
+        window.layerTree = buildLayerTree(data);
+        renderLayerTree();
+        initTreeCollapse();
+        requestAnimationFrame(()=>{
+            requestAnimationFrame(()=>{
+                refreshTreeHeight();
+                setTimeout(()=>{
+                    document
+                        .getElementById("layerTree")
+                        .classList.add("tree-ready");
+                },200);
+            });
+        });
+        renderLayerData(data);
+        setTimeout(refreshTreeHeight,300);
+    }
+    catch(err){
+        console.error(err);
+        alert("Gagal memuat data.");
+    }
+}
 loadDataAwal();
 loadMasterLayer();

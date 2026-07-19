@@ -281,8 +281,7 @@ TREE LAYER
     overflow:hidden;
     max-height:0;
     opacity:0;
-    transition:max-height .25s ease,
-    opacity .18s ease;
+    transition:opacity .18s ease;
 }
 
 .tree-layer{

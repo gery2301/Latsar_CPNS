@@ -1392,19 +1392,7 @@ fetch(GAS_URL)
  
   .then(resp => { 
     const data = resp.data;
-    window.layerTree = buildLayerTree(data);
-    renderLayerTree();
-    initTreeCollapse();
-    requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-        refreshTreeHeight();
-     setTimeout(() => {
-    document
-        .getElementById("layerTree")
-        .classList.add("tree-ready");
-},200);
-    });
-});
+   
     
     data.forEach(d => {
       if (!d.geometry) return;
@@ -1453,7 +1441,21 @@ attachEditMenu(layer, dataFix);
 registerLayer(layer, dataFix);
 registerTree(dataFix);
     });
-setTimeout(refreshTreeHeight,300);
+
+ window.layerTree = buildLayerTree(data);
+    renderLayerTree();
+    initTreeCollapse();
+    requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        refreshTreeHeight();
+     setTimeout(() => {
+    document
+        .getElementById("layerTree")
+        .classList.add("tree-ready");
+},200);
+    });
+});
+   
   })
   
   .catch(err => {

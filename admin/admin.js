@@ -1366,6 +1366,21 @@ document.addEventListener("keydown", function(e){
 // LOAD DATA AWAL
 // ===============================
 
+function clearRenderedData(){
+
+    drawnItems.clearLayers();
+ 
+    Object.values(layerGroups).forEach(group=>{
+        group.clearLayers();
+    });
+    Object.keys(treeLayerObjects).forEach(key=>{
+        delete treeLayerObjects[key];
+    });
+    Object.keys(treeLayers).forEach(key=>{
+        delete treeLayers[key];
+    });
+}
+
 function renderLayerData(data){
 
     data.forEach(d => {
@@ -1431,6 +1446,7 @@ fetch(GAS_URL)
  
   .then(resp => { 
     const data = resp.data;
+    clearRenderedData();
     window.layerTree = buildLayerTree(data);
     renderLayerTree();
     initTreeCollapse();

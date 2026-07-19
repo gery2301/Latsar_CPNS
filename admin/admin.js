@@ -1366,6 +1366,59 @@ document.addEventListener("keydown", function(e){
 // LOAD DATA AWAL
 // ===============================
 
+function renderLayerData(data){
+
+    data.forEach(d => {
+
+        if (!d.geometry) return;
+
+        let layer = null;
+        const type = d.geometry.type;
+        const coords = d.geometry.coordinates;
+
+        if (type === "Point") {
+
+            const [lon, lat] = coords;
+            layer = L.marker([lat, lon]);
+        }
+
+        else if (type === "LineString") {
+            const latlngs = coords.map(([lon,lat]) => [lat,lon]);
+            layer = L.polyline(latlngs);
+        }
+        else if (type === "Polygon") {
+
+            const latlngs = coords.map(ring =>
+                ring.map(([lon,lat]) => [lat,lon])
+            );
+            layer = L.polygon(latlngs);
+        }
+        if (!layer) return;
+
+        layer.options.id = d.id;
+
+        const dataFix = {
+            id:d.id,
+            nama:d.nama,
+            status:d.status,
+            kategori:d.kategori,
+            tema:d.tema,
+            layer:d.layer,
+            owner_opd:d.owner_opd
+        };
+
+        layer._data = dataFix;
+
+        drawnItems.addLayer(layer);
+
+        attachEditMenu(layer,dataFix);
+        registerLayer(layer,dataFix);
+        registerTree(dataFix);
+
+    });
+
+}
+
 async function loadDataAwal() {
 
 fetch(GAS_URL)
@@ -1392,53 +1445,7 @@ fetch(GAS_URL)
     });
 });
     
-    data.forEach(d => {
-      if (!d.geometry) return;
-
-      let layer = null;
-      const type = d.geometry.type;
-      const coords = d.geometry.coordinates;
-
-      if (type === "Point") {
-        const [lon, lat] = coords;
-        layer = L.marker([lat, lon]);
-      } 
-      else if (type === "LineString") {
-        const latlngs = coords.map(([lon, lat]) => [lat, lon]);
-        layer = L.polyline(latlngs);
-      } 
-      else if (type === "Polygon") {
-        const latlngs = coords.map(ring =>
-          ring.map(([lon, lat]) => [lat, lon])
-        );
-        layer = L.polygon(latlngs);
-      }
-
-      if (!layer) return;
-
-      // simpan ID & atribut di layer (PENTING)
-      layer.options.id = d.id;
-
-      const dataFix = {
-        id: d.id,
-        nama: d.nama,
-        status: d.status,
-        kategori: d.kategori,
-        tema:d.tema,
-        layer: d.layer,
-        owner_opd: d.owner_opd
-      };
-
-      layer._data = dataFix;
-
-// WAJIB: masuk ke drawnItems supaya bisa diedit
-drawnItems.addLayer(layer);
-
-// popup edit
-attachEditMenu(layer, dataFix);
-registerLayer(layer, dataFix);
-registerTree(dataFix);
-    });
+renderLayerData(data);   
 setTimeout(refreshTreeHeight,300);
   })
   

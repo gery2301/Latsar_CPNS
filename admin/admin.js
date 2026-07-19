@@ -1467,5 +1467,8 @@ try{
         alert("Gagal memuat data.");
     }
 }
-loadDataAwal();
-loadMasterLayer();
+async function init(){
+ await loadMasterLayer();
+ await loadDataAwal();
+}
+init();

@@ -908,6 +908,23 @@ function buildLayerTree(data){
     return tree;
 }
 
+async function refreshLayerTree(){
+
+    const res = await fetch(GAS_URL);
+    const resp = await res.json();
+
+    window.layerTree = buildLayerTree(resp.data);
+
+    renderLayerTree();
+    initTreeCollapse();
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            refreshTreeHeight();
+        });
+    });
+
+}
+
 function toggleLayer(layerName, visible){
     Object.keys(layerGroups).forEach(key=>{
         if(!key.endsWith("_" + layerName)) return;

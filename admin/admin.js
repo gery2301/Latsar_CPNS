@@ -505,7 +505,7 @@ function setCollapse(header, open){
         body.style.opacity = "0";
         header.innerHTML = "▶ " + header.dataset.title;
     }
-    updateParentHeights(body);
+    
 }
 
 function refreshTreeHeight(){
@@ -516,17 +516,6 @@ function refreshTreeHeight(){
         body.style.maxHeight = h + "px";
     });
 }
-
-    function updateParentHeights(body){
-    
-        let parent = body.parentElement.closest(".tree-body");
-        while(parent){
-    
-            parent.style.maxHeight = "none";
-            parent.style.maxHeight = parent.scrollHeight + "px";
-            parent = parent.parentElement.closest(".tree-body");
-        }
-    }
 
 function initTreeCollapse(){
 

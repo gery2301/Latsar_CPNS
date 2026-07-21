@@ -1446,39 +1446,6 @@ function renderLayerData(data){
 
 }
 
-async function refreshLayerData(){
-
-    try{
-
-        const res = await fetch(GAS_URL);
-        if(!res.ok){
-            throw new Error("HTTP " + res.status);
-        }
-
-        const resp = await res.json();
-        const newData = resp.data;
-
-        if(JSON.stringify(newData) === JSON.stringify(lastData)){
-            console.log("Tidak ada perubahan");
-            return;
-        } 
-        console.log("Ada perubahan data");
-        
-         reloadMarker(newData);
-         lastData = structuredClone(newData);
-     
-    }catch(err){
-        console.error("Refresh gagal", err);
-    }
-}
-
-function reloadMarker(data){
-
-    clearMapLayer();
-    renderLayerData(data);
-    refreshTreeHeight();
-}
-
 async function loadDataAwal() {
 
 try{
@@ -1531,12 +1498,14 @@ async function refreshLayerData(){
     lastData = structuredClone(newData);
 
     clearRenderedData();
+    renderLayerData(newData);
     window.layerTree = buildLayerTree(newData);
     renderLayerTree();
     initTreeCollapse();
-    renderLayerData(newData);
+    requestAnimationFrame(()=>{
     refreshTreeHeight();
-    }
+     });
+ lastData = structuredClone(newData);
 
 async function init(){
  await loadMasterLayer();

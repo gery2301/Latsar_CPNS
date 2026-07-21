@@ -868,6 +868,9 @@ const overlayMaps = {};
 // daftar layer berdasarkan nama layer
 const treeLayerObjects = {};
 
+// cache data terakhir dari server
+let lastData = [];
+
 // ===============================
 // TREE LAYER
 // ===============================
@@ -1461,6 +1464,7 @@ try{
         }
         const resp = await res.json();
         const data = resp.data;
+        lastData = structuredClone(data);
 
         clearRenderedData();
         window.layerTree = buildLayerTree(data);

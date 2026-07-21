@@ -1496,8 +1496,14 @@ async function refreshLayerData(){
         throw new Error("HTTP " + res.status);
     }
     const resp = await res.json();
-    console.log("Refresh:", resp.data.length);
-}
+     const newData = resp.data;
+    
+    if(JSON.stringify(newData) === JSON.stringify(lastData)){
+        console.log("Tidak ada perubahan");
+        return;
+     }
+    console.log("Ada perubahan data");
+    }
 
 async function init(){
  await loadMasterLayer();

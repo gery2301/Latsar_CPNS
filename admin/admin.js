@@ -1486,7 +1486,13 @@ try{
 }
 
 async function refreshLayerData(){
-    await loadDataAwal();
+
+    const res = await fetch(GAS_URL);
+    if(!res.ok){
+        throw new Error("HTTP " + res.status);
+    }
+    const resp = await res.json();
+    console.log("Refresh:", resp.data.length);
 }
 
 async function init(){

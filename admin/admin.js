@@ -1384,6 +1384,14 @@ function clearRenderedData(){
     });
 }
 
+function clearMapLayer(){
+
+    drawnItems.clearLayers();
+    Object.values(layerGroups).forEach(group=>{
+        group.clearLayers();
+    });
+}
+
 function renderLayerData(data){
 
     data.forEach(d => {
@@ -1454,8 +1462,15 @@ async function refreshLayerData(){
             return;
         } 
         console.log("Ada perubahan data");
-        lastData = structuredClone(newData);
-        reloadMarker(newData);
+        window.layerTree = buildLayerTree(newData);
+
+        renderLayerTree();
+        initTreeCollapse();
+        requestAnimationFrame(()=>{
+            refreshTreeHeight();
+        });
+         reloadMarker(newData);
+         lastData = structuredClone(newData);
      
     }catch(err){
         console.error("Refresh gagal", err);
@@ -1464,7 +1479,7 @@ async function refreshLayerData(){
 
 function reloadMarker(data){
 
-    clearRenderedData();
+    clearMapLayer();
     renderLayerData(data);
 }
 

@@ -1503,6 +1503,14 @@ async function refreshLayerData(){
         return;
      }
     console.log("Ada perubahan data");
+    lastData = structuredClone(newData);
+
+    clearRenderedData();
+    window.layerTree = buildLayerTree(newData);
+    renderLayerTree();
+    initTreeCollapse();
+    renderLayerData(newData);
+    refreshTreeHeight();
     }
 
 async function init(){

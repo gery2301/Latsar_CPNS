@@ -1467,8 +1467,14 @@ try{
         alert("Gagal memuat data.");
     }
 }
+
+async function refreshLayerData(){
+    await loadDataAwal();
+}
+
 async function init(){
  await loadMasterLayer();
  await loadDataAwal();
 }
 init();
+window.refreshLayerData = refreshLayerData;

@@ -1447,7 +1447,15 @@ async function refreshLayerData(){
         }
 
         const resp = await res.json();
-        console.log("Refresh berhasil", resp.data.length);
+        const newData = resp.data;
+
+        if(JSON.stringify(newData) === JSON.stringify(lastData)){
+            console.log("Tidak ada perubahan");
+            return;
+        } 
+        console.log("Ada perubahan data");
+        lastData = structuredClone(newData);
+        reloadMarker(newData);
      
     }catch(err){
         console.error("Refresh gagal", err);

@@ -1382,6 +1382,7 @@ function clearRenderedData(){
     Object.keys(treeLayers).forEach(key=>{
         delete treeLayers[key];
     });
+ window.layerTree = {};
 }
 
 function clearMapLayer(){
@@ -1462,13 +1463,7 @@ async function refreshLayerData(){
             return;
         } 
         console.log("Ada perubahan data");
-        window.layerTree = buildLayerTree(newData);
-
-        renderLayerTree();
-        initTreeCollapse();
-        requestAnimationFrame(()=>{
-            refreshTreeHeight();
-        });
+        
          reloadMarker(newData);
          lastData = structuredClone(newData);
      
@@ -1481,6 +1476,7 @@ function reloadMarker(data){
 
     clearMapLayer();
     renderLayerData(data);
+    refreshTreeHeight();
 }
 
 async function loadDataAwal() {

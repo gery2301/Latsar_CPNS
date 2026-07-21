@@ -1434,6 +1434,23 @@ function renderLayerData(data){
 
 }
 
+async function refreshLayerData(){
+
+    try{
+
+        const res = await fetch(GAS_URL);
+        if(!res.ok){
+            throw new Error("HTTP " + res.status);
+        }
+
+        const resp = await res.json();
+        console.log("Refresh berhasil", resp.data.length);
+     
+    }catch(err){
+        console.error("Refresh gagal", err);
+    }
+}
+
 async function loadDataAwal() {
 
 try{

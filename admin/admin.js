@@ -1506,6 +1506,7 @@ async function refreshLayerData(){
     refreshTreeHeight();
      });
  lastData = structuredClone(newData);
+}
 
 async function init(){
  await loadMasterLayer();

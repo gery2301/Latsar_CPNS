@@ -1495,3 +1495,5 @@ async function init(){
 }
 init();
 window.refreshLayerData = refreshLayerData;
+// refresh tiap 5 detik
+setInterval(refreshLayerData,5000);

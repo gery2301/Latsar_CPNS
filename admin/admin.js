@@ -1501,10 +1501,10 @@ async function refreshLayerData(){
     renderLayerData(newData);
     window.layerTree = buildLayerTree(newData);
     renderLayerTree();
-    initTreeCollapse();
+
     requestAnimationFrame(()=>{
-    refreshTreeHeight();
-     });
+        refreshTreeHeight();
+    });
  lastData = structuredClone(newData);
 }
 

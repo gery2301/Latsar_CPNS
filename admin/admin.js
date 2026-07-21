@@ -1454,6 +1454,12 @@ async function refreshLayerData(){
     }
 }
 
+function reloadMarker(data){
+
+    clearRenderedData();
+    renderLayerData(data);
+}
+
 async function loadDataAwal() {
 
 try{

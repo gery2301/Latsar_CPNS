@@ -1502,7 +1502,12 @@ async function refreshLayerData(){
     console.log(newData);
     console.log(buildLayerTree(newData));
     window.layerTree = buildLayerTree(newData);
+   console.log("TREE SEBELUM RENDER", window.layerTree);
     renderLayerTree();
+ console.log(
+    "ISI treeContent",
+    document.getElementById("treeContent").innerHTML
+);
 
     requestAnimationFrame(()=>{
         refreshTreeHeight();

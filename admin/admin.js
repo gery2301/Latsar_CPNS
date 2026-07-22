@@ -1505,12 +1505,16 @@ async function refreshLayerData(){
    console.log("TREE SEBELUM RENDER", window.layerTree);
     renderLayerTree();
  console.log(
-    "ISI treeContent",
+   "SEBELUM refreshTreeHeight",
     document.getElementById("treeContent").innerHTML
 );
 
     requestAnimationFrame(()=>{
         refreshTreeHeight();
+     console.log(
+        "SESUDAH refreshTreeHeight",
+        document.getElementById("treeContent").innerHTML
+    );
     });
  lastData = structuredClone(newData);
 }

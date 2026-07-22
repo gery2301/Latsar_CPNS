@@ -1499,6 +1499,8 @@ async function refreshLayerData(){
 
     clearRenderedData();
     renderLayerData(newData);
+    console.log(newData);
+    console.log(buildLayerTree(newData));
     window.layerTree = buildLayerTree(newData);
     renderLayerTree();
 

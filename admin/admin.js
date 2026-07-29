@@ -495,15 +495,16 @@ function setCollapse(header, open){
 
     if(open){
         body.classList.add("show");
-        console.log(
-    "SET COLLAPSE",
-    header.dataset.title,
-    body.scrollHeight,
-    body.style.maxHeight
-);
+        
         body.style.maxHeight = body.scrollHeight + "px";
         body.style.opacity = "1";
         header.innerHTML = "▼ " + header.dataset.title;
+      console.log(
+            "SET COLLAPSE",
+            header.dataset.title,
+            "scrollHeight =", body.scrollHeight,
+            "maxHeight =", body.style.maxHeight
+        );
      
     }else{
         body.classList.remove("show");

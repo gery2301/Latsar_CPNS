@@ -1504,11 +1504,15 @@ async function refreshLayerData(){
     renderLayerData(newData);
     window.layerTree = buildLayerTree(newData);
     renderLayerTree();
+    requestAnimationFrame(() => {
     initTreeCollapse();
     requestAnimationFrame(()=>{
         refreshTreeHeight();
+     document
+            .getElementById("layerTree")
+            .classList.add("tree-ready");
     });
-    lastData = structuredClone(newData);
+    });
 }
 
 async function init(){

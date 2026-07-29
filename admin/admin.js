@@ -516,8 +516,12 @@ function setCollapse(header, open){
 
 function refreshTreeHeight(){
 
-    document.querySelectorAll(".tree-body.show").forEach(body=>{
+    const bodies = [
+    ...document.querySelectorAll(".tree-body.show")
+      ].reverse();
+      bodies.forEach(body=>{
         body.style.maxHeight = "none";
+        body.offsetHeight; // force reflow
         const h = body.scrollHeight;
         console.log(
             body.previousElementSibling.dataset.title,

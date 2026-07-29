@@ -1505,8 +1505,9 @@ async function refreshLayerData(){
     window.layerTree = buildLayerTree(newData);
     renderLayerTree();
     requestAnimationFrame(() => {
-    initTreeCollapse();
+    
     requestAnimationFrame(()=>{
+        initTreeCollapse();
         refreshTreeHeight();
      document
             .getElementById("layerTree")

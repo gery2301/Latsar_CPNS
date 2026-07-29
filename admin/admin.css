@@ -342,3 +342,8 @@ TREE LAYER
     font-weight:600;
     border-radius:7px;
 }
+
+.tree-body.show{
+    opacity:1;
+    display:block;
+}

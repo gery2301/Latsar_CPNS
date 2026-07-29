@@ -1505,6 +1505,11 @@ async function refreshLayerData(){
    console.log("TREE SEBELUM RENDER", window.layerTree);
     renderLayerTree();
  console.log(
+    "SEBELUM refreshTreeHeight",
+    document.getElementById("treeContent").innerHTML
+);
+
+ console.log(
    "SEBELUM refreshTreeHeight",
     document.getElementById("treeContent").innerHTML
 );
@@ -1516,6 +1521,12 @@ async function refreshLayerData(){
         document.getElementById("treeContent").innerHTML
     );
     });
+  setTimeout(() => {
+
+    console.log("SETELAH 1 DETIK");
+    console.log(document.getElementById("treeContent").innerHTML);
+
+},1000);
  lastData = structuredClone(newData);
 }
 

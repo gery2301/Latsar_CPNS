@@ -1487,47 +1487,28 @@ async function refreshLayerData(){
     if(!res.ok){
         throw new Error("HTTP " + res.status);
     }
+
     const resp = await res.json();
-     const newData = resp.data;
-    
+    const newData = resp.data;
+
     if(JSON.stringify(newData) === JSON.stringify(lastData)){
         console.log("Tidak ada perubahan");
         return;
-     }
+    }
+
     console.log("Ada perubahan data");
+
     lastData = structuredClone(newData);
 
     clearRenderedData();
     renderLayerData(newData);
-    console.log(newData);
-    console.log(buildLayerTree(newData));
     window.layerTree = buildLayerTree(newData);
-   console.log("TREE SEBELUM RENDER", window.layerTree);
     renderLayerTree();
- console.log(
-    "SEBELUM refreshTreeHeight",
-    document.getElementById("treeContent").innerHTML
-);
-
- console.log(
-   "SEBELUM refreshTreeHeight",
-    document.getElementById("treeContent").innerHTML
-);
-
+    initTreeCollapse();
     requestAnimationFrame(()=>{
         refreshTreeHeight();
-     console.log(
-        "SESUDAH refreshTreeHeight",
-        document.getElementById("treeContent").innerHTML
-    );
     });
-  setTimeout(() => {
-
-    console.log("SETELAH 1 DETIK");
-    console.log(document.getElementById("treeContent").innerHTML);
-
-},1000);
- lastData = structuredClone(newData);
+    lastData = structuredClone(newData);
 }
 
 async function init(){

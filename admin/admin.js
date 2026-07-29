@@ -519,7 +519,15 @@ function refreshTreeHeight(){
     document.querySelectorAll(".tree-body.show").forEach(body=>{
         body.style.maxHeight = "none";
         const h = body.scrollHeight;
+        console.log(
+            body.previousElementSibling.dataset.title,
+            "scrollHeight =", h
+        );
         body.style.maxHeight = h + "px";
+     console.log(
+            body.previousElementSibling.dataset.title,
+            "SET =", body.style.maxHeight
+        );
     });
 }
 

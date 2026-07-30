@@ -1548,10 +1548,17 @@ setInterval(refreshLayerData,5000);
 // FLOATING BUTTON
 // ==================================
 
-document
-.getElementById("createFab")
-.addEventListener("click",function(){
+const fabMain = document.getElementById("createFab");
+const fabMenu = document.getElementById("fabMenu");
+let fabOpen = false;
 
-    alert("Floating Button Berhasil!");
+fabMain.addEventListener("click", function () {
 
+    fabOpen = !fabOpen;
+
+    if (fabOpen) {
+        fabMenu.classList.add("show");
+    } else {
+        fabMenu.classList.remove("show");
+    }
 });

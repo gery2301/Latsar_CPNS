@@ -1543,3 +1543,15 @@ init();
 window.refreshLayerData = refreshLayerData;
 // refresh tiap 5 detik
 setInterval(refreshLayerData,5000);
+
+// ==================================
+// FLOATING BUTTON
+// ==================================
+
+document
+.getElementById("createFab")
+.addEventListener("click",function(){
+
+    alert("Floating Button Berhasil!");
+
+});

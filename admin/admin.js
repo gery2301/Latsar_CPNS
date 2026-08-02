@@ -1708,9 +1708,9 @@ fabImport.addEventListener("click", function(){
 // DIGITASI DARI FAB
 // ==================================
 
-const drawPoint = new L.Draw.Marker(map, drawControl.options.draw.marker);
-const drawLine = new L.Draw.Polyline(map, drawControl.options.draw.polyline);
-const drawPolygon = new L.Draw.Polygon(map, drawControl.options.draw.polygon);
+const drawPoint = new L.Draw.Marker(map,{});
+const drawLine = new L.Draw.Polyline(map,{});
+const drawPolygon = new L.Draw.Polygon(map,{});
 
 document.getElementById("btnPoint")
 .addEventListener("click", function(){

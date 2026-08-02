@@ -1570,8 +1570,22 @@ fabMain.addEventListener("click", function () {
 const fabDigitasi = document.getElementById("fabDigitasi");
 const fabImport = document.getElementById("fabImport");
 
+const digitasiMenu = document.getElementById("digitasiMenu");
+
 fabDigitasi.addEventListener("click", function(){
-    alert("Menu Digitasi");
+    digitasiMenu.classList.toggle("show");
+});
+
+document.getElementById("btnPoint").addEventListener("click",function(){
+    alert("Point");
+});
+
+document.getElementById("btnLine").addEventListener("click",function(){
+    alert("Line");
+});
+
+document.getElementById("btnPolygon").addEventListener("click",function(){
+    alert("Polygon");
 });
 
 fabImport.addEventListener("click", function(){

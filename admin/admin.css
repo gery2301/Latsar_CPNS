@@ -432,3 +432,45 @@ background:#1976d2;
 color:white;
 transform:translateX(-3px);
 }
+
+/* ==========================
+   FAB SUB MENU
+========================== */
+
+.fab-group{
+
+display:flex;
+flex-direction:column;
+gap:8px;
+}
+
+.fab-submenu{
+
+display:none;
+margin-left:18px;
+flex-direction:column;
+gap:8px;
+}
+
+.fab-submenu.show{
+
+display:flex;
+}
+
+.fab-subitem{
+
+border:none;
+padding:10px 16px;
+border-radius:22px;
+background:#f5f5f5;
+cursor:pointer;
+font-size:14px;
+transition:.18s;
+text-align:left;
+}
+
+.fab-subitem:hover{
+
+background:#1976d2;
+color:white;
+}

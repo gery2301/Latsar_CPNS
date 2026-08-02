@@ -1125,6 +1125,7 @@ map.on(L.Draw.Event.CREATED, function (e) {
     createState.saved = false;
 
 const layer = createState.layer;
+console.log("CREATED :", e.layerType);
 
 
   drawnItems.addLayer(layer);

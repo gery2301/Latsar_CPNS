@@ -917,6 +917,119 @@ function bukaKonfirmasiBatal(){
 }
 
 // ===============================
+// KONFIRMASI CREATE
+// ===============================
+
+function bukaKonfirmasiSimpanCreate(){
+
+    const layer = createState.layer;
+
+    if(!layer) return;
+
+    L.popup({
+        minWidth:360,
+        maxWidth:360,
+        closeButton:false
+    })
+    .setLatLng(
+        layer.getLatLng ?
+        layer.getLatLng() :
+        layer.getBounds().getCenter()
+    )
+    .setContent(`
+
+        <div class="popup-form">
+
+            <div class="popup-title">
+                💾 Simpan Geometri?
+            </div>
+
+            <div class="popup-info">
+                Apakah Anda sudah selesai menggambar geometri?
+            </div>
+
+            <br>
+
+            <button
+                class="popup-button"
+                onclick="konfirmasiCreateYa()">
+
+                ✓ Ya, Lanjut Isi Data
+
+            </button>
+
+            <br><br>
+
+            <button
+                class="popup-button popup-button-secondary"
+                onclick="map.closePopup()">
+
+                ✏ Lanjut Menggambar
+
+            </button>
+
+        </div>
+
+    `)
+    .openOn(map);
+
+}
+
+
+function bukaKonfirmasiBatalCreate(){
+
+    const layer = createState.layer;
+
+    if(!layer) return;
+
+    L.popup({
+        minWidth:360,
+        maxWidth:360,
+        closeButton:false
+    })
+    .setLatLng(
+        layer.getLatLng ?
+        layer.getLatLng() :
+        layer.getBounds().getCenter()
+    )
+    .setContent(`
+
+        <div class="popup-form">
+
+            <div class="popup-title">
+                ⚠ Batalkan Digitasi?
+            </div>
+
+            <div class="popup-info">
+                Semua geometri yang sudah digambar akan dihapus.
+            </div>
+
+            <br>
+
+            <button
+                class="popup-button popup-button-danger"
+                onclick="konfirmasiCreateBatal()">
+
+                🗑 Ya, Batalkan
+
+            </button>
+
+            <br><br>
+
+            <button
+                class="popup-button popup-button-secondary"
+                onclick="map.closePopup()">
+
+                ✏ Kembali Menggambar
+
+            </button>
+        </div>
+    `)
+    .openOn(map);
+
+}
+
+// ===============================
 // KONFIRMASI SIMPAN
 // ===============================
 function konfirmasiSimpanYa(){

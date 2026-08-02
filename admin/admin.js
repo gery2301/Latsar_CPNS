@@ -962,7 +962,7 @@ function bukaKonfirmasiSimpanCreate(){
 
             <button
                 class="popup-button popup-button-secondary"
-                onclick="map.closePopup()">
+                onclick="lanjutMenggambarCreate()">
 
                 ✏ Lanjut Menggambar
 
@@ -972,6 +972,21 @@ function bukaKonfirmasiSimpanCreate(){
 
     `)
     .openOn(map);
+
+}
+
+function konfirmasiCreateYa(){
+
+    const layer = createState.layer;
+
+    if(!layer) return;
+    map.closePopup();
+
+    setTimeout(()=>{
+
+        layer.openPopup();
+
+    },100);
 
 }
 
@@ -1018,7 +1033,7 @@ function bukaKonfirmasiBatalCreate(){
 
             <button
                 class="popup-button popup-button-secondary"
-                onclick="map.closePopup()">
+                onclick="lanjutMenggambarCreate()">
 
                 ✏ Kembali Menggambar
 
@@ -1026,6 +1041,57 @@ function bukaKonfirmasiBatalCreate(){
         </div>
     `)
     .openOn(map);
+
+}
+
+function konfirmasiCreateBatal(){
+
+    const layer = createState.layer;
+
+    if(layer){
+
+        drawnItems.removeLayer(layer);
+
+    }
+
+    map.closePopup();
+    hideEditHint();
+
+    createState.layer = null;
+    createState.mode = null;
+    createState.saved = false;
+
+}
+
+function lanjutMenggambarCreate(){
+
+    const layer = createState.layer;
+
+    if(!layer) return;
+
+    map.closePopup();
+    showCreateHint();
+
+    editState.mode = "create";
+    editState.layer = layer;
+    editState.dirty = false;
+
+    editState.originalGeometry =
+        JSON.parse(
+            JSON.stringify(
+                layer.toGeoJSON().geometry
+            )
+        );
+
+    setTimeout(()=>{
+
+         if(layer.editing){
+
+            layer.editing.enable();
+
+        }
+
+    },100);
 
 }
 
@@ -1229,12 +1295,16 @@ map.on('moveend', function () {
 // EVENT: TAMBAH DATA
 // ===============================
 let createState = {
+    mode: null,
     layer: null,
-    saved: false
+    saved: false,
+    drawing:false,
+    canceling: false
 };
 map.on(L.Draw.Event.CREATED, function (e) {
 
-   createState.layer = e.layer;
+    createState.mode = "create";
+    createState.layer = e.layer;
     createState.saved = false;
 
 const layer = createState.layer;
@@ -1296,7 +1366,10 @@ console.log("CREATED :", e.layerType);
 
 layer.on("popupclose", function () {
 
-   if (!createState.saved) {
+   if (
+      !createState.saved &&
+      !createState.canceling
+   ) {
         drawnItems.removeLayer(layer);
     }
 
@@ -1425,7 +1498,6 @@ btn.innerHTML = "⏳ Menyimpan...";
  
   createState.saved = true;
   hideEditHint();
-    createState.layer = null;
     layer.options.id = resp.id;
 
   const dataBaru = {
@@ -1449,6 +1521,9 @@ btn.innerHTML = "⏳ Menyimpan...";
     registerLayer(layer, dataBaru);
     registerTree(dataBaru);
     layer.openPopup();
+
+     createState.layer = null;
+     createState.mode = null;
 
 }, 600);
 })
@@ -1564,42 +1639,62 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
+
     // ==========================
-    // EDIT GEOMETRI
+    // SUDAH ADA GEOMETRY
+    // (EDIT EXISTING / CREATE BARU)
     // ==========================
 
-    if(editState.mode === "edit"){
+    if(
+        editState.mode === "edit" ||
+        editState.mode === "create"
+    ){
 
         if(e.key === "Enter"){
+
             e.preventDefault();
-            bukaKonfirmasiSimpan();
+
+            if(editState.mode === "create"){
+
+                bukaKonfirmasiSimpanCreate();
+
+            }else{
+
+                bukaKonfirmasiSimpan();
+            }
         }
 
+
         if(e.key === "Escape"){
+
             e.preventDefault();
-            bukaKonfirmasiBatal();
+
+            if(editState.mode === "create"){
+
+                bukaKonfirmasiBatalCreate();
+
+            }else{
+
+                bukaKonfirmasiBatal();
+            }
         }
         return;
+
     }
 
     // ==========================
-    // DIGITASI BARU
+    // MASIH PROSES DIGITASI
+    // BELUM SELESAI GAMBAR
     // ==========================
 
-    if(createState.layer){
-
-        if(e.key === "Enter"){
-
-            e.preventDefault();
-            hideEditHint();
-            createState.layer.openPopup();
-        }
+    if(createState.drawing){
 
         if(e.key === "Escape"){
 
             e.preventDefault();
             hideEditHint();
             bukaKonfirmasiBatalCreate();
+
         }
     }
 });
@@ -1826,6 +1921,7 @@ document.getElementById("btnPoint")
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
     showCreateHint();
+    createState.drawing=true;
     drawPoint.enable();
 
 });
@@ -1836,6 +1932,7 @@ document.getElementById("btnLine")
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
     showCreateHint();
+    createState.drawing=true;
     drawLine.enable();
 
 });
@@ -1846,6 +1943,7 @@ document.getElementById("btnPolygon")
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
     showCreateHint();
+    createState.drawing=true;
     drawPolygon.enable();
 
 });

@@ -1599,9 +1599,7 @@ document.addEventListener("keydown", function(e){
 
             e.preventDefault();
             hideEditHint();
-            drawnItems.removeLayer(createState.layer);
-            createState.layer = null;
-            createState.saved = false;
+            bukaKonfirmasiBatalCreate();
         }
     }
 });

@@ -993,73 +993,74 @@ function konfirmasiCreateYa(){
 
 function bukaKonfirmasiBatalCreate(){
 
-    // 1. Cek layer (bisa ada, bisa null kalau masih proses menggambar)
     const layer = createState.layer;
 
-    // 2. Tentukan posisi popup:
-    // Jika layer sudah ada -> pakai koordinat layer.
-    // Jika layer belum ada (masih drawing) -> pakai tengah peta (map.getCenter()).
-    const targetLatLng = layer 
-        ? (layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
-        : map.getCenter();
+    if(!layer) return;
 
-    // 3. Tampilkan Popup Konfirmasi
     L.popup({
-        minWidth: 360,
-        maxWidth: 360,
-        closeButton: false
+        minWidth:360,
+        maxWidth:360,
+        closeButton:false
     })
-    .setLatLng(targetLatLng)
+    .setLatLng(
+        layer.getLatLng ?
+        layer.getLatLng() :
+        layer.getBounds().getCenter()
+    )
     .setContent(`
+
         <div class="popup-form">
+
             <div class="popup-title">
                 ⚠ Batalkan Digitasi?
             </div>
+
             <div class="popup-info">
-                Proses digitasi akan dibatalkan dan geometri akan dibuang.
+                Semua geometri yang sudah digambar akan dihapus.
             </div>
+
             <br>
+
             <button
                 class="popup-button popup-button-danger"
                 onclick="konfirmasiCreateBatal()">
+
                 🗑 Ya, Batalkan
+
             </button>
+
             <br><br>
+
             <button
                 class="popup-button popup-button-secondary"
-                onclick="map.closePopup()">
+                onclick="lanjutMenggambarCreate()">
+
                 ✏ Kembali Menggambar
+
             </button>
         </div>
     `)
     .openOn(map);
+
 }
 
 function konfirmasiCreateBatal(){
 
-    // 1. Tutup Popup
+    const layer = createState.layer;
+
+    if(layer){
+
+        drawnItems.removeLayer(layer);
+
+    }
+
     map.closePopup();
-
-    // 2. Jika layer sudah sempat dibuat, hapus dari peta
-    if(createState.layer){
-        drawnItems.removeLayer(createState.layer);
-        createState.layer = null;
-    }
-
-    // 3. Hentikan tool drawing Leaflet (jika sedang aktif menggambar)
-    if(drawControl){
-        // Matikan active drawer jika ada
-        Object.values(drawControl._toolbars.draw._modes).forEach(tool => {
-            if(tool.handler && tool.handler.enabled()){
-                tool.handler.disable();
-            }
-        });
-    }
-
-    // 4. Reset State & Sembunyikan Hint
-    createState.drawing = false;
-    createState.saved = false;
     hideEditHint();
+
+    createState.layer = null;
+    createState.mode = null;
+    createState.saved = false;
+
 }
 
 function lanjutMenggambarCreate(){

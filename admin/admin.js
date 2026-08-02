@@ -962,7 +962,7 @@ function bukaKonfirmasiSimpanCreate(){
 
             <button
                 class="popup-button popup-button-secondary"
-                onclick="map.closePopup()">
+                onclick="lanjutMenggambarCreate()">
 
                 ✏ Lanjut Menggambar
 
@@ -1026,6 +1026,17 @@ function bukaKonfirmasiBatalCreate(){
         </div>
     `)
     .openOn(map);
+
+}
+
+function lanjutMenggambarCreate(){
+
+    createState.canceling = true;
+    map.closePopup();
+
+    setTimeout(()=>{
+        createState.canceling = false;
+    },200);
 
 }
 
@@ -1229,12 +1240,15 @@ map.on('moveend', function () {
 // EVENT: TAMBAH DATA
 // ===============================
 let createState = {
+    mode: null,
     layer: null,
-    saved: false
+    saved: false,
+    canceling: false
 };
 map.on(L.Draw.Event.CREATED, function (e) {
 
-   createState.layer = e.layer;
+    createState.mode = "create";
+    createState.layer = e.layer;
     createState.saved = false;
 
 const layer = createState.layer;
@@ -1296,7 +1310,10 @@ console.log("CREATED :", e.layerType);
 
 layer.on("popupclose", function () {
 
-   if (!createState.saved) {
+   if (
+      !createState.saved &&
+      !createState.canceling
+   ) {
         drawnItems.removeLayer(layer);
     }
 
@@ -1425,7 +1442,6 @@ btn.innerHTML = "⏳ Menyimpan...";
  
   createState.saved = true;
   hideEditHint();
-    createState.layer = null;
     layer.options.id = resp.id;
 
   const dataBaru = {
@@ -1449,6 +1465,9 @@ btn.innerHTML = "⏳ Menyimpan...";
     registerLayer(layer, dataBaru);
     registerTree(dataBaru);
     layer.openPopup();
+
+     createState.layer = null;
+     createState.mode = null;
 
 }, 600);
 })
@@ -1591,8 +1610,7 @@ document.addEventListener("keydown", function(e){
         if(e.key === "Enter"){
 
             e.preventDefault();
-            hideEditHint();
-            createState.layer.openPopup();
+            bukaKonfirmasiSimpanCreate();
         }
 
         if(e.key === "Escape"){

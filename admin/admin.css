@@ -354,9 +354,7 @@ TREE LAYER
 
 #createFab{
 
-position:absolute;
-right:25px;
-bottom:35px;
+position:relative;
 width:64px;
 height:64px;
 border-radius:50%;
@@ -378,4 +376,59 @@ user-select:none;
 #createFab:hover{
 background:#0d47a1;
 transform:scale(1.08);
+}
+
+/* ==================================
+   FAB MENU
+================================== */
+
+#fabContainer{
+
+position:absolute;
+right:25px;
+bottom:35px;
+z-index:3000;
+}
+
+#fabMenu{
+
+position:absolute;
+right:0;
+bottom:78px;
+display:flex;
+flex-direction:column;
+gap:12px;
+opacity:0;
+pointer-events:none;
+transform:translateY(15px);
+transition:.25s;
+}
+
+#fabMenu.show{
+
+opacity:1;
+pointer-events:auto;
+transform:translateY(0);
+}
+
+.fab-item{
+
+border:none;
+border-radius:30px;
+padding:12px 18px;
+background:white;
+color:#333;
+font-size:15px;
+font-weight:600;
+cursor:pointer;
+box-shadow:
+0 8px 20px rgba(0,0,0,.18);
+transition:.18s;
+white-space:nowrap;
+}
+
+.fab-item:hover{
+background:#1976d2;
+color:white;
+transform:translateX(-3px);
 }

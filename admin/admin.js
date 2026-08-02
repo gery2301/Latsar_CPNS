@@ -1052,6 +1052,77 @@ function bukaKonfirmasiBatalCreate(){
 
 }
 
+// ===============================
+// KONFIRMASI BATAL - SEBELUM ADA
+// VERTEX/POINT SAMA SEKALI
+// (belum ada layer, jadi posisi
+// popup pakai posisi mouse terakhir)
+// ===============================
+function bukaKonfirmasiBatalCreateAwal(){
+
+    map.closePopup();
+
+    const latlng = lastDrawMouseLatLng || map.getCenter();
+
+    L.popup({
+        minWidth:360,
+        maxWidth:360,
+        closeButton:false
+    })
+    .setLatLng(latlng)
+    .setContent(`
+
+        <div class="popup-form">
+
+            <div class="popup-title">
+                ⚠ Batalkan Digitasi?
+            </div>
+
+            <div class="popup-info">
+                Anda belum menambahkan titik/vertex apapun.
+            </div>
+
+            <br>
+
+            <button
+                class="popup-button popup-button-danger"
+                onclick="konfirmasiCreateBatalAwal()">
+
+                🗑 Ya, Batalkan
+
+            </button>
+
+            <br><br>
+
+            <button
+                class="popup-button popup-button-secondary"
+                onclick="map.closePopup()">
+
+                ✏ Kembali Menggambar
+
+            </button>
+        </div>
+    `)
+    .openOn(map);
+
+}
+
+function konfirmasiCreateBatalAwal(){
+
+    map.closePopup();
+
+    if(activeDrawTool){
+        activeDrawTool.disable();
+    }
+
+    createState.drawing = false;
+    createState.mode = null;
+    activeDrawTool = null;
+
+    hideEditHint();
+
+}
+
 function konfirmasiCreateBatal(){
 
     const layer = createState.layer;
@@ -1314,6 +1385,36 @@ let createState = {
 // yang sedang aktif saat ini, dipakai untuk membatalkan
 // atau menyelesaikan gambar lewat keyboard (Enter/Escape)
 let activeDrawTool = null;
+
+// posisi mouse terakhir selama proses digitasi, dipakai sebagai
+// acuan posisi popup konfirmasi batal SEBELUM ada vertex/point
+// sama sekali (saat itu belum ada layer untuk jadi acuan posisi)
+let lastDrawMouseLatLng = null;
+
+map.on("mousemove", function(e){
+    if(createState.drawing){
+        lastDrawMouseLatLng = e.latlng;
+    }
+});
+
+// Leaflet.Draw punya shortcut internal sendiri yang langsung
+// membatalkan digitasi begitu tombol Escape dilepas (keyup),
+// sebelum kode kita sempat menampilkan popup konfirmasi.
+// Blok ini mencegat & menghentikan shortcut bawaan tsb selama
+// proses digitasi masih berjalan dan belum ada layer terbentuk,
+// supaya keputusan batal/lanjut sepenuhnya lewat popup kita.
+document.addEventListener("keyup", function(e){
+
+    if(
+        e.key === "Escape" &&
+        createState.drawing &&
+        !createState.layer
+    ){
+        e.stopImmediatePropagation();
+        e.preventDefault();
+    }
+
+}, true);
 
 map.on(L.Draw.Event.DRAWSTART, function(){
 
@@ -1672,25 +1773,17 @@ document.addEventListener("keydown", function(e){
     ){
 
         // Di fase ini belum ada geometry sama sekali
-        // (marker belum diklik / line-polygon belum selesai),
-        // jadi tidak ada layer untuk jadi acuan posisi popup
-        // konfirmasi. Escape di sini = batalkan langsung,
-        // tanpa konfirmasi, dan pastikan tool + hint ikut bersih.
+        // (marker belum diklik / line-polygon belum punya
+        // satu vertex pun). Tetap tampilkan popup konfirmasi
+        // batal, hanya posisinya pakai lokasi mouse terakhir
+        // karena belum ada layer untuk jadi acuan posisi.
 
         if(e.key === "Escape"){
 
             e.preventDefault();
             e.stopPropagation();
 
-            if(activeDrawTool){
-                activeDrawTool.disable();
-            }
-
-            createState.drawing = false;
-            createState.mode = null;
-            activeDrawTool = null;
-
-            hideEditHint();
+            bukaKonfirmasiBatalCreateAwal();
 
             return;
 

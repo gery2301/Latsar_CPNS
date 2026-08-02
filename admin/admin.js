@@ -1179,10 +1179,7 @@ console.log("CREATED :", e.layerType);
     minWidth:420,
     maxWidth:420
 });
-
-// jangan langsung buka popup
-showCreateHint();
-  
+ 
 
 layer.on("popupclose", function () {
 
@@ -1717,6 +1714,7 @@ document.getElementById("btnPoint")
     fabOpen = false;
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
+    showCreateHint();
     drawPoint.enable();
 
 });
@@ -1726,6 +1724,7 @@ document.getElementById("btnLine")
     fabOpen = false;
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
+    showCreateHint();
     drawLine.enable();
 
 });
@@ -1735,6 +1734,7 @@ document.getElementById("btnPolygon")
     fabOpen = false;
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
+    showCreateHint();
     drawPolygon.enable();
 
 });

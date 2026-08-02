@@ -825,6 +825,8 @@ function bukaKonfirmasiSimpan(){
 
     if(!layer) return;
 
+    map.closePopup();
+
     L.popup({
         minWidth:360,
         maxWidth:360,
@@ -880,6 +882,8 @@ function bukaKonfirmasiBatal(){
 
     if(!layer) return;
 
+    map.closePopup();
+
     L.popup({
         minWidth:360,
         maxWidth:360,
@@ -925,6 +929,8 @@ function bukaKonfirmasiSimpanCreate(){
     const layer = createState.layer;
 
     if(!layer) return;
+
+    map.closePopup();
 
     L.popup({
         minWidth:360,
@@ -996,6 +1002,8 @@ function bukaKonfirmasiBatalCreate(){
     const layer = createState.layer;
 
     if(!layer) return;
+
+    map.closePopup();
 
     L.popup({
         minWidth:360,
@@ -1301,6 +1309,11 @@ let createState = {
     drawing:false,
     canceling: false
 };
+
+// referensi tool digitasi (drawPoint/drawLine/drawPolygon)
+// yang sedang aktif saat ini, dipakai untuk membatalkan
+// atau menyelesaikan gambar lewat keyboard (Enter/Escape)
+let activeDrawTool = null;
 
 map.on(L.Draw.Event.DRAWSTART, function(){
 
@@ -1658,12 +1671,54 @@ document.addEventListener("keydown", function(e){
         !createState.layer
     ){
 
+        // Di fase ini belum ada geometry sama sekali
+        // (marker belum diklik / line-polygon belum selesai),
+        // jadi tidak ada layer untuk jadi acuan posisi popup
+        // konfirmasi. Escape di sini = batalkan langsung,
+        // tanpa konfirmasi, dan pastikan tool + hint ikut bersih.
+
         if(e.key === "Escape"){
 
             e.preventDefault();
             e.stopPropagation();
 
-            bukaKonfirmasiBatalCreate();
+            if(activeDrawTool){
+                activeDrawTool.disable();
+            }
+
+            createState.drawing = false;
+            createState.mode = null;
+            activeDrawTool = null;
+
+            hideEditHint();
+
+            return;
+
+        }
+
+        // Enter di sini hanya berlaku untuk line/polygon yang
+        // masih dalam proses digitasi (belum diakhiri dobel klik).
+        // _finishShape() akan menyelesaikan shape (memicu CREATED
+        // secara sinkron) sama seperti dobel klik, lalu langsung
+        // munculkan popup konfirmasi simpan tanpa perlu Enter kedua.
+
+        if(e.key === "Enter"){
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            if(
+                activeDrawTool &&
+                typeof activeDrawTool._finishShape === "function"
+            ){
+
+                activeDrawTool._finishShape();
+
+                if(createState.layer){
+                    bukaKonfirmasiSimpanCreate();
+                }
+
+            }
 
             return;
 
@@ -1946,6 +2001,7 @@ document.getElementById("btnPoint")
     digitasiMenu.classList.remove("show");
     showCreateHint();
     createState.drawing=true;
+    activeDrawTool = drawPoint;
     drawPoint.enable();
 
 });
@@ -1957,6 +2013,7 @@ document.getElementById("btnLine")
     digitasiMenu.classList.remove("show");
     showCreateHint();
     createState.drawing=true;
+    activeDrawTool = drawLine;
     drawLine.enable();
 
 });
@@ -1968,6 +2025,7 @@ document.getElementById("btnPolygon")
     digitasiMenu.classList.remove("show");
     showCreateHint();
     createState.drawing=true;
+    activeDrawTool = drawPolygon;
     drawPolygon.enable();
 
 });

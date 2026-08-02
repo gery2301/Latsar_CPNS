@@ -1591,3 +1591,38 @@ document.getElementById("btnPolygon").addEventListener("click",function(){
 fabImport.addEventListener("click", function(){
     alert("Menu Import");
 });
+
+// ==================================
+// DIGITASI DARI FAB
+// ==================================
+
+const drawPoint = new L.Draw.Marker(map, drawControl.options.draw.marker);
+const drawLine = new L.Draw.Polyline(map, drawControl.options.draw.polyline);
+const drawPolygon = new L.Draw.Polygon(map, drawControl.options.draw.polygon);
+
+document.getElementById("btnPoint")
+.addEventListener("click", function(){
+
+    fabMenu.classList.remove("show");
+    digitasiMenu.classList.remove("show");
+    drawPoint.enable();
+
+});
+
+document.getElementById("btnLine")
+.addEventListener("click", function(){
+
+    fabMenu.classList.remove("show");
+    digitasiMenu.classList.remove("show");
+    drawLine.enable();
+
+});
+
+document.getElementById("btnPolygon")
+.addEventListener("click", function(){
+
+    fabMenu.classList.remove("show");
+    digitasiMenu.classList.remove("show");
+    drawPolygon.enable();
+
+});

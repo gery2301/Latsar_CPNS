@@ -1562,3 +1562,18 @@ fabMain.addEventListener("click", function () {
         fabMenu.classList.remove("show");
     }
 });
+
+// ==================================
+// FAB MENU
+// ==================================
+
+const fabDigitasi = document.getElementById("fabDigitasi");
+const fabImport = document.getElementById("fabImport");
+
+fabDigitasi.addEventListener("click", function(){
+    alert("Menu Digitasi");
+});
+
+fabImport.addEventListener("click", function(){
+    alert("Menu Import");
+});

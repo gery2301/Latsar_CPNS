@@ -1301,6 +1301,15 @@ let createState = {
     drawing:false,
     canceling: false
 };
+
+map.on(L.Draw.Event.DRAWSTART, function(){
+
+    createState.drawing = true;
+
+});
+
+
+
 map.on(L.Draw.Event.CREATED, function (e) {
 
     createState.mode = "create";
@@ -1639,6 +1648,28 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
+// ==========================
+    // MASIH PROSES DIGITASI
+    // BELUM MENJADI LAYER
+    // ==========================
+
+    if(
+        createState.drawing &&
+        !createState.layer
+    ){
+
+        if(e.key === "Escape"){
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            bukaKonfirmasiBatalCreate();
+
+            return;
+
+        }
+
+    }
 
     // ==========================
     // SUDAH ADA GEOMETRY
@@ -1682,21 +1713,7 @@ document.addEventListener("keydown", function(e){
 
     }
 
-    // ==========================
-    // MASIH PROSES DIGITASI
-    // BELUM SELESAI GAMBAR
-    // ==========================
-
-    if(createState.drawing){
-
-        if(e.key === "Escape"){
-
-            e.preventDefault();
-            hideEditHint();
-            bukaKonfirmasiBatalCreate();
-
-        }
-    }
+    
 });
 
 // ===============================

@@ -729,6 +729,84 @@ function showEditHint(){
 
 }
 
+function showCreateHint(){
+
+    hideEditHint();
+    editHint = document.createElement("div");
+    editHint.id = "editHint";
+    editHint.innerHTML = `
+
+        <div style="
+            font-size:17px;
+            font-weight:600;
+            margin-bottom:8px;
+            display:flex;
+            align-items:center;
+            gap:8px;
+        ">
+
+            📝 <span>Mode Digitasi</span>
+
+        </div>
+
+        <div style="
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+            font-size:14px;
+        ">
+
+            <div>
+
+                <b>⏎ Enter</b>
+
+                <span style="opacity:.8;">
+                    &nbsp;Lanjut ke pengisian atribut
+                </span>
+
+            </div>
+
+            <div>
+
+                <b>⎋ Esc</b>
+
+                <span style="opacity:.8;">
+                    &nbsp;Batalkan digitasi
+                </span>
+
+            </div>
+
+        </div>
+
+    `;
+
+    Object.assign(editHint.style,{
+
+        position:"absolute",
+        top:"18px",
+        right:"120px",
+        minWidth:"280px",
+        background:"rgba(30,30,30,.78)",
+        backdropFilter:"blur(10px)",
+        WebkitBackdropFilter:"blur(10px)",
+        color:"#fff",
+        padding:"18px 20px",
+        borderRadius:"18px",
+        zIndex:9999,
+        fontSize:"15px",
+        fontFamily:"Inter, Segoe UI, sans-serif",
+        lineHeight:"1.5",
+        boxShadow:"0 14px 36px rgba(0,0,0,.28)",
+        border:"1px solid rgba(255,255,255,.12)",
+        animation:"fadeHint .18s ease",
+        transition:"all .18s ease"
+
+    });
+
+    map.getContainer().appendChild(editHint);
+
+}
+
 function hideEditHint(){
 
     if(editHint){
@@ -1099,7 +1177,10 @@ const layer = createState.layer;
  layer.bindPopup(form,{
     minWidth:420,
     maxWidth:420
-}).openPopup();
+});
+
+// jangan langsung buka popup
+showCreateHint();
   
 
 layer.on("popupclose", function () {
@@ -1232,7 +1313,9 @@ btn.innerHTML = "⏳ Menyimpan...";
     }
  
   createState.saved = true;
-  layer.options.id = resp.id;
+  hideEditHint();
+    createState.layer = null;
+    layer.options.id = resp.id;
 
   const dataBaru = {
     id: resp.id,
@@ -1259,7 +1342,7 @@ btn.innerHTML = "⏳ Menyimpan...";
 }, 600);
 })
 .catch(err => {
-
+    hideEditHint();
     btn.disabled = false;
     btn.innerHTML = "Simpan";
 
@@ -1370,18 +1453,45 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
-    // hanya aktif saat sedang edit geometri
-    if(editState.mode !== "edit") return;
+    // ==========================
+    // EDIT GEOMETRI
+    // ==========================
 
-    // ENTER
-    if(e.key === "Enter"){
-        e.preventDefault();
-        bukaKonfirmasiSimpan();
+    if(editState.mode === "edit"){
+
+        if(e.key === "Enter"){
+            e.preventDefault();
+            bukaKonfirmasiSimpan();
+        }
+
+        if(e.key === "Escape"){
+            e.preventDefault();
+            bukaKonfirmasiBatal();
+        }
+        return;
     }
-    // ESC
-    if(e.key === "Escape"){
-        e.preventDefault();
-        bukaKonfirmasiBatal();
+
+    // ==========================
+    // DIGITASI BARU
+    // ==========================
+
+    if(createState.layer){
+
+        if(e.key === "Enter"){
+
+            e.preventDefault();
+            hideEditHint();
+            createState.layer.openPopup();
+        }
+
+        if(e.key === "Escape"){
+
+            e.preventDefault();
+            hideEditHint();
+            drawnItems.removeLayer(createState.layer);
+            createState.layer = null;
+            createState.saved = false;
+        }
     }
 });
 

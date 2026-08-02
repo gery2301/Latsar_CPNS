@@ -1677,6 +1677,7 @@ document.addEventListener("keydown", function(e){
     // ==========================
 
     if(
+        createState.mode === "create" ||
         editState.mode === "edit" ||
         editState.mode === "create"
     ){
@@ -1685,7 +1686,10 @@ document.addEventListener("keydown", function(e){
 
             e.preventDefault();
 
-            if(editState.mode === "create"){
+            if(
+                createState.mode === "create" ||
+                editState.mode === "create"
+            ){
 
                 bukaKonfirmasiSimpanCreate();
 
@@ -1700,7 +1704,10 @@ document.addEventListener("keydown", function(e){
 
             e.preventDefault();
 
-            if(editState.mode === "create"){
+            if(
+                createState.mode === "create" ||
+                editState.mode === "create"
+            ){
 
                 bukaKonfirmasiBatalCreate();
 

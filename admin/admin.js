@@ -1308,7 +1308,20 @@ map.on(L.Draw.Event.DRAWSTART, function(){
 
 });
 
+map.on(L.Draw.Event.DRAWSTOP, function(){
 
+    if(
+        createState.drawing &&
+        !createState.layer &&
+        !createState.saved
+    ){
+
+        hideEditHint();
+        bukaKonfirmasiBatalCreate();
+
+    }
+
+});
 
 map.on(L.Draw.Event.CREATED, function (e) {
 
@@ -1648,28 +1661,6 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
-// ==========================
-    // MASIH PROSES DIGITASI
-    // BELUM MENJADI LAYER
-    // ==========================
-
-    if(
-        createState.drawing &&
-        !createState.layer
-    ){
-
-        if(e.key === "Escape"){
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            bukaKonfirmasiBatalCreate();
-
-            return;
-
-        }
-
-    }
 
     // ==========================
     // SUDAH ADA GEOMETRY

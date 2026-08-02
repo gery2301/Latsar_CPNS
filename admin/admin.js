@@ -1301,28 +1301,6 @@ let createState = {
     drawing:false,
     canceling: false
 };
-
-map.on(L.Draw.Event.DRAWSTART, function(){
-
-    createState.drawing = true;
-
-});
-
-map.on(L.Draw.Event.DRAWSTOP, function(){
-
-    if(
-        createState.drawing &&
-        !createState.layer &&
-        !createState.saved
-    ){
-
-        hideEditHint();
-        bukaKonfirmasiBatalCreate();
-
-    }
-
-});
-
 map.on(L.Draw.Event.CREATED, function (e) {
 
     createState.mode = "create";
@@ -1704,7 +1682,21 @@ document.addEventListener("keydown", function(e){
 
     }
 
-    
+    // ==========================
+    // MASIH PROSES DIGITASI
+    // BELUM SELESAI GAMBAR
+    // ==========================
+
+    if(createState.drawing){
+
+        if(e.key === "Escape"){
+
+            e.preventDefault();
+            hideEditHint();
+            bukaKonfirmasiBatalCreate();
+
+        }
+    }
 });
 
 // ===============================

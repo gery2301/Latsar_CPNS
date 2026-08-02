@@ -975,6 +975,21 @@ function bukaKonfirmasiSimpanCreate(){
 
 }
 
+function konfirmasiCreateYa(){
+
+    const layer = createState.layer;
+
+    if(!layer) return;
+    map.closePopup();
+
+    setTimeout(()=>{
+
+        layer.openPopup();
+
+    },100);
+
+}
+
 
 function bukaKonfirmasiBatalCreate(){
 
@@ -1018,7 +1033,7 @@ function bukaKonfirmasiBatalCreate(){
 
             <button
                 class="popup-button popup-button-secondary"
-                onclick="map.closePopup()">
+                onclick="lanjutMenggambarCreate()">
 
                 ✏ Kembali Menggambar
 
@@ -1029,14 +1044,53 @@ function bukaKonfirmasiBatalCreate(){
 
 }
 
+function konfirmasiCreateBatal(){
+
+    const layer = createState.layer;
+
+    if(layer){
+
+        drawnItems.removeLayer(layer);
+
+    }
+
+    map.closePopup();
+    hideEditHint();
+
+    createState.layer = null;
+    createState.mode = null;
+    createState.saved = false;
+
+}
+
 function lanjutMenggambarCreate(){
 
-    createState.canceling = true;
+    const layer = createState.layer;
+
+    if(!layer) return;
+
     map.closePopup();
 
+    editState.mode = "create";
+    editState.layer = layer;
+    editState.dirty = false;
+
+    editState.originalGeometry =
+        JSON.parse(
+            JSON.stringify(
+                layer.toGeoJSON().geometry
+            )
+        );
+
     setTimeout(()=>{
-        createState.canceling = false;
-    },200);
+
+         if(layer.editing){
+
+            layer.editing.enable();
+
+        }
+
+    },100);
 
 }
 

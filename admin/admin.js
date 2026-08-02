@@ -1178,9 +1178,7 @@ ddl.addEventListener("change", function(){
 });
   }
   }, 100);
-    drawPoint.disable();
-    drawLine.disable();
-    drawPolygon.disable();
+    
 
   window.simpanData = function() {
 

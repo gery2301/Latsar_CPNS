@@ -993,74 +993,73 @@ function konfirmasiCreateYa(){
 
 function bukaKonfirmasiBatalCreate(){
 
+    // 1. Cek layer (bisa ada, bisa null kalau masih proses menggambar)
     const layer = createState.layer;
 
-    if(!layer) return;
+    // 2. Tentukan posisi popup:
+    // Jika layer sudah ada -> pakai koordinat layer.
+    // Jika layer belum ada (masih drawing) -> pakai tengah peta (map.getCenter()).
+    const targetLatLng = layer 
+        ? (layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
+        : map.getCenter();
 
+    // 3. Tampilkan Popup Konfirmasi
     L.popup({
-        minWidth:360,
-        maxWidth:360,
-        closeButton:false
+        minWidth: 360,
+        maxWidth: 360,
+        closeButton: false
     })
-    .setLatLng(
-        layer.getLatLng ?
-        layer.getLatLng() :
-        layer.getBounds().getCenter()
-    )
+    .setLatLng(targetLatLng)
     .setContent(`
-
         <div class="popup-form">
-
             <div class="popup-title">
                 ⚠ Batalkan Digitasi?
             </div>
-
             <div class="popup-info">
-                Semua geometri yang sudah digambar akan dihapus.
+                Proses digitasi akan dibatalkan dan geometri akan dibuang.
             </div>
-
             <br>
-
             <button
                 class="popup-button popup-button-danger"
                 onclick="konfirmasiCreateBatal()">
-
                 🗑 Ya, Batalkan
-
             </button>
-
             <br><br>
-
             <button
                 class="popup-button popup-button-secondary"
-                onclick="lanjutMenggambarCreate()">
-
+                onclick="map.closePopup()">
                 ✏ Kembali Menggambar
-
             </button>
         </div>
     `)
     .openOn(map);
-
 }
 
 function konfirmasiCreateBatal(){
 
-    const layer = createState.layer;
+    // 1. Tutup Popup
+    map.closePopup();
 
-    if(layer){
-
-        drawnItems.removeLayer(layer);
-
+    // 2. Jika layer sudah sempat dibuat, hapus dari peta
+    if(createState.layer){
+        drawnItems.removeLayer(createState.layer);
+        createState.layer = null;
     }
 
-    map.closePopup();
-    hideEditHint();
+    // 3. Hentikan tool drawing Leaflet (jika sedang aktif menggambar)
+    if(drawControl){
+        // Matikan active drawer jika ada
+        Object.values(drawControl._toolbars.draw._modes).forEach(tool => {
+            if(tool.handler && tool.handler.enabled()){
+                tool.handler.disable();
+            }
+        });
+    }
 
-    createState.layer = null;
-    createState.mode = null;
+    // 4. Reset State & Sembunyikan Hint
+    createState.drawing = false;
     createState.saved = false;
-
+    hideEditHint();
 }
 
 function lanjutMenggambarCreate(){

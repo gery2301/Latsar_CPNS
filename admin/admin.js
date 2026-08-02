@@ -1070,6 +1070,7 @@ function lanjutMenggambarCreate(){
     if(!layer) return;
 
     map.closePopup();
+    showCreateHint();
 
     editState.mode = "create";
     editState.layer = layer;
@@ -1297,6 +1298,7 @@ let createState = {
     mode: null,
     layer: null,
     saved: false,
+    drawing:false,
     canceling: false
 };
 map.on(L.Draw.Event.CREATED, function (e) {
@@ -1637,41 +1639,62 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
+
     // ==========================
-    // EDIT GEOMETRI
+    // SUDAH ADA GEOMETRY
+    // (EDIT EXISTING / CREATE BARU)
     // ==========================
 
-    if(editState.mode === "edit"){
+    if(
+        editState.mode === "edit" ||
+        editState.mode === "create"
+    ){
 
         if(e.key === "Enter"){
+
             e.preventDefault();
-            bukaKonfirmasiSimpan();
+
+            if(editState.mode === "create"){
+
+                bukaKonfirmasiSimpanCreate();
+
+            }else{
+
+                bukaKonfirmasiSimpan();
+            }
         }
 
+
         if(e.key === "Escape"){
+
             e.preventDefault();
-            bukaKonfirmasiBatal();
+
+            if(editState.mode === "create"){
+
+                bukaKonfirmasiBatalCreate();
+
+            }else{
+
+                bukaKonfirmasiBatal();
+            }
         }
         return;
+
     }
 
     // ==========================
-    // DIGITASI BARU
+    // MASIH PROSES DIGITASI
+    // BELUM SELESAI GAMBAR
     // ==========================
 
-    if(createState.layer){
-
-        if(e.key === "Enter"){
-
-            e.preventDefault();
-            bukaKonfirmasiSimpanCreate();
-        }
+    if(createState.drawing){
 
         if(e.key === "Escape"){
 
             e.preventDefault();
             hideEditHint();
             bukaKonfirmasiBatalCreate();
+
         }
     }
 });
@@ -1898,6 +1921,7 @@ document.getElementById("btnPoint")
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
     showCreateHint();
+    createState.drawing=true;
     drawPoint.enable();
 
 });
@@ -1908,6 +1932,7 @@ document.getElementById("btnLine")
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
     showCreateHint();
+    createState.drawing=true;
     drawLine.enable();
 
 });
@@ -1918,6 +1943,7 @@ document.getElementById("btnPolygon")
     fabMenu.classList.remove("show");
     digitasiMenu.classList.remove("show");
     showCreateHint();
+    createState.drawing=true;
     drawPolygon.enable();
 
 });

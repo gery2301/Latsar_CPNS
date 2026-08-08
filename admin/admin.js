@@ -2,12 +2,6 @@
 // KONFIGURASI 
 // ===============================
 
-// === DEBUG SEMENTARA - paling awal, capture di window ===
-window.addEventListener("keydown", function(e){
-    console.log("[DEBUG1 - WINDOW CAPTURE] key=", e.key, "target=", e.target);
-}, true);
-// === END DEBUG ===
-
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
  
 // ===============================
@@ -1071,23 +1065,24 @@ function bukaKonfirmasiBatalCreate(){
 // (belum ada layer, jadi posisi
 // popup pakai posisi mouse terakhir)
 // ===============================
+function tutupKonfirmasiBatalAwal(){
+
+    const existing = document.getElementById("konfirmasiBatalAwalBox");
+
+    if(existing){
+        existing.remove();
+    }
+
+}
+
 function bukaKonfirmasiBatalCreateAwal(){
 
-    console.log("[DEBUG4] fungsi mulai jalan");
+    tutupKonfirmasiBatalAwal();
 
-    map.closePopup();
-    console.log("[DEBUG4] closePopup OK");
+    const box = document.createElement("div");
+    box.id = "konfirmasiBatalAwalBox";
 
-    const latlng = lastDrawMouseLatLng || map.getCenter();
-    console.log("[DEBUG4] latlng dipakai =", latlng);
-
-    const popup = L.popup({
-        minWidth:360,
-        maxWidth:360,
-        closeButton:false
-    })
-    .setLatLng(latlng)
-    .setContent(`
+    box.innerHTML = `
 
         <div class="popup-form">
 
@@ -1113,25 +1108,37 @@ function bukaKonfirmasiBatalCreateAwal(){
 
             <button
                 class="popup-button popup-button-secondary"
-                onclick="map.closePopup()">
+                onclick="tutupKonfirmasiBatalAwal()">
 
                 ✏ Kembali Menggambar
 
             </button>
         </div>
-    `);
+    `;
 
-    console.log("[DEBUG4] popup object dibuat =", popup);
+    Object.assign(box.style, {
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        background: "#fff",
+        color: "#111",
+        padding: "18px 20px",
+        borderRadius: "14px",
+        zIndex: 10001,
+        minWidth: "300px",
+        maxWidth: "360px",
+        boxShadow: "0 14px 36px rgba(0,0,0,.35)",
+        fontFamily: "Inter, Segoe UI, sans-serif"
+    });
 
-    popup.openOn(map);
-
-    console.log("[DEBUG4] openOn selesai. isOpen? =", map.hasLayer(popup));
+    map.getContainer().appendChild(box);
 
 }
 
 function konfirmasiCreateBatalAwal(){
 
-    map.closePopup();
+    tutupKonfirmasiBatalAwal();
 
     if(activeDrawTool){
         activeDrawTool.disable();
@@ -1772,19 +1779,6 @@ map.on('draw:deleted', function (e) {
 // ===============================
 document.addEventListener("keydown", function(e){
 
-    // === DEBUG SEMENTARA ===
-    console.log("[DEBUG2] keydown fired. key=", e.key,
-        "defaultPrevented(before)=", e.defaultPrevented,
-        "target=", e.target,
-        "activeElement=", document.activeElement,
-        "createState=", JSON.parse(JSON.stringify({
-            drawing: createState.drawing,
-            layer: !!createState.layer,
-            mode: createState.mode
-        }))
-    );
-    // === END DEBUG ===
-
 // ==========================
     // MASIH PROSES DIGITASI
     // BELUM MENJADI LAYER
@@ -1806,14 +1800,7 @@ document.addEventListener("keydown", function(e){
             e.preventDefault();
             e.stopPropagation();
 
-            console.log("[DEBUG3] AKAN memanggil bukaKonfirmasiBatalCreateAwal()");
-
-            try{
-                bukaKonfirmasiBatalCreateAwal();
-                console.log("[DEBUG3] bukaKonfirmasiBatalCreateAwal() SELESAI tanpa error");
-            }catch(err){
-                console.error("[DEBUG3] ERROR di dalam bukaKonfirmasiBatalCreateAwal():", err);
-            }
+            bukaKonfirmasiBatalCreateAwal();
 
             return;
 

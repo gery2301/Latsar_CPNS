@@ -1073,11 +1073,15 @@ function bukaKonfirmasiBatalCreate(){
 // ===============================
 function bukaKonfirmasiBatalCreateAwal(){
 
+    console.log("[DEBUG4] fungsi mulai jalan");
+
     map.closePopup();
+    console.log("[DEBUG4] closePopup OK");
 
     const latlng = lastDrawMouseLatLng || map.getCenter();
+    console.log("[DEBUG4] latlng dipakai =", latlng);
 
-    L.popup({
+    const popup = L.popup({
         minWidth:360,
         maxWidth:360,
         closeButton:false
@@ -1115,8 +1119,13 @@ function bukaKonfirmasiBatalCreateAwal(){
 
             </button>
         </div>
-    `)
-    .openOn(map);
+    `);
+
+    console.log("[DEBUG4] popup object dibuat =", popup);
+
+    popup.openOn(map);
+
+    console.log("[DEBUG4] openOn selesai. isOpen? =", map.hasLayer(popup));
 
 }
 
@@ -1797,7 +1806,14 @@ document.addEventListener("keydown", function(e){
             e.preventDefault();
             e.stopPropagation();
 
-            bukaKonfirmasiBatalCreateAwal();
+            console.log("[DEBUG3] AKAN memanggil bukaKonfirmasiBatalCreateAwal()");
+
+            try{
+                bukaKonfirmasiBatalCreateAwal();
+                console.log("[DEBUG3] bukaKonfirmasiBatalCreateAwal() SELESAI tanpa error");
+            }catch(err){
+                console.error("[DEBUG3] ERROR di dalam bukaKonfirmasiBatalCreateAwal():", err);
+            }
 
             return;
 

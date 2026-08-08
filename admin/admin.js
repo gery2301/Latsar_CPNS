@@ -1,6 +1,13 @@
 // ===============================
 // KONFIGURASI 
 // ===============================
+
+// === DEBUG SEMENTARA - paling awal, capture di window ===
+window.addEventListener("keydown", function(e){
+    console.log("[DEBUG1 - WINDOW CAPTURE] key=", e.key, "target=", e.target);
+}, true);
+// === END DEBUG ===
+
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
  
 // ===============================
@@ -1755,6 +1762,19 @@ map.on('draw:deleted', function (e) {
 // SHORTCUT KEYBOARD EDIT GEOMETRI
 // ===============================
 document.addEventListener("keydown", function(e){
+
+    // === DEBUG SEMENTARA ===
+    console.log("[DEBUG2] keydown fired. key=", e.key,
+        "defaultPrevented(before)=", e.defaultPrevented,
+        "target=", e.target,
+        "activeElement=", document.activeElement,
+        "createState=", JSON.parse(JSON.stringify({
+            drawing: createState.drawing,
+            layer: !!createState.layer,
+            mode: createState.mode
+        }))
+    );
+    // === END DEBUG ===
 
 // ==========================
     // MASIH PROSES DIGITASI

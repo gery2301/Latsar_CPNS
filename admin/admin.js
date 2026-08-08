@@ -2059,7 +2059,9 @@ async function init(){
 init();
 window.refreshLayerData = refreshLayerData;
 // refresh tiap 5 detik
-setInterval(refreshLayerData,5000);
+// === DEBUG SEMENTARA: dimatikan dulu untuk isolasi masalah popup ===
+// setInterval(refreshLayerData,5000);
+console.log("[DEBUG5] auto-refresh 5 detik DIMATIKAN sementara untuk testing");
 
 // ==================================
 // FLOATING BUTTON

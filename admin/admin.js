@@ -645,12 +645,6 @@ function hapusLayerSekarang(){
 // ===============================
 const map = L.map('map').setView([-8.5, 119.9], 10);
 
-// Box hint "Mode Digitasi"/"Mode Edit" pakai zIndex:9999 (lihat
-// showCreateHint/showEditHint). Pane popup Leaflet default-nya
-// jauh di bawah itu (~700), jadi popup konfirmasi bisa ketutup
-// oleh hint. Naikkan z-index pane popup supaya selalu di atas.
-map.getPane('popupPane').style.zIndex = 10000;
-
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 
@@ -1065,6 +1059,8 @@ function bukaKonfirmasiBatalCreate(){
 // popup pakai posisi mouse terakhir)
 // ===============================
 function bukaKonfirmasiBatalCreateAwal(){
+
+    console.log("[DEBUG] bukaKonfirmasiBatalCreateAwal() TERPANGGIL");
 
     map.closePopup();
 
@@ -1753,6 +1749,17 @@ map.on('draw:deleted', function (e) {
 // SHORTCUT KEYBOARD EDIT GEOMETRI
 // ===============================
 document.addEventListener("keydown", function(e){
+
+    // === DEBUG SEMENTARA - hapus setelah bug ketemu ===
+    console.log("[DEBUG keydown]", {
+        key: e.key,
+        createState_drawing: createState.drawing,
+        createState_layer: createState.layer,
+        createState_mode: createState.mode,
+        editState_mode: editState.mode,
+        activeDrawTool: activeDrawTool
+    });
+    // === END DEBUG ===
 
 // ==========================
     // MASIH PROSES DIGITASI

@@ -1176,6 +1176,8 @@ function lanjutMenggambarCreate(){
 
         }
 
+        map.getContainer().focus();
+
     },100);
 
 }
@@ -2098,6 +2100,12 @@ document.getElementById("btnPoint")
     activeDrawTool = drawPoint;
     drawPoint.enable();
 
+    // paksa fokus ke map supaya Escape/Enter langsung terdengar
+    // tanpa perlu klik mouse dulu di peta
+    setTimeout(function(){
+        map.getContainer().focus();
+    }, 0);
+
 });
 
 document.getElementById("btnLine")
@@ -2110,6 +2118,10 @@ document.getElementById("btnLine")
     activeDrawTool = drawLine;
     drawLine.enable();
 
+    setTimeout(function(){
+        map.getContainer().focus();
+    }, 0);
+
 });
 
 document.getElementById("btnPolygon")
@@ -2121,5 +2133,9 @@ document.getElementById("btnPolygon")
     createState.drawing=true;
     activeDrawTool = drawPolygon;
     drawPolygon.enable();
+
+    setTimeout(function(){
+        map.getContainer().focus();
+    }, 0);
 
 });

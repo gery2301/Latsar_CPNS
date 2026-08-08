@@ -1060,6 +1060,8 @@ function bukaKonfirmasiBatalCreate(){
 // ===============================
 function bukaKonfirmasiBatalCreateAwal(){
 
+    console.log("[DEBUG] bukaKonfirmasiBatalCreateAwal() TERPANGGIL");
+
     map.closePopup();
 
     const latlng = lastDrawMouseLatLng || map.getCenter();
@@ -1747,6 +1749,17 @@ map.on('draw:deleted', function (e) {
 // SHORTCUT KEYBOARD EDIT GEOMETRI
 // ===============================
 document.addEventListener("keydown", function(e){
+
+    // === DEBUG SEMENTARA - hapus setelah bug ketemu ===
+    console.log("[DEBUG keydown]", {
+        key: e.key,
+        createState_drawing: createState.drawing,
+        createState_layer: createState.layer,
+        createState_mode: createState.mode,
+        editState_mode: editState.mode,
+        activeDrawTool: activeDrawTool
+    });
+    // === END DEBUG ===
 
 // ==========================
     // MASIH PROSES DIGITASI

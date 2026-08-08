@@ -1397,24 +1397,10 @@ map.on("mousemove", function(e){
     }
 });
 
-// Leaflet.Draw punya shortcut internal sendiri yang langsung
-// membatalkan digitasi begitu tombol Escape dilepas (keyup),
-// sebelum kode kita sempat menampilkan popup konfirmasi.
-// Blok ini mencegat & menghentikan shortcut bawaan tsb selama
-// proses digitasi masih berjalan dan belum ada layer terbentuk,
-// supaya keputusan batal/lanjut sepenuhnya lewat popup kita.
-document.addEventListener("keyup", function(e){
-
-    if(
-        e.key === "Escape" &&
-        createState.drawing &&
-        !createState.layer
-    ){
-        e.stopImmediatePropagation();
-        e.preventDefault();
-    }
-
-}, true);
+// Catatan: shortcut Escape bawaan Leaflet.Draw (_cancelDrawing)
+// dinonaktifkan langsung di deklarasi drawPoint/drawLine/drawPolygon
+// di bagian bawah file, supaya Escape sepenuhnya dikendalikan lewat
+// popup konfirmasi kita sendiri, bukan lewat trik intersep event.
 
 map.on(L.Draw.Event.DRAWSTART, function(){
 
@@ -1869,7 +1855,7 @@ document.addEventListener("keydown", function(e){
     }
 
     
-});
+}, false);
 
 // ===============================
 // LOAD DATA AWAL
@@ -2086,6 +2072,15 @@ fabImport.addEventListener("click", function(){
 const drawPoint = new L.Draw.Marker(map,{});
 const drawLine = new L.Draw.Polyline(map,{});
 const drawPolygon = new L.Draw.Polygon(map,{});
+
+// Leaflet.Draw punya shortcut Escape bawaan (_cancelDrawing) yang
+// langsung memanggil disable() tanpa konfirmasi apapun, begitu
+// tombol Escape dilepas. Method ini kita timpa jadi no-op supaya
+// Escape sepenuhnya ditangani lewat popup konfirmasi kita sendiri
+// (lihat handler keydown di atas), bukan langsung membatalkan diam-diam.
+[drawPoint, drawLine, drawPolygon].forEach(function(tool){
+    tool._cancelDrawing = function(){};
+});
 
 document.getElementById("btnPoint")
 .addEventListener("click", function(){

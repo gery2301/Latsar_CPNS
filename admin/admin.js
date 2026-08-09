@@ -657,6 +657,19 @@ function hapusLayerSekarang(){
 // ===============================
 const map = L.map('map').setView([-8.5, 119.9], 10);
 
+// PENTING: matikan keyboard handler bawaan Leaflet (L.Map.Keyboard).
+// Handler ini punya penanganan Escape sendiri (map.closePopup() lalu
+// L.DomEvent.stop(e)) yang terpasang LANGSUNG di container peta dan
+// AKTIF setiap kali container di-focus() (mis. lewat
+// map.getContainer().focus() di lanjutMenggambarCreate()).
+// Karena listener-nya ada di container (bukan document) dan memanggil
+// stopPropagation, Escape jadi "dicegat" duluan sebelum sempat sampai
+// ke document.addEventListener("keydown", ...) di bawah -> popup
+// "Batalkan Digitasi" tidak pernah kebuka lagi setelah container
+// pernah di-focus(). Semua shortcut Enter/Escape sudah kita tangani
+// manual, jadi keyboard handler bawaan ini aman dimatikan total.
+map.keyboard.disable();
+
 // Box hint "Mode Digitasi"/"Mode Edit" pakai zIndex:9999 (lihat
 // showCreateHint/showEditHint). Pane popup Leaflet default-nya
 // jauh di bawah itu (~700), jadi popup konfirmasi bisa ketutup

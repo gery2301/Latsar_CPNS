@@ -11,6 +11,18 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 let masterLayer = [];
 let masterReady = false;
 
+// Normalisasi nama layer sebelum dibandingkan, supaya spasi
+// tersisa atau beda kapital di Sheets nggak bikin pencocokan gagal
+function normLayer(s){
+    return String(s || "").trim().toLowerCase();
+}
+
+function findMasterByLayer(layerName){
+    const target = normLayer(layerName);
+    if(!target) return undefined;
+    return masterLayer.find(item => normLayer(item.layer) === target);
+}
+
 async function loadMasterLayer() {
 
   const res = await fetch(GAS_URL + "?action=master");
@@ -28,9 +40,10 @@ function getLayerOptions(selected = "") {
 
   return masterLayer.map(item => {
 
-    const pilih = item.layer === selected ? "selected" : "";
+    const namaLayer = String(item.layer || "").trim();
+    const pilih = normLayer(namaLayer) === normLayer(selected) ? "selected" : "";
 
-    return `<option value="${item.layer}" ${pilih}>${item.layer}</option>`;
+    return `<option value="${namaLayer}" ${pilih}>${namaLayer}</option>`;
 
   }).join("");
 
@@ -57,7 +70,7 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
     } else {
 
         hasil = masterLayer.filter(item =>
-            item.layer.toLowerCase().includes(keyword)
+            normLayer(item.layer).includes(keyword)
         );
 
     }
@@ -76,12 +89,13 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
 
     ddl.innerHTML = hasil.map(item => {
 
+        const namaLayer = String(item.layer || "").trim();
         const pilih =
-            item.layer === selected ? "selected" : "";
+            normLayer(namaLayer) === normLayer(selected) ? "selected" : "";
 
         return `
-            <option value="${item.layer}" ${pilih}>
-                ${item.layer}
+            <option value="${namaLayer}" ${pilih}>
+                ${namaLayer}
             </option>
         `;
 
@@ -296,9 +310,7 @@ function updateInfoLayer(){
         return;
     }
 
-    const master = masterLayer.find(
-        item => item.layer === ddl.value
-    );
+    const master = findMasterByLayer(ddl.value);
 
     document.getElementById("edit_tema").value =
         master ? master.tema : "";
@@ -328,8 +340,7 @@ function simpanEditAtribut() {
   const nama = document.getElementById('edit_nama').value;
   const status = document.getElementById('edit_status').value;
   const layerNama = document.getElementById('edit_layer').value;
-  const master =
-  masterLayer.find(item => item.layer === layerNama);
+  const master = findMasterByLayer(layerNama);
    if(!master){
       alert("Layer belum dipilih.");
       return;
@@ -1454,7 +1465,7 @@ console.log("CREATED :", e.layerType);
   drawnItems.addLayer(layer);
 
   const form = `
-    <div>
+    <div class="popup-form">
       <label>Nama Lokasi</label><br>
       <input class="popup-input" type="text" id="nama_lokasi">
 
@@ -1562,9 +1573,7 @@ function updateInfoLayer(){
         return;
     }
  
-    const master = masterLayer.find(
-        item => item.layer === ddl.value
-    );
+    const master = findMasterByLayer(ddl.value);
 
     document.getElementById("tema_lokasi").value =
         master ? master.tema : "";
@@ -1592,7 +1601,7 @@ ddl.addEventListener("change", function(){
     const layerNama = document.getElementById("layer_lokasi").value;
 
     // cari data master berdasarkan layer yang dipilih
-    const master = masterLayer.find(item => item.layer === layerNama);
+    const master = findMasterByLayer(layerNama);
     if(!master){
      alert("Layer belum dipilih.");
      return;

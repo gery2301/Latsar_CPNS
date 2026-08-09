@@ -459,17 +459,28 @@ function renderLayerTree(){
 
             for(const layer in tree[kategori][tema]){
                 const jumlah =
-                    tree[kategori][tema][layer].length;
+                    tree[kategori][tema][layer].length ||
+                    shpFeatureCounts[layer] || 0;
+
+                const masterInfo = masterLayer.find(item => item.layer === layer);
+                const isShp = masterInfo && masterInfo.source_type === "shp";
+
+                // layer manual selalu dianggap "sudah dimuat" (memang
+                // sudah dirender pas loadDataAwal/refreshLayerData).
+                // layer SHP baru checked kalau memang sudah pernah
+                // di-bulk-load di sesi ini (lazy-load).
+                const isChecked = !isShp || shpLoadedLayers.has(layer);
+
                 html += `
                     <div class="tree-layer">
                        <label class="tree-layer-label">
                        
                          <input
                          type="checkbox"
-                         checked
-                         onchange="toggleLayer('${layer}',this.checked)">
+                         ${isChecked ? "checked" : ""}
+                         onchange="handleLayerToggle('${layer}',this.checked)">
                          <span class="tree-layer-text">
-                         📂 ${layer}</span>
+                         ${isShp ? "📦" : "📂"} ${layer}</span>
                         
                         <span class="tree-count">
                          (${jumlah})
@@ -1262,6 +1273,27 @@ let lastData = [];
 // ===============================
 const treeLayers = {};
 
+// ===============================
+// STATE UNTUK LAYER SHP (lazy-load)
+// ===============================
+
+// nama layer SHP yang datanya SUDAH pernah di-bulk-load ke peta
+// di sesi ini (biar toggle OFF/ON berikutnya gak fetch ulang)
+const shpLoadedLayers = new Set();
+
+// cache jumlah fitur per layer SHP, dipakai buat nampilin angka
+// di tree SEBELUM layer-nya di-load (dari hasil import atau bulk load
+// sebelumnya)
+const shpFeatureCounts = {};
+
+// state sementara file SHP/GeoJSON yang lagi di-preview,
+// sebelum user klik "Import"
+let importState = {
+    geojson: null,
+    previewLayer: null,
+    attributeKeys: []
+};
+
 function toggleLayer(layerName, visible){
 
     Object.keys(layerGroups).forEach(key=>{
@@ -1306,6 +1338,126 @@ function toggleLayer(layerName, visible){
             map.removeLayer(layerGroups[key]);
         }
     });
+}
+
+// ===============================
+// TREE LENGKAP (data manual + SEMUA layer di master_layer)
+// ===============================
+// buildLayerTree(data) di atas cuma bikin node tree dari layer yang
+// KEBETULAN punya fitur manual (Sheet2). Layer SHP yang belum
+// pernah di-toggle ON (belum di-bulk-load) gak akan pernah punya
+// fitur manual, jadi kalau cuma pakai buildLayerTree() dia gak akan
+// pernah muncul di tree sama sekali. buildLayerTreeFull() nambahin
+// node kosong untuk semua layer yang terdaftar di master_layer,
+// supaya layer SHP tetap muncul (dengan badge jumlah dari
+// shpFeatureCounts) walau isinya belum di-load ke peta.
+function buildLayerTreeFull(manualData){
+    const tree = buildLayerTree(manualData);
+
+    masterLayer.forEach(item=>{
+        const kategori = item.kategori || "Tanpa Kategori";
+        const tema = item.tema || "Tanpa Tema";
+        const layer = item.layer || "Tanpa Layer";
+
+        if(!tree[kategori]) tree[kategori] = {};
+        if(!tree[kategori][tema]) tree[kategori][tema] = {};
+        if(!tree[kategori][tema][layer]) tree[kategori][tema][layer] = [];
+    });
+
+    return tree;
+}
+
+// ===============================
+// TOGGLE LAYER DARI TREE (dengan lazy-load SHP)
+// ===============================
+// dipanggil dari checkbox di tree. Untuk layer manual, perilakunya
+// sama seperti toggleLayer() biasa. Untuk layer SHP yang baru
+// PERTAMA KALI di-ON-kan di sesi ini, data fiturnya di-fetch dulu
+// (action=bulk) baru dirender -> ini bagian "lazy-load" nya.
+async function handleLayerToggle(layerName, visible){
+
+    const master = masterLayer.find(item => item.layer === layerName);
+    const isShp = master && master.source_type === "shp" && master.sheet_name;
+
+    if(isShp && visible && !shpLoadedLayers.has(layerName)){
+        await muatBulkLayer(master.sheet_name, layerName, master);
+    }
+
+    toggleLayer(layerName, visible);
+}
+
+// ===============================
+// BULK LOAD DATA SHP (dipanggil sekali per layer per sesi)
+// ===============================
+function muatBulkLayer(sheetName, layerName, master){
+
+    return fetch(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName))
+    .then(res => res.json())
+    .then(resp => {
+
+        if(resp.status !== "ok"){
+            alert("Gagal memuat data layer " + layerName + ": " + resp.message);
+            return;
+        }
+
+        resp.data.forEach(d => {
+            if(!d.geometry) return;
+
+            // pakai L.geoJSON buat bikin layer-nya biar otomatis
+            // support semua tipe geometry (termasuk Multi*), gak
+            // perlu rekonstruksi manual per tipe kayak di renderLayerData
+            const gLayer = L.geoJSON(d.geometry, {
+                pointToLayer: (f, latlng) => L.marker(latlng)
+            });
+            const layer = gLayer.getLayers()[0];
+            if(!layer) return;
+
+            layer.options.id = d.id;
+
+            const dataFix = {
+                id: d.id,
+                layer: layerName,
+                kategori: master ? master.kategori : "",
+                tema: master ? master.tema : "",
+                owner_opd: master ? master.owner_opd : "",
+                sheet_name: sheetName,
+                atribut: d
+            };
+
+            layer._data = dataFix;
+
+            drawnItems.addLayer(layer);
+            attachShpPopup(layer, dataFix);
+            registerLayer(layer, dataFix);
+        });
+
+        shpLoadedLayers.add(layerName);
+        shpFeatureCounts[layerName] = resp.data.length;
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Gagal memuat data layer " + layerName + ": " + err.message);
+    });
+}
+
+// Popup atribut untuk fitur SHP — VIEW-ONLY dulu (belum ada edit/
+// delete per-fitur, itu bagian berikutnya)
+function attachShpPopup(layer, data){
+
+    const skip = new Set(["id","geometry","created_at","updated_at"]);
+    const rows = Object.keys(data.atribut)
+        .filter(k => !skip.has(k))
+        .map(k => `<b>${k}</b>: ${data.atribut[k] ?? ""}<br>`)
+        .join("");
+
+    layer.bindPopup(`
+        <div class="popup-form">
+            <div class="popup-title">📦 ${data.layer}</div>
+            <div class="popup-info">
+                ${rows || "(tidak ada atribut)"}
+            </div>
+        </div>
+    `);
 }
 
 // OSM (default)
@@ -1995,7 +2147,7 @@ try{
         lastData = structuredClone(data);
 
         clearRenderedData();
-        window.layerTree = buildLayerTree(data);
+        window.layerTree = buildLayerTreeFull(data);
         renderLayerTree();
         initTreeCollapse();
         requestAnimationFrame(()=>{
@@ -2036,10 +2188,25 @@ async function refreshLayerData(){
 
     lastData = structuredClone(newData);
 
+    // clearRenderedData() di bawah ini bersih-bersih SEMUA layer di
+    // peta (termasuk layer SHP yang udah di-bulk-load). Simpan dulu
+    // nama layer SHP mana aja yang lagi aktif, supaya abis refresh
+    // data manual ini, layer SHP yang tadinya udah di-ON gak
+    // mendadak hilang dari peta / harus di-toggle manual lagi.
+    const previouslyLoadedShp = Array.from(shpLoadedLayers);
+    shpLoadedLayers.clear();
+
     clearRenderedData();
     renderLayerData(newData);
-    window.layerTree = buildLayerTree(newData);
+    window.layerTree = buildLayerTreeFull(newData);
     renderLayerTree();
+
+    for(const layerName of previouslyLoadedShp){
+        const master = masterLayer.find(item => item.layer === layerName);
+        if(master) await muatBulkLayer(master.sheet_name, layerName, master);
+    }
+    renderLayerTree();
+
     requestAnimationFrame(() => {
     
     requestAnimationFrame(()=>{
@@ -2049,6 +2216,339 @@ async function refreshLayerData(){
             .getElementById("layerTree")
             .classList.add("tree-ready");
     });
+    });
+}
+
+// ===============================
+// IMPORT SHP / GEOJSON
+// ===============================
+
+// shpjs cuma dipakai buat ZIP shapefile, jadi di-load on-demand
+// (bukan lewat <script> di HTML) supaya gak nambah beban awal buat
+// yang gak pernah pakai fitur import
+const SHPJS_CDN = "https://unpkg.com/shpjs@latest/dist/shp.js";
+
+function loadScriptSekali_(src){
+    return new Promise((resolve, reject) => {
+        if(document.querySelector(`script[src="${src}"]`)){
+            resolve();
+            return;
+        }
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Gagal memuat " + src));
+        document.head.appendChild(s);
+    });
+}
+
+// input file tersembunyi, dipicu dari tombol Import di FAB menu
+const shpFileInput = document.createElement("input");
+shpFileInput.type = "file";
+shpFileInput.accept = ".zip,.json,.geojson";
+shpFileInput.style.display = "none";
+document.body.appendChild(shpFileInput);
+
+shpFileInput.addEventListener("change", function(e){
+    const file = e.target.files[0];
+    shpFileInput.value = ""; // reset biar file yg sama bisa dipilih lagi
+    if(file) handleShpFile(file);
+});
+
+async function handleShpFile(file){
+
+    const namaFile = file.name.toLowerCase();
+    let geojson;
+
+    try{
+        if(namaFile.endsWith(".zip")){
+
+            await loadScriptSekali_(SHPJS_CDN);
+            const buffer = await file.arrayBuffer();
+            geojson = await shp(buffer);
+
+            // kalau ZIP-nya isinya lebih dari 1 shapefile, shpjs
+            // balikin array of FeatureCollection -> kita ambil yang
+            // pertama aja (asumsi 1 layer per upload)
+            if(Array.isArray(geojson)) geojson = geojson[0];
+
+        } else if(namaFile.endsWith(".geojson") || namaFile.endsWith(".json")){
+
+            const text = await file.text();
+            geojson = JSON.parse(text);
+
+            if(geojson.type === "Feature"){
+                geojson = { type: "FeatureCollection", features: [geojson] };
+            }
+
+        } else {
+            alert("Format file tidak didukung. Upload .zip (shapefile) atau .geojson/.json");
+            return;
+        }
+    } catch(err){
+        console.error(err);
+        alert("Gagal membaca file: " + err.message);
+        return;
+    }
+
+    if(!geojson || !geojson.features || !geojson.features.length){
+        alert("File tidak berisi fitur apapun.");
+        return;
+    }
+
+    bukaPreviewShp(geojson, file.name);
+}
+
+function bukaPreviewShp(geojson, fileName){
+
+    tutupPreviewShp(); // bersihkan preview sebelumnya kalau ada
+
+    // union semua key atribut dari SELURUH fitur (bukan cuma fitur
+    // pertama), soalnya di data SHP kadang gak semua fitur punya
+    // kolom yang sama persis
+    const keySet = new Set();
+    geojson.features.forEach(f => {
+        Object.keys(f.properties || {}).forEach(k => keySet.add(k));
+    });
+
+    const previewLayer = L.geoJSON(geojson, {
+        style: { color: "#ff6600", weight: 3, fillOpacity: 0.15 },
+        pointToLayer: (f, latlng) =>
+            L.circleMarker(latlng, { radius: 6, color: "#ff6600", weight: 2, fillOpacity: 0.6 })
+    }).addTo(map);
+
+    if(previewLayer.getBounds().isValid()){
+        map.fitBounds(previewLayer.getBounds(), { padding: [40, 40] });
+    }
+
+    importState = {
+        geojson,
+        previewLayer,
+        attributeKeys: Array.from(keySet)
+    };
+
+    renderShpFormPanel(fileName, geojson.features.length);
+}
+
+function tutupPreviewShp(){
+
+    if(importState.previewLayer){
+        map.removeLayer(importState.previewLayer);
+    }
+    importState = { geojson: null, previewLayer: null, attributeKeys: [] };
+
+    const panel = document.getElementById("shpImportPanel");
+    if(panel) panel.remove();
+}
+
+function renderShpFormPanel(fileName, jumlahFitur){
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "shpImportPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10000; background:#fff; border-radius:10px;
+        box-shadow:0 4px 24px rgba(0,0,0,0.25);
+        padding:16px 20px; width:380px; max-width:92vw; max-height:88vh;
+        overflow-y:auto;
+    `;
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">📥 Import SHP</div>
+            <div class="popup-info">${fileName} — ${jumlahFitur} fitur terbaca</div>
+            <br>
+
+            <label class="popup-label">Nama Layer</label><br>
+            <div class="layer-picker">
+                <input class="popup-input layer-search" id="shp_search_layer"
+                    placeholder="🔍 Ketik nama layer (baru atau yang sudah ada)...">
+                <select class="popup-select layer-list" id="shp_layer_lokasi" size="6"></select>
+            </div>
+            <br><br>
+
+            <label class="popup-label">Kategori</label><br>
+            <input class="popup-input" id="shp_kategori"><br><br>
+
+            <label class="popup-label">Tema</label><br>
+            <input class="popup-input" id="shp_tema"><br><br>
+
+            <label class="popup-label">OPD</label><br>
+            <input class="popup-input" id="shp_owner"><br><br>
+
+            <button id="btnImportShp" class="popup-button" onclick="prosesImportShp()">
+                ✓ Import
+            </button>
+            <br><br>
+            <button class="popup-button popup-button-secondary" onclick="tutupPreviewShp()">
+                ✕ Batal
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+
+    const ddl = document.getElementById("shp_layer_lokasi");
+    const search = document.getElementById("shp_search_layer");
+
+    // dropdown cuma nyaranin layer yang SUMBERNYA SHP (source_type
+    // "shp"), biar gak nyaranin nama layer manual/digitasi yang
+    // konsepnya beda dan gak boleh dipakai ulang buat SHP
+    const shpLayers = masterLayer.filter(item => item.source_type === "shp");
+
+    function filterShpDropdown(keyword){
+        keyword = keyword.trim().toLowerCase();
+        const hasil = keyword === ""
+            ? shpLayers.slice(0, 8)
+            : shpLayers.filter(item => item.layer.toLowerCase().includes(keyword));
+
+        ddl.innerHTML = hasil.length
+            ? hasil.map(item => `<option value="${item.layer}">${item.layer}</option>`).join("")
+            : `<option value="">Tidak ada layer SHP ditemukan</option>`;
+    }
+
+    function isiOtomatisDariMaster(layerName){
+        const master = masterLayer.find(item => item.layer === layerName);
+        document.getElementById("shp_kategori").value = master ? master.kategori : "";
+        document.getElementById("shp_tema").value = master ? master.tema : "";
+        document.getElementById("shp_owner").value = master ? master.owner_opd : "";
+    }
+
+    search.addEventListener("focus", function(){
+        ddl.classList.add("show");
+        filterShpDropdown("");
+    });
+
+    search.addEventListener("input", function(){
+        ddl.classList.add("show");
+        filterShpDropdown(search.value);
+        isiOtomatisDariMaster(search.value);
+    });
+
+    search.addEventListener("blur", function(){
+        setTimeout(() => ddl.classList.remove("show"), 150);
+    });
+
+    ddl.addEventListener("change", function(){
+        search.value = ddl.value;
+        ddl.classList.remove("show");
+        isiOtomatisDariMaster(ddl.value);
+    });
+}
+
+function prosesImportShp(){
+
+    if(!importState.geojson){
+        alert("Tidak ada data untuk diimport.");
+        return;
+    }
+
+    const layerNama = document.getElementById("shp_search_layer").value.trim();
+    const kategori = document.getElementById("shp_kategori").value.trim();
+    const tema = document.getElementById("shp_tema").value.trim();
+    const ownerOpd = document.getElementById("shp_owner").value.trim();
+
+    if(!layerNama || !kategori || !tema || !ownerOpd){
+        alert("Nama Layer, Kategori, Tema, dan OPD wajib diisi.");
+        return;
+    }
+
+    const existing = masterLayer.find(item => item.layer === layerNama);
+
+    if(existing && existing.source_type !== "shp"){
+        alert(
+            `Nama layer "${layerNama}" sudah dipakai layer data manual/digitasi. ` +
+            `Pakai nama lain khusus untuk data SHP ini.`
+        );
+        return;
+    }
+
+    if(existing && existing.source_type === "shp"){
+        const ok = confirm(
+            `Layer "${layerNama}" sudah pernah diimport sebelumnya.\n\n` +
+            `Melanjutkan akan MENGGANTI SELURUH data lama layer ini dengan file yang baru diupload. Lanjutkan?`
+        );
+        if(!ok) return;
+    }
+
+    const btn = document.getElementById("btnImportShp");
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Mengimport...";
+
+    const features = importState.geojson.features.map(f => ({
+        attributes: f.properties || {},
+        geometry: f.geometry
+    }));
+
+    fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+            action: "import_shp",
+            layer: layerNama,
+            kategori,
+            tema,
+            owner_opd: ownerOpd,
+            attributeKeys: importState.attributeKeys,
+            features
+        })
+    })
+    .then(res => res.json())
+    .then(resp => {
+
+        if(resp.status !== "ok"){
+            alert("Gagal import: " + (resp.message || "unknown error"));
+            btn.disabled = false;
+            btn.innerHTML = "✓ Import";
+            return;
+        }
+
+        // update cache master_layer lokal biar tree & form lain
+        // langsung nyadar tanpa perlu reload penuh dari server
+        if(existing){
+            existing.kategori = kategori;
+            existing.tema = tema;
+            existing.owner_opd = ownerOpd;
+            existing.sheet_name = resp.sheet_name;
+            existing.source_type = "shp";
+        } else {
+            masterLayer.push({
+                kategori, tema, layer: layerNama,
+                owner_opd: ownerOpd,
+                sheet_name: resp.sheet_name,
+                source_type: "shp"
+            });
+        }
+
+        // kalau ini re-upload/replace, buang dulu fitur lama layer
+        // ini dari peta sebelum render yang baru
+        if(treeLayerObjects[layerNama]){
+            treeLayerObjects[layerNama].forEach(l => {
+                drawnItems.removeLayer(l);
+                Object.values(layerGroups).forEach(g => g.removeLayer(l));
+            });
+            treeLayerObjects[layerNama] = [];
+        }
+        shpLoadedLayers.delete(layerNama);
+
+        tutupPreviewShp();
+
+        const masterBaru = masterLayer.find(item => item.layer === layerNama);
+
+        muatBulkLayer(resp.sheet_name, layerNama, masterBaru).then(() => {
+
+            window.layerTree = buildLayerTreeFull(lastData);
+            renderLayerTree();
+            initTreeCollapse();
+            requestAnimationFrame(() => requestAnimationFrame(refreshTreeHeight));
+
+            alert(`Berhasil import ${resp.count} fitur ke layer "${layerNama}".`);
+        });
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Gagal mengirim data ke server: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = "✓ Import";
     });
 }
 
@@ -2106,7 +2606,9 @@ document.getElementById("btnPolygon").addEventListener("click",function(){
 });
 
 fabImport.addEventListener("click", function(){
-    alert("Menu Import");
+    fabMenu.classList.remove("show");
+    fabOpen = false;
+    shpFileInput.click();
 });
 
 // ==================================

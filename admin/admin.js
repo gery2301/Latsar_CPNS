@@ -11,18 +11,6 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 let masterLayer = [];
 let masterReady = false;
 
-// Normalisasi nama layer sebelum dibandingkan, supaya spasi
-// tersisa atau beda kapital di Sheets nggak bikin pencocokan gagal
-function normLayer(s){
-    return String(s || "").trim().toLowerCase();
-}
-
-function findMasterByLayer(layerName){
-    const target = normLayer(layerName);
-    if(!target) return undefined;
-    return masterLayer.find(item => normLayer(item.layer) === target);
-}
-
 async function loadMasterLayer() {
 
   const res = await fetch(GAS_URL + "?action=master");
@@ -40,10 +28,9 @@ function getLayerOptions(selected = "") {
 
   return masterLayer.map(item => {
 
-    const namaLayer = String(item.layer || "").trim();
-    const pilih = normLayer(namaLayer) === normLayer(selected) ? "selected" : "";
+    const pilih = item.layer === selected ? "selected" : "";
 
-    return `<option value="${namaLayer}" ${pilih}>${namaLayer}</option>`;
+    return `<option value="${item.layer}" ${pilih}>${item.layer}</option>`;
 
   }).join("");
 
@@ -70,7 +57,7 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
     } else {
 
         hasil = masterLayer.filter(item =>
-            normLayer(item.layer).includes(keyword)
+            item.layer.toLowerCase().includes(keyword)
         );
 
     }
@@ -89,13 +76,12 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
 
     ddl.innerHTML = hasil.map(item => {
 
-        const namaLayer = String(item.layer || "").trim();
         const pilih =
-            normLayer(namaLayer) === normLayer(selected) ? "selected" : "";
+            item.layer === selected ? "selected" : "";
 
         return `
-            <option value="${namaLayer}" ${pilih}>
-                ${namaLayer}
+            <option value="${item.layer}" ${pilih}>
+                ${item.layer}
             </option>
         `;
 
@@ -310,7 +296,9 @@ function updateInfoLayer(){
         return;
     }
 
-    const master = findMasterByLayer(ddl.value);
+    const master = masterLayer.find(
+        item => item.layer === ddl.value
+    );
 
     document.getElementById("edit_tema").value =
         master ? master.tema : "";
@@ -340,7 +328,8 @@ function simpanEditAtribut() {
   const nama = document.getElementById('edit_nama').value;
   const status = document.getElementById('edit_status').value;
   const layerNama = document.getElementById('edit_layer').value;
-  const master = findMasterByLayer(layerNama);
+  const master =
+  masterLayer.find(item => item.layer === layerNama);
    if(!master){
       alert("Layer belum dipilih.");
       return;
@@ -1465,13 +1454,14 @@ console.log("CREATED :", e.layerType);
   drawnItems.addLayer(layer);
 
   const form = `
-    <div class="popup-form">
+    <div>
       <label>Nama Lokasi</label><br>
       <input class="popup-input" type="text" id="nama_lokasi">
 
       <label>Status</label><br>
        <input class="popup-input" type="text" id="status_lokasi">
 
+      <label>Cari Layer</label><br>
       <div class="layer-picker">
 
       <input
@@ -1525,7 +1515,17 @@ layer.on("popupclose", function () {
     }
 
 });
-  
+
+// PENTING: bindPopup() di atas cuma "mendaftarkan" konten popup,
+// belum benar-benar membuka & merender-nya ke DOM. Popup baru
+// benar-benar terbuka belakangan lewat konfirmasiCreateYa()
+// (tombol "Ya, Lanjut Isi Data"). Makanya setup dropdown layer
+// HARUS nunggu event "popupopen", bukan langsung setTimeout di sini
+// -> kalau langsung setTimeout, elemen #layer_lokasi belum ada di
+// DOM sama sekali saat itu, jadi listener input/focus-nya gak
+// pernah ke-attach dan dropdown/suggestion gak pernah muncul.
+layer.on("popupopen", function () {
+
   setTimeout(() => {
   if (masterReady && document.getElementById("layer_lokasi")) {
     document.getElementById("layer_lokasi").innerHTML = getLayerOptions();
@@ -1573,7 +1573,9 @@ function updateInfoLayer(){
         return;
     }
  
-    const master = findMasterByLayer(ddl.value);
+    const master = masterLayer.find(
+        item => item.layer === ddl.value
+    );
 
     document.getElementById("tema_lokasi").value =
         master ? master.tema : "";
@@ -1592,7 +1594,9 @@ ddl.addEventListener("change", function(){
 });
   }
   }, 100);
-    
+
+}); // end layer.on("popupopen", ...)
+
 
   window.simpanData = function() {
 
@@ -1601,7 +1605,7 @@ ddl.addEventListener("change", function(){
     const layerNama = document.getElementById("layer_lokasi").value;
 
     // cari data master berdasarkan layer yang dipilih
-    const master = findMasterByLayer(layerNama);
+    const master = masterLayer.find(item => item.layer === layerNama);
     if(!master){
      alert("Layer belum dipilih.");
      return;

@@ -1409,7 +1409,39 @@ function muatBulkLayer(sheetName, layerName, master){
     .then(resp => {
 
         if(resp.status !== "ok"){
-            alert("Gagal memuat data layer " + layerName + ": " + resp.message);
+
+            const sheetHilang = /tidak ditemukan/i.test(resp.message || "");
+
+            if(sheetHilang){
+                // sheet datanya udah beneran gak ada (kemungkinan dihapus
+                // manual langsung dari Spreadsheet, bukan lewat aplikasi),
+                // sementara row master_layer-nya masih nyangkut -> bersihin
+                // sendiri biar layer ini gak nongol lagi di tree
+                alert(
+                    `Sheet data untuk layer "${layerName}" sudah tidak ada di Spreadsheet ` +
+                    `(kemungkinan terhapus manual, bukan lewat aplikasi). ` +
+                    `Layer ini akan dibersihkan dari daftar.`
+                );
+
+                fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "delete_layer", layer: layerName })
+                }).catch(err => console.error("Gagal membersihkan master_layer:", err));
+
+                const idx = masterLayer.findIndex(item => item.layer === layerName);
+                if(idx !== -1) masterLayer.splice(idx, 1);
+
+                shpFeatureCounts[layerName] = 0;
+                shpLoadedLayers.delete(layerName);
+
+                window.layerTree = buildLayerTreeFull(lastData);
+                renderLayerTree();
+                initTreeCollapse();
+                requestAnimationFrame(() => requestAnimationFrame(refreshTreeHeight));
+            } else {
+                alert("Gagal memuat data layer " + layerName + ": " + resp.message);
+            }
+
             return;
         }
 

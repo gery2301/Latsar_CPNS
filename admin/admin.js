@@ -2381,13 +2381,28 @@ function renderShpFormPanel(fileName, jumlahFitur){
             <br><br>
 
             <label class="popup-label">Kategori</label><br>
-            <input class="popup-input" id="shp_kategori"><br><br>
+            <div class="layer-picker">
+                <input class="popup-input layer-search" id="shp_kategori"
+                    placeholder="Ketik atau pilih kategori...">
+                <select class="popup-select layer-list" id="shp_kategori_list" size="4"></select>
+            </div>
+            <br><br>
 
             <label class="popup-label">Tema</label><br>
-            <input class="popup-input" id="shp_tema"><br><br>
+            <div class="layer-picker">
+                <input class="popup-input layer-search" id="shp_tema"
+                    placeholder="Ketik atau pilih tema...">
+                <select class="popup-select layer-list" id="shp_tema_list" size="4"></select>
+            </div>
+            <br><br>
 
             <label class="popup-label">OPD</label><br>
-            <input class="popup-input" id="shp_owner"><br><br>
+            <div class="layer-picker">
+                <input class="popup-input layer-search" id="shp_owner"
+                    placeholder="Ketik atau pilih OPD...">
+                <select class="popup-select layer-list" id="shp_owner_list" size="4"></select>
+            </div>
+            <br><br>
 
             <button id="btnImportShp" class="popup-button" onclick="prosesImportShp()">
                 ✓ Import
@@ -2447,6 +2462,52 @@ function renderShpFormPanel(fileName, jumlahFitur){
         ddl.classList.remove("show");
         isiOtomatisDariMaster(ddl.value);
     });
+
+    // ===== Kategori / Tema / OPD: suggestion dari master_layer, =====
+    // ===== tapi tetap boleh ketik nilai baru (bukan dropdown terkunci) =====
+    function nilaiUnik_(field){
+        const set = new Set();
+        masterLayer.forEach(item => {
+            if(item[field]) set.add(item[field]);
+        });
+        return Array.from(set).sort();
+    }
+
+    function pasangAutocomplete_(searchId, listId, daftarNilai){
+        const s = document.getElementById(searchId);
+        const d = document.getElementById(listId);
+
+        function filter(keyword){
+            keyword = keyword.trim().toLowerCase();
+            const hasil = keyword === ""
+                ? daftarNilai
+                : daftarNilai.filter(v => v.toLowerCase().includes(keyword));
+
+            d.innerHTML = hasil.length
+                ? hasil.map(v => `<option value="${v}">${v}</option>`).join("")
+                : `<option value="">(belum ada, akan dibuat baru)</option>`;
+        }
+
+        s.addEventListener("focus", function(){
+            d.classList.add("show");
+            filter(s.value);
+        });
+        s.addEventListener("input", function(){
+            d.classList.add("show");
+            filter(s.value);
+        });
+        s.addEventListener("blur", function(){
+            setTimeout(() => d.classList.remove("show"), 150);
+        });
+        d.addEventListener("change", function(){
+            s.value = d.value;
+            d.classList.remove("show");
+        });
+    }
+
+    pasangAutocomplete_("shp_kategori", "shp_kategori_list", nilaiUnik_("kategori"));
+    pasangAutocomplete_("shp_tema", "shp_tema_list", nilaiUnik_("tema"));
+    pasangAutocomplete_("shp_owner", "shp_owner_list", nilaiUnik_("owner_opd"));
 }
 
 function prosesImportShp(){

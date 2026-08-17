@@ -112,7 +112,7 @@ function attachEditMenu(layer, data) {
     if(d.atribut){
         judul = "📦 " + d.layer;
         const skip = new Set(["id","geometry","created_at","updated_at"]);
-        infoHtml = Object.keys(d.atribut)
+        const rows = Object.keys(d.atribut)
             .filter(k => !skip.has(k))
             .map(k => `
               <div class="popup-info">
@@ -120,6 +120,7 @@ function attachEditMenu(layer, data) {
               ${d.atribut[k] ?? ""}
               </div>
             `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
+        infoHtml = `<div style="max-height:280px; overflow-y:auto; padding-right:4px;">${rows}</div>`;
     } else {
         judul = d.nama;
         infoHtml = `
@@ -168,7 +169,7 @@ function attachEditMenu(layer, data) {
       </button>
       </div>
     `;
-  });
+  }, { minWidth: 260, maxWidth: 340 });
 
 }
 
@@ -456,14 +457,16 @@ function editAtributShp() {
   `).join("");
 
   L.popup({
-    minWidth: 380,
-    maxWidth: 380
+    minWidth: 320,
+    maxWidth: 340
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
     <div class="popup-form">
       <div class="popup-title">📦 ${d.layer}</div>
+      <div style="max-height:280px; overflow-y:auto; padding-right:4px;">
       ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
+      </div>
       <button
       id="btnEditShp"
       class="popup-button"

@@ -101,37 +101,64 @@ function attachEditMenu(layer, data) {
   layer.bindPopup(() => {
      window.currentLayer = layer;
     const d = layer._data;
+
+    // fitur SHP (d.atribut ada) punya kolom dinamis sesuai DBF-nya,
+    // beda sama fitur manual/digitasi yang field-nya selalu tetap
+    // (nama/status/kategori/tema/layer/owner_opd). Judul & isi info
+    // dibedakan di sini, tapi kerangka popup + tombol Edit/Hapus-nya
+    // tetap sama persis buat dua-duanya.
+    let judul, infoHtml;
+
+    if(d.atribut){
+        judul = "📦 " + d.layer;
+        const skip = new Set(["id","geometry","created_at","updated_at"]);
+        infoHtml = Object.keys(d.atribut)
+            .filter(k => !skip.has(k))
+            .map(k => `
+              <div class="popup-info">
+              <b>${k}</b><br>
+              ${d.atribut[k] ?? ""}
+              </div>
+            `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
+    } else {
+        judul = d.nama;
+        infoHtml = `
+          <div class="popup-info">
+          <b>Status</b><br>
+          ${d.status}
+          </div>
+
+          <div class="popup-info">
+          <b>Kategori</b><br>
+          ${d.kategori}
+          </div>
+
+          <div class="popup-info">
+          <b>Tema</b><br>
+          ${d.tema}
+          </div>
+
+          <div class="popup-info">
+          <b>Layer</b><br>
+          ${d.layer}
+          </div>
+
+          <div class="popup-info">
+          <b>OPD</b><br>
+          ${d.owner_opd}
+          </div>
+        `;
+    }
+
     return `
      <div class="popup-form">
 
       <div class="popup-title">
-      ${d.nama}
+      ${judul}
       </div>
-      
-      <div class="popup-info">
-      <b>Status</b><br>
-      ${d.status}
-      </div>
-      
-      <div class="popup-info">
-      <b>Kategori</b><br>
-      ${d.kategori}
-      </div>
-      
-      <div class="popup-info">
-      <b>Tema</b><br>
-      ${d.tema}
-      </div>
-      
-      <div class="popup-info">
-      <b>Layer</b><br>
-      ${d.layer}
-      </div>
-      
-      <div class="popup-info">
-      <b>OPD</b><br>
-      ${d.owner_opd}
-      </div>
+
+      ${infoHtml}
+
       <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
       <br><br>
       <button
@@ -149,13 +176,16 @@ function bukaMenuEdit(layer) {
   const d = layer._data;
   window.currentLayer = layer;
 
+  const judul = d.atribut ? ("📦 " + d.layer) : d.nama;
+  const aksiEditAtribut = d.atribut ? "editAtributShp()" : "editAtributLayer()";
+
    L.popup()
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
       <div class="popup-form">
 
       <div class="popup-title">
-      ${d.nama}
+      ${judul}
       </div>
       
       <div class="popup-info">
@@ -164,7 +194,7 @@ function bukaMenuEdit(layer) {
       
       <button
       class="popup-button"
-      onclick="editAtributLayer()">
+      onclick="${aksiEditAtribut}">
       
       ✏ Edit Atribut
       
@@ -401,6 +431,100 @@ setTimeout(() => {
 });
 }
 
+// ===============================
+// EDIT ATRIBUT — FITUR SHP (kolom dinamis sesuai DBF)
+// ===============================
+// beda sama editAtributLayer(): SHP gak punya field tetap
+// nama/status/layer, jadi form-nya di-generate dari kolom atribut
+// yang memang ada di data fitur itu. Layer/kategori/tema/OPD gak
+// bisa diubah dari sini (itu level layer, diatur lewat master_layer,
+// bukan per-fitur) — konsisten sama endpoint update_shp_atribut
+// di backend yang cuma nerima update kolom dinamis.
+function editAtributShp() {
+  const layer = window.currentLayer;
+  const d = layer._data;
+
+  const skip = new Set(["id", "geometry", "created_at", "updated_at"]);
+  const keys = Object.keys(d.atribut).filter(k => !skip.has(k));
+
+  const fields = keys.map(k => `
+      <label class="popup-label">${k}</label><br>
+      <input
+      class="popup-input shp-edit-field"
+      data-key="${k}"
+      value="${String(d.atribut[k] ?? "").replace(/"/g, "&quot;")}"><br><br>
+  `).join("");
+
+  L.popup({
+    minWidth: 380,
+    maxWidth: 380
+  })
+    .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
+    .setContent(`
+    <div class="popup-form">
+      <div class="popup-title">📦 ${d.layer}</div>
+      ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
+      <button
+      id="btnEditShp"
+      class="popup-button"
+      onclick="simpanEditAtributShp()">Simpan</button></div>
+    `)
+    .openOn(map);
+}
+
+function simpanEditAtributShp() {
+  const layer = window.currentLayer;
+  const d = layer._data;
+
+  const attributes = {};
+  document.querySelectorAll(".shp-edit-field").forEach(input => {
+      attributes[input.dataset.key] = input.value;
+  });
+
+  const btn = document.getElementById("btnEditShp");
+  btn.disabled = true;
+  btn.innerHTML = "⏳ Menyimpan...";
+
+  fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "update_shp_atribut",
+      sheet_name: d.sheet_name,
+      id: d.id,
+      attributes
+    })
+  })
+  .then(res => res.text())
+  .then(msg => {
+
+    msg = msg.trim();
+    if (msg !== "atribut updated") {
+        alert(msg);
+        btn.disabled = false;
+        btn.innerHTML = "Simpan";
+        return;
+    }
+
+    Object.assign(d.atribut, attributes);
+    layer._data = d;
+
+    btn.innerHTML = "✓ Tersimpan";
+
+    setTimeout(() => {
+        map.closePopup();
+        attachEditMenu(layer, layer._data);
+        setTimeout(() => {
+            layer.openPopup();
+        }, 100);
+    }, 500);
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = "Simpan";
+    alert("Gagal menyimpan atribut: " + err);
+  });
+}
+
 function registerLayer(layer, data) {
 
     const key = `${data.owner_opd}_${data.layer}`;
@@ -619,11 +743,14 @@ function hapusLayerSekarang(){
         return;
     }
 
+    const d = layer._data;
+
     fetch(GAS_URL,{
         method:"POST",
         body:JSON.stringify({
             action:"delete",
-            id:layer.options.id
+            id:layer.options.id,
+            sheet_name: d.sheet_name // undefined utk data manual -> backend default ke Sheet2
         })
     })
     .then(res=>res.text())
@@ -640,6 +767,20 @@ function hapusLayerSekarang(){
             .forEach(g=>g.removeLayer(layer));
 
         drawnItems.removeLayer(layer);
+
+        // data manual di-refresh ulang otomatis tiap 5 detik (poll),
+        // tapi data SHP gak di-poll -> perlu dibersihin manual di
+        // sini biar treeLayerObjects & badge jumlahnya gak nyangkut
+        if(treeLayerObjects[d.layer]){
+            const idx = treeLayerObjects[d.layer].indexOf(layer);
+            if(idx !== -1) treeLayerObjects[d.layer].splice(idx, 1);
+        }
+        if(d.atribut && shpFeatureCounts[d.layer] !== undefined){
+            shpFeatureCounts[d.layer] = Math.max(0, shpFeatureCounts[d.layer] - 1);
+            renderLayerTree();
+            initTreeCollapse();
+            requestAnimationFrame(() => requestAnimationFrame(refreshTreeHeight));
+        }
 
         map.closePopup();
 
@@ -1472,7 +1613,7 @@ function muatBulkLayer(sheetName, layerName, master){
             layer._data = dataFix;
 
             drawnItems.addLayer(layer);
-            attachShpPopup(layer, dataFix);
+            attachEditMenu(layer, dataFix);
             registerLayer(layer, dataFix);
         });
 
@@ -1483,26 +1624,6 @@ function muatBulkLayer(sheetName, layerName, master){
         console.error(err);
         alert("Gagal memuat data layer " + layerName + ": " + err.message);
     });
-}
-
-// Popup atribut untuk fitur SHP — VIEW-ONLY dulu (belum ada edit/
-// delete per-fitur, itu bagian berikutnya)
-function attachShpPopup(layer, data){
-
-    const skip = new Set(["id","geometry","created_at","updated_at"]);
-    const rows = Object.keys(data.atribut)
-        .filter(k => !skip.has(k))
-        .map(k => `<b>${k}</b>: ${data.atribut[k] ?? ""}<br>`)
-        .join("");
-
-    layer.bindPopup(`
-        <div class="popup-form">
-            <div class="popup-title">📦 ${data.layer}</div>
-            <div class="popup-info">
-                ${rows || "(tidak ada atribut)"}
-            </div>
-        </div>
-    `);
 }
 
 // OSM (default)
@@ -1914,7 +2035,8 @@ map.on('draw:edited', function (e) {
 
                 action:"update",
                 id:layer.options.id,
-                geometry:geom
+                geometry:geom,
+                sheet_name: layer._data ? layer._data.sheet_name : undefined
             })
         })
 

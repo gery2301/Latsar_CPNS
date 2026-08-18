@@ -561,7 +561,15 @@ function toggleLayer(layerName, visible){
 
 function renderLayerTree(){
     const div = document.getElementById("treeContent");
-    div.innerHTML = "";
+    div.innerHTML = `
+        <div style="padding:6px 8px; border-bottom:1px solid #ddd;">
+            <button type="button"
+                onclick="bukaAturUrutanLayer()"
+                style="border:1px solid #ccc; background:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">
+                ⚙ Urutan Tampilan Layer
+            </button>
+        </div>
+    `;
    const tree = window.layerTree;
 
     for(const kategori in tree){
@@ -599,11 +607,12 @@ function renderLayerTree(){
                 const isChecked = !isShp || shpLoadedLayers.has(layer);
 
                 html += `
-                    <div class="tree-layer">
+                    <div class="tree-layer" style="display:flex; align-items:center; justify-content:space-between;">
                        <label class="tree-layer-label">
                        
                          <input
                          type="checkbox"
+                         data-layer="${layer}"
                          ${isChecked ? "checked" : ""}
                          onchange="handleLayerToggle('${layer}',this.checked)">
                          <span class="tree-layer-text">
@@ -613,6 +622,12 @@ function renderLayerTree(){
                          (${jumlah})
                         </span>
                         </label>
+                        <button type="button"
+                          onclick="bukaStyleLayer('${layer}')"
+                          title="Atur warna & transparansi layer ini"
+                          style="border:none; background:none; cursor:pointer; font-size:14px; flex-shrink:0;">
+                          🎨
+                        </button>
                     </div>
                 `;
             }
@@ -1451,6 +1466,407 @@ let importState = {
     attributeKeys: []
 };
 
+// ===============================
+// STYLING ENGINE (warna/opacity/z-order per layer)
+// ===============================
+// Konfigurasi disimpan di localStorage (per-browser, belum ke server) --
+// keputusan sadar biar cepat dibangun, bisa diupgrade ke Sheets belakangan
+// kalau perlu konsisten antar user.
+
+// cache runtime (bukan localStorage) buat nyimpen min/max hasil hitung
+// gradient terakhir per layer -> dipakai buat render legenda
+const layerStyleRuntime = {};
+
+// tier dasar urutan klik/tampil: point selalu di atas line, line di
+// atas polygon. Di dalam 1 tier, urutannya diatur per-layer lewat
+// "Urutan Tampilan Layer" (offset ditambahkan ke base ini).
+const PANE_TIER_BASE = { polygon: 400, line: 450, point: 500 };
+
+function geomTier_(type){
+    if(type === "Point" || type === "MultiPoint") return "point";
+    if(type === "LineString" || type === "MultiLineString") return "line";
+    return "polygon"; // Polygon, MultiPolygon, dll
+}
+
+function getLayerZOrder_(){
+    try{
+        return JSON.parse(localStorage.getItem("wgis_layer_zorder") || "[]");
+    }catch(e){ return []; }
+}
+
+function saveLayerZOrder_(arr){
+    localStorage.setItem("wgis_layer_zorder", JSON.stringify(arr));
+}
+
+// index urutan = prioritas relatif SESAMA layer di tier yang sama.
+// layer yang belum pernah diatur otomatis ditaruh di urutan
+// terakhir (paling atas di tier-nya) & dicatat posisinya.
+function getZOrderIndex_(layerName){
+    const order = getLayerZOrder_();
+    let idx = order.indexOf(layerName);
+    if(idx === -1){
+        order.push(layerName);
+        saveLayerZOrder_(order);
+        idx = order.length - 1;
+    }
+    return idx;
+}
+
+// bikin/pastikan pane per (tier, layer) ada, dengan z-index sesuai
+// tier dasar + urutan prioritas layer itu
+function getPane_(tier, layerName){
+    const paneName = "pane_" + tier + "_" + layerName.replace(/[^a-zA-Z0-9_]/g, "_");
+    let pane = map.getPane(paneName);
+    if(!pane) pane = map.createPane(paneName);
+    pane.style.zIndex = PANE_TIER_BASE[tier] + getZOrderIndex_(layerName);
+    return paneName;
+}
+
+// tarik ulang z-index SEMUA pane yang sudah pernah dibuat, sesuai
+// urutan terbaru -- dipanggil abis user ubah urutan di panel
+function reapplyAllPanes_(){
+    Object.keys(treeLayerObjects).forEach(layerName => {
+        (treeLayerObjects[layerName] || []).forEach(layer => {
+            if(!layer.options || !layer.options.pane) return;
+            const pane = map.getPane(layer.options.pane);
+            if(!pane) return;
+            const tier = Object.keys(PANE_TIER_BASE).find(t =>
+                layer.options.pane.startsWith("pane_" + t + "_")
+            );
+            if(tier) pane.style.zIndex = PANE_TIER_BASE[tier] + getZOrderIndex_(layerName);
+        });
+    });
+}
+
+function getLayerStyleConfig_(layerName){
+    try{
+        const raw = localStorage.getItem("wgis_style_" + layerName);
+        return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+}
+
+function saveLayerStyleConfig_(layerName, config){
+    localStorage.setItem("wgis_style_" + layerName, JSON.stringify(config));
+}
+
+function hexToRgb_(hex){
+    hex = (hex || "#3388ff").replace("#", "");
+    if(hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+    const num = parseInt(hex, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function interpolateColor_(hex1, hex2, t){
+    t = Math.max(0, Math.min(1, t));
+    const c1 = hexToRgb_(hex1);
+    const c2 = hexToRgb_(hex2);
+    const r = Math.round(c1.r + (c2.r - c1.r) * t);
+    const g = Math.round(c1.g + (c2.g - c1.g) * t);
+    const b = Math.round(c1.b + (c2.b - c1.b) * t);
+    return `rgb(${r},${g},${b})`;
+}
+
+// terapkan style tersimpan (kalau ada) ke semua fitur layer ini yang
+// LAGI dirender. Kalau belum pernah diatur (config null), sengaja
+// dibiarkan pakai default Leaflet -- gak maksa nyentuh tampilan
+// layer yang belum pernah disetel usernya.
+function applyLayerStyle(layerName){
+    const config = getLayerStyleConfig_(layerName);
+    if(!config) return;
+
+    const features = treeLayerObjects[layerName] || [];
+    if(!features.length) return;
+
+    let min, max;
+    if(config.mode === "gradient" && config.attribute){
+        const nilai = features
+            .map(l => parseFloat(l._data && l._data.atribut ? l._data.atribut[config.attribute] : NaN))
+            .filter(v => !isNaN(v));
+        if(nilai.length){
+            min = Math.min(...nilai);
+            max = Math.max(...nilai);
+        }
+    }
+    layerStyleRuntime[layerName] = { min, max, config };
+
+    const opacity = (config.opacity ?? 70) / 100;
+
+    features.forEach(layer => {
+        let warna = config.color || "#3388ff";
+
+        if(config.mode === "gradient" && config.attribute && min !== undefined){
+            const v = parseFloat(layer._data && layer._data.atribut ? layer._data.atribut[config.attribute] : NaN);
+            if(!isNaN(v)){
+                const t = max === min ? 1 : (v - min) / (max - min);
+                warna = interpolateColor_(config.colorMin, config.colorMax, t);
+            } else {
+                warna = "#cccccc"; // nilai kosong/non-angka -> abu netral
+            }
+        }
+
+        if(typeof layer.setStyle === "function"){
+            // Polygon/Polyline/CircleMarker
+            layer.setStyle({
+                color: warna,
+                fillColor: warna,
+                fillOpacity: opacity,
+                opacity: opacity,
+                weight: 2
+            });
+        } else if(typeof layer.setOpacity === "function"){
+            // L.Marker (icon) -- gak support warna fill, opacity aja
+            layer.setOpacity(opacity);
+        }
+    });
+
+    renderLegendPanel();
+}
+
+// panel legenda kecil, fixed di pojok kiri bawah peta. Nampilin
+// gradient bar buat semua layer yang lagi AKTIF (di-load & di-tree
+// dicentang) dan mode style-nya "gradient"
+function renderLegendPanel(){
+    let panel = document.getElementById("legendPanel");
+    if(!panel){
+        panel = document.createElement("div");
+        panel.id = "legendPanel";
+        panel.style.cssText = `
+            position:fixed; left:12px; bottom:12px; z-index:9000;
+            background:#fff; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
+            padding:8px 10px; font-size:12px; max-width:220px;
+        `;
+        document.body.appendChild(panel);
+    }
+
+    const rows = Object.keys(layerStyleRuntime)
+        .filter(layerName => {
+            const rt = layerStyleRuntime[layerName];
+            if(!rt || rt.config.mode !== "gradient" || rt.min === undefined) return false;
+            // cuma tampilin kalau checkbox layernya lagi kecentang di tree
+            const cb = document.querySelector(`input[data-layer="${CSS.escape(layerName)}"]`);
+            return cb ? cb.checked : false;
+        })
+        .map(layerName => {
+            const rt = layerStyleRuntime[layerName];
+            return `
+                <div style="margin-bottom:6px;">
+                    <div style="font-weight:600; margin-bottom:2px;">${layerName}</div>
+                    <div style="height:10px; border-radius:4px; background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
+                    <div style="display:flex; justify-content:space-between; color:#555;">
+                        <span>${rt.min.toLocaleString('id-ID')}</span>
+                        <span>${rt.max.toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+    if(!rows){
+        panel.style.display = "none";
+        return;
+    }
+    panel.style.display = "block";
+    panel.innerHTML = `<div style="font-weight:700; margin-bottom:4px;">Legenda</div>${rows}`;
+}
+
+// ===============================
+// PANEL: Atur warna & transparansi 1 layer
+// ===============================
+function tutupStyleLayer(){
+    const panel = document.getElementById("styleLayerPanel");
+    if(panel) panel.remove();
+}
+
+function bukaStyleLayer(layerName){
+    tutupStyleLayer();
+
+    const config = getLayerStyleConfig_(layerName) || {
+        mode: "solid",
+        color: "#3388ff",
+        opacity: 70,
+        attribute: "",
+        colorMin: "#ffffcc",
+        colorMax: "#bd0026"
+    };
+
+    // kolom atribut numerik yang bisa dipakai buat gradient -- cuma
+    // ada kalau layernya SHP dan datanya udah pernah di-load
+    const contoh = (treeLayerObjects[layerName] || [])[0];
+    const isShpLoaded = contoh && contoh._data && contoh._data.atribut;
+    let opsiAtribut = "";
+    if(isShpLoaded){
+        const keys = Object.keys(contoh._data.atribut)
+            .filter(k => !["id","geometry","created_at","updated_at"].includes(k));
+        opsiAtribut = keys
+            .map(k => `<option value="${k}" ${config.attribute===k ? "selected":""}>${k}</option>`)
+            .join("");
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "styleLayerPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10000; background:#fff; border-radius:10px;
+        box-shadow:0 4px 24px rgba(0,0,0,0.25);
+        padding:16px 20px; width:340px; max-width:92vw; max-height:88vh;
+        overflow-y:auto;
+    `;
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">🎨 Style: ${layerName}</div>
+            <br>
+
+            <label class="popup-label">Transparansi (opacity)</label><br>
+            <input type="range" id="style_opacity" min="10" max="100" value="${config.opacity}" style="width:100%;">
+            <div style="text-align:right; font-size:12px;" id="style_opacity_val">${config.opacity}%</div>
+            <br>
+
+            <label class="popup-label">Mode Warna</label><br>
+            <label style="font-weight:400;"><input type="radio" name="style_mode" value="solid" ${config.mode==="solid"?"checked":""}> Warna Solid</label><br>
+            <label style="font-weight:400;">
+                <input type="radio" name="style_mode" value="gradient" ${config.mode==="gradient"?"checked":""} ${isShpLoaded ? "" : "disabled"}>
+                Gradient berdasarkan atribut ${isShpLoaded ? "" : "(load layer SHP ini dulu)"}
+            </label>
+            <br><br>
+
+            <div id="style_solid_box" style="${config.mode==="gradient" ? "display:none;":""}">
+                <label class="popup-label">Warna</label><br>
+                <input type="color" id="style_color" value="${config.color}">
+            </div>
+
+            <div id="style_gradient_box" style="${config.mode==="gradient" ? "":"display:none;"}">
+                <label class="popup-label">Kolom Atribut</label><br>
+                <select class="popup-select" id="style_attribute" style="width:100%;">
+                    <option value="">-- pilih kolom --</option>
+                    ${opsiAtribut}
+                </select><br><br>
+
+                <label class="popup-label">Warna Nilai Rendah</label><br>
+                <input type="color" id="style_colorMin" value="${config.colorMin}">
+                &nbsp;&nbsp;
+                <label class="popup-label">Warna Nilai Tinggi</label><br>
+                <input type="color" id="style_colorMax" value="${config.colorMax}">
+            </div>
+
+            <br><br>
+            <button class="popup-button" onclick="simpanStyleLayer('${layerName}')">✓ Terapkan</button>
+            <br><br>
+            <button class="popup-button popup-button-secondary" onclick="tutupStyleLayer()">✕ Tutup</button>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+
+    document.getElementById("style_opacity").addEventListener("input", function(){
+        document.getElementById("style_opacity_val").textContent = this.value + "%";
+    });
+
+    document.querySelectorAll('input[name="style_mode"]').forEach(radio => {
+        radio.addEventListener("change", function(){
+            document.getElementById("style_solid_box").style.display = this.value === "solid" ? "" : "none";
+            document.getElementById("style_gradient_box").style.display = this.value === "gradient" ? "" : "none";
+        });
+    });
+}
+
+function simpanStyleLayer(layerName){
+    const mode = document.querySelector('input[name="style_mode"]:checked').value;
+    const opacity = parseInt(document.getElementById("style_opacity").value, 10);
+
+    const config = { mode, opacity };
+
+    if(mode === "gradient"){
+        const attribute = document.getElementById("style_attribute").value;
+        if(!attribute){
+            alert("Pilih kolom atribut dulu untuk mode gradient.");
+            return;
+        }
+        config.attribute = attribute;
+        config.colorMin = document.getElementById("style_colorMin").value;
+        config.colorMax = document.getElementById("style_colorMax").value;
+    } else {
+        config.color = document.getElementById("style_color").value;
+    }
+
+    saveLayerStyleConfig_(layerName, config);
+    applyLayerStyle(layerName);
+    tutupStyleLayer();
+}
+
+// ===============================
+// PANEL: Urutan Tampilan Layer (z-order, buat atur mana yang
+// "menang" diklik/tampil kalau ada yang bertampalan)
+// ===============================
+function tutupAturUrutanLayer(){
+    const panel = document.getElementById("zOrderPanel");
+    if(panel) panel.remove();
+}
+
+function bukaAturUrutanLayer(){
+    tutupAturUrutanLayer();
+
+    // urutan disimpan dari index rendah (bawah) ke tinggi (atas).
+    // Layer yang ada di masterLayer tapi belum pernah masuk daftar
+    // urutan otomatis ditambahin di akhir (getZOrderIndex_ side-effect).
+    masterLayer.forEach(item => getZOrderIndex_(item.layer));
+    const order = getLayerZOrder_().filter(nama =>
+        masterLayer.some(item => item.layer === nama)
+    );
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "zOrderPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10000; background:#fff; border-radius:10px;
+        box-shadow:0 4px 24px rgba(0,0,0,0.25);
+        padding:16px 20px; width:360px; max-width:92vw; max-height:80vh;
+        overflow-y:auto;
+    `;
+
+    const rows = order.slice().reverse().map((layerName, i) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
+            <span style="font-size:13px;">${i+1}. ${layerName}</span>
+            <span>
+                <button type="button" onclick="pindahUrutanLayer('${layerName}',1)" style="border:none;background:none;cursor:pointer;">▲</button>
+                <button type="button" onclick="pindahUrutanLayer('${layerName}',-1)" style="border:none;background:none;cursor:pointer;">▼</button>
+            </span>
+        </div>
+    `).join("");
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">⚙ Urutan Tampilan Layer</div>
+            <div class="popup-info">
+                Layer paling atas di daftar ini = paling "menang" kalau
+                diklik/tampil saat ada fitur yang bertampalan (dalam
+                tier geometri yang sama: Titik selalu di atas Garis,
+                Garis selalu di atas Poligon).
+            </div>
+            <br>
+            ${rows || '<div class="popup-info">Belum ada layer.</div>'}
+            <br>
+            <button class="popup-button popup-button-secondary" onclick="tutupAturUrutanLayer()">✕ Tutup</button>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+}
+
+function pindahUrutanLayer(layerName, arah){
+    const order = getLayerZOrder_();
+    const idx = order.indexOf(layerName);
+    if(idx === -1) return;
+
+    const target = idx + arah;
+    if(target < 0 || target >= order.length) return;
+
+    [order[idx], order[target]] = [order[target], order[idx]];
+    saveLayerZOrder_(order);
+
+    reapplyAllPanes_();
+    bukaAturUrutanLayer(); // re-render panel biar urutan barunya kelihatan
+}
+
 function toggleLayer(layerName, visible){
 
     Object.keys(layerGroups).forEach(key=>{
@@ -1541,6 +1957,7 @@ async function handleLayerToggle(layerName, visible){
     }
 
     toggleLayer(layerName, visible);
+    renderLegendPanel();
 }
 
 // ===============================
@@ -1592,11 +2009,15 @@ function muatBulkLayer(sheetName, layerName, master){
         resp.data.forEach(d => {
             if(!d.geometry) return;
 
+            const tier = geomTier_(d.geometry.type);
+            const paneName = getPane_(tier, layerName);
+
             // pakai L.geoJSON buat bikin layer-nya biar otomatis
             // support semua tipe geometry (termasuk Multi*), gak
             // perlu rekonstruksi manual per tipe kayak di renderLayerData
             const gLayer = L.geoJSON(d.geometry, {
-                pointToLayer: (f, latlng) => L.marker(latlng)
+                pane: paneName,
+                pointToLayer: (f, latlng) => L.marker(latlng, { pane: paneName })
             });
             const layer = gLayer.getLayers()[0];
             if(!layer) return;
@@ -1622,6 +2043,8 @@ function muatBulkLayer(sheetName, layerName, master){
 
         shpLoadedLayers.add(layerName);
         shpFeatureCounts[layerName] = resp.data.length;
+
+        applyLayerStyle(layerName);
     })
     .catch(err => {
         console.error(err);
@@ -2260,23 +2683,24 @@ function renderLayerData(data){
         let layer = null;
         const type = d.geometry.type;
         const coords = d.geometry.coordinates;
+        const paneName = getPane_(geomTier_(type), d.layer);
 
         if (type === "Point") {
 
             const [lon, lat] = coords;
-            layer = L.marker([lat, lon]);
+            layer = L.marker([lat, lon], { pane: paneName });
         }
 
         else if (type === "LineString") {
             const latlngs = coords.map(([lon,lat]) => [lat,lon]);
-            layer = L.polyline(latlngs);
+            layer = L.polyline(latlngs, { pane: paneName });
         }
         else if (type === "Polygon") {
 
             const latlngs = coords.map(ring =>
                 ring.map(([lon,lat]) => [lat,lon])
             );
-            layer = L.polygon(latlngs);
+            layer = L.polygon(latlngs, { pane: paneName });
         }
         if (!layer) return;
 
@@ -2301,6 +2725,10 @@ function renderLayerData(data){
         registerTree(dataFix);
 
     });
+
+    // terapkan style tersimpan (kalau ada) per layer unik yang baru
+    // dirender di atas
+    new Set(data.map(d => d.layer)).forEach(layerName => applyLayerStyle(layerName));
 
 }
 
@@ -2466,7 +2894,34 @@ async function handleShpFile(file){
         return;
     }
 
+    // bulatkan koordinat ke 6 desimal (~11cm presisi -- jauh lebih dari
+    // cukup buat peta kabupaten). Ini BUKAN simplifikasi bentuk (jumlah
+    // titik tetap sama persis, gak ada titik yang dibuang) -- cuma
+    // motong angka desimal berlebih (mis. dari SHP presisi mesin bisa
+    // 15+ digit) yang gak kepake tapi bikin ukuran JSON geometri
+    // bengkak. Efeknya lumayan mengurangi risiko kena batas 50.000
+    // karakter/sel Google Sheets, walau untuk polygon yang MEMANG
+    // sangat detail (ribuan titik) tetap bisa kepotong -- itu yang
+    // ditangani otomatis oleh chunking di backend (lihat AI_CONTEXT.md).
+    geojson.features.forEach(f => {
+        if(f.geometry) f.geometry = bulatkanKoordinat_(f.geometry, 6);
+    });
+
     bukaPreviewShp(geojson, file.name);
+}
+
+function bulatkanKoordinat_(geometry, desimal){
+    const faktor = Math.pow(10, desimal);
+    function bulatkan(node){
+        if(typeof node === "number"){
+            return Math.round(node * faktor) / faktor;
+        }
+        if(Array.isArray(node)){
+            return node.map(bulatkan);
+        }
+        return node;
+    }
+    return { ...geometry, coordinates: bulatkan(geometry.coordinates) };
 }
 
 function bukaPreviewShp(geojson, fileName){
@@ -2667,28 +3122,6 @@ function renderShpFormPanel(fileName, jumlahFitur){
     pasangAutocomplete_("shp_owner", "shp_owner_list", nilaiUnik_("owner_opd"));
 }
 
-// Bulatkan presisi koordinat rekursif (aman untuk semua tipe geometry,
-// termasuk Multi*). Default 6 desimal ≈ presisi ~11cm di ekuator —
-// jauh lebih dari cukup untuk peta administratif, tapi bisa memangkas
-// ukuran JSON geometry drastis (koordinat SHP sering keluar dengan
-// 15+ desimal seperti 119.887241000000005).
-// Ini krusial buat cegah error "GAS gagal setValues() karena 1 sel
-// > 50.000 karakter" yang muncul di browser sebagai CORS palsu.
-function bulatkanKoordinat_(coords, presisi){
-    if(typeof coords[0] === "number"){
-        return coords.map(n => Math.round(n * Math.pow(10, presisi)) / Math.pow(10, presisi));
-    }
-    return coords.map(c => bulatkanKoordinat_(c, presisi));
-}
-
-function sederhanakanGeometry_(geometry, presisi){
-    if(!geometry || !geometry.coordinates) return geometry;
-    return {
-        ...geometry,
-        coordinates: bulatkanKoordinat_(geometry.coordinates, presisi)
-    };
-}
-
 function prosesImportShp(){
 
     if(!importState.geojson){
@@ -2730,31 +3163,8 @@ function prosesImportShp(){
 
     const features = importState.geojson.features.map(f => ({
         attributes: f.properties || {},
-        geometry: sederhanakanGeometry_(f.geometry, 6)
+        geometry: f.geometry
     }));
-
-    // Peringatan dini kalau masih ada fitur yang berpotensi tembus
-    // limit 50.000 karakter/sel Google Sheets, SEBELUM request dikirim,
-    // biar user langsung tahu penyebabnya kalau nanti gagal (bukan
-    // dikira CORS lagi).
-    const fiturKebesaran = features.filter(f =>
-        JSON.stringify(f.geometry).length > 45000
-    );
-    if(fiturKebesaran.length > 0){
-        const lanjut = confirm(
-            `${fiturKebesaran.length} fitur punya geometry sangat detail ` +
-            `(mendekati/melebihi batas 50.000 karakter per sel Google Sheets) ` +
-            `walau presisi sudah dipangkas ke 6 desimal.\n\n` +
-            `Import kemungkinan akan GAGAL untuk fitur ini. Sebaiknya sederhanakan ` +
-            `dulu geometrinya (mis. pakai mapshaper.org, opsi "Simplify") sebelum upload.\n\n` +
-            `Tetap lanjutkan import?`
-        );
-        if(!lanjut){
-            btn.disabled = false;
-            btn.innerHTML = "✓ Import";
-            return;
-        }
-    }
 
     fetch(GAS_URL, {
         method: "POST",

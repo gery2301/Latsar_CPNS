@@ -110,7 +110,7 @@ function attachEditMenu(layer, data) {
     let judul, infoHtml;
 
     if(d.atribut){
-        judul = "📦 " + d.layer;
+        judul = judulFiturShp_(d);
         const skip = new Set(["id","geometry","created_at","updated_at"]);
         const rows = Object.keys(d.atribut)
             .filter(k => !skip.has(k))
@@ -177,7 +177,7 @@ function bukaMenuEdit(layer) {
   const d = layer._data;
   window.currentLayer = layer;
 
-  const judul = d.atribut ? ("📦 " + d.layer) : d.nama;
+  const judul = d.atribut ? judulFiturShp_(d) : d.nama;
   const aksiEditAtribut = d.atribut ? "editAtributShp()" : "editAtributLayer()";
 
    L.popup()
@@ -463,7 +463,7 @@ function editAtributShp() {
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
     <div class="popup-form">
-      <div class="popup-title">📦 ${d.layer}</div>
+      <div class="popup-title">${judulFiturShp_(d)}</div>
       <div style="max-height:280px; overflow-y:auto; padding-right:4px;">
       ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
       </div>
@@ -1549,6 +1549,27 @@ function saveLayerStyleConfig_(layerName, config){
     localStorage.setItem("wgis_style_" + layerName, JSON.stringify(config));
 }
 
+// kolom atribut yang dipakai sebagai JUDUL popup, per layer (misal
+// "NAMOBJ" buat layer desa). Kalau belum diatur / kolomnya kosong di
+// fitur tertentu, fallback ke nama layer seperti sebelumnya.
+function getLayerLabelField_(layerName){
+    return localStorage.getItem("wgis_label_" + layerName) || "";
+}
+
+function saveLayerLabelField_(layerName, field){
+    if(field){
+        localStorage.setItem("wgis_label_" + layerName, field);
+    } else {
+        localStorage.removeItem("wgis_label_" + layerName);
+    }
+}
+
+function judulFiturShp_(d){
+    const field = getLayerLabelField_(d.layer);
+    const nilai = field ? d.atribut[field] : null;
+    return "📦 " + (nilai || d.layer);
+}
+
 function hexToRgb_(hex){
     hex = (hex || "#3388ff").replace("#", "");
     if(hex.length === 3) hex = hex.split("").map(c => c + c).join("");
@@ -1693,11 +1714,16 @@ function bukaStyleLayer(layerName){
     const contoh = (treeLayerObjects[layerName] || [])[0];
     const isShpLoaded = contoh && contoh._data && contoh._data.atribut;
     let opsiAtribut = "";
+    let opsiLabelField = "";
     if(isShpLoaded){
         const keys = Object.keys(contoh._data.atribut)
             .filter(k => !["id","geometry","created_at","updated_at"].includes(k));
+        const labelField = getLayerLabelField_(layerName);
         opsiAtribut = keys
             .map(k => `<option value="${k}" ${config.attribute===k ? "selected":""}>${k}</option>`)
+            .join("");
+        opsiLabelField = keys
+            .map(k => `<option value="${k}" ${labelField===k ? "selected":""}>${k}</option>`)
             .join("");
     }
 
@@ -1748,7 +1774,15 @@ function bukaStyleLayer(layerName){
                 <input type="color" id="style_colorMax" value="${config.colorMax}">
             </div>
 
+            ${isShpLoaded ? `
+            <label class="popup-label">Kolom untuk Judul Popup</label><br>
+            <select class="popup-select" id="style_labelField" style="width:100%;">
+                <option value="">-- pakai nama layer (default) --</option>
+                ${opsiLabelField}
+            </select>
             <br><br>
+            ` : ""}
+
             <button class="popup-button" onclick="simpanStyleLayer('${layerName}')">✓ Terapkan</button>
             <br><br>
             <button class="popup-button popup-button-secondary" onclick="tutupStyleLayer()">✕ Tutup</button>
@@ -1789,6 +1823,12 @@ function simpanStyleLayer(layerName){
     }
 
     saveLayerStyleConfig_(layerName, config);
+
+    const labelFieldEl = document.getElementById("style_labelField");
+    if(labelFieldEl){
+        saveLayerLabelField_(layerName, labelFieldEl.value);
+    }
+
     applyLayerStyle(layerName);
     tutupStyleLayer();
 }

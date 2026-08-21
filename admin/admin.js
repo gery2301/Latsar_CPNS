@@ -1394,6 +1394,13 @@ function lanjutMenggambarCreate(){
 
     setTimeout(()=>{
 
+        console.log("=== DEBUG EDIT GEOMETRY ===");
+        console.log("Layer:", layer);
+        console.log("Layer type:", layer?.constructor?.name);
+        console.log("GeoJSON:", layer?.toGeoJSON());
+        console.log("Geometry:", layer?.toGeoJSON()?.geometry);
+        console.log("Coordinates:", layer?.toGeoJSON()?.geometry?.coordinates);
+
          if(layer.editing){
 
             layer.editing.enable();

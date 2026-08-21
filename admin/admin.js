@@ -120,7 +120,7 @@ function attachEditMenu(layer, data) {
               ${d.atribut[k] ?? ""}
               </div>
             `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
-        infoHtml = rows;
+        infoHtml = `<div style="max-height:280px; overflow-y:auto; padding-right:4px;">${rows}</div>`;
     } else {
         judul = d.nama;
         infoHtml = `
@@ -160,28 +160,16 @@ function attachEditMenu(layer, data) {
 
       ${infoHtml}
 
-      <div class="popup-actions">
-        <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
-        <button
-        class="popup-button popup-button-danger"
-        onclick="hapusLayerSekarang()">
-        🗑 Hapus Data
-        </button>
-      </div>
+      <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
+      <br><br>
+      <button
+      class="popup-button popup-button-danger"
+      onclick="hapusLayerSekarang()">
+      🗑 Hapus Data
+      </button>
       </div>
     `;
-  }, {
-    minWidth: 260,
-    maxWidth: 340,
-    // PENTING: pakai maxHeight bawaan Leaflet (bukan div custom
-    // "max-height:280px; overflow-y:auto" nested) supaya scroll-clamp-nya
-    // ikut dikelola Leaflet sendiri di _updateLayout(). Div custom nested
-    // bikin popup bisa membengkak permanen pas zoom lewat scroll mouse,
-    // karena Leaflet ngukur ulang tinggi popup pas animasi zoom tanpa
-    // "tahu" ada scroll region custom di dalamnya.
-    autoPanPadding: [40, 40],
-    maxHeight: 380
-  });
+  }, { minWidth: 260, maxWidth: 340 });
 
 }
 
@@ -470,25 +458,19 @@ function editAtributShp() {
 
   L.popup({
     minWidth: 320,
-    maxWidth: 340,
-    // Sama seperti attachEditMenu: pakai maxHeight bawaan Leaflet,
-    // bukan div custom, biar konsisten saat zoom/pan (lihat komentar
-    // di attachEditMenu untuk penjelasan lengkap).
-    autoPanPadding: [40, 40],
-    maxHeight: 380
+    maxWidth: 340
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
     <div class="popup-form">
       <div class="popup-title">${judulFiturShp_(d)}</div>
+      <div style="max-height:280px; overflow-y:auto; padding-right:4px;">
       ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
-      <div class="popup-actions">
-        <button
-        id="btnEditShp"
-        class="popup-button"
-        onclick="simpanEditAtributShp()">Simpan</button>
       </div>
-    </div>
+      <button
+      id="btnEditShp"
+      class="popup-button"
+      onclick="simpanEditAtributShp()">Simpan</button></div>
     `)
     .openOn(map);
 }
@@ -763,19 +745,6 @@ function editGeometriLayer() {
     });
 
     // aktifkan edit layer yang dipilih
-    
-    console.log("=== DEBUG EDIT GEOMETRY ===");
-console.log("Layer:", layer);
-console.log("Layer type:", layer?.constructor?.name);
-console.log("GeoJSON:", layer?.toGeoJSON());
-console.log("Geometry:", layer?.toGeoJSON()?.geometry);
-console.log("Coordinates:", layer?.toGeoJSON()?.geometry?.coordinates);
-console.log("LatLngs:", layer.getLatLngs());
-console.log("LatLngs length:", layer.getLatLngs()?.length);
-console.log("First LatLng:", layer.getLatLngs()?.[0]);
-console.log(
-    "Ada null di LatLngs:",
-    JSON.stringify(layer.getLatLngs()).includes("null"));
     if(layer.editing){
     layer.editing.enable();
     }
@@ -1407,8 +1376,6 @@ function lanjutMenggambarCreate(){
 
     setTimeout(()=>{
 
-        
-
          if(layer.editing){
 
             layer.editing.enable();
@@ -1426,18 +1393,111 @@ function lanjutMenggambarCreate(){
 // ===============================
 function konfirmasiSimpanYa(){
    map.closePopup();
+
+    const layer = editState.layer;
+
+    // Layer gabungan Multi* (lihat buatGroupMultiGeometry_) gak
+    // bisa lewat editToolbar.save() bawaan Leaflet.draw -- itu cuma
+    // ngecek flag ".edited" di layer LANGSUNG di dalam drawnItems
+    // (top-level), padahal yang beneran ke-drag itu bagian di
+    // DALAM featureGroup-nya. Jadi buat kasus ini kita simpan
+    // manual: ambil geometry gabungan lewat toGeoJSON() (yang sudah
+    // di-shim balikin 1 geometry Multi* utuh), lalu POST sendiri.
+    if(layer && layer._isMultiGroup){
+        simpanEditGeometriMultiGroup_(layer);
+        return;
+    }
+
       // Delay kecil supaya popup benar-benar tertutup
       // sebelum Leaflet.Draw melakukan save
       setTimeout(() => {
         editToolbar.save();
       },50);
     }
+
+// dipakai khusus buat layer gabungan Multi* (lihat komentar di
+// konfirmasiSimpanYa di atas) -- isinya sama kayak yang dikerjakan
+// map.on('draw:edited', ...) di bawah, cuma dipanggil langsung
+// buat 1 layer tertentu, bukan lewat event editToolbar.save().
+function simpanEditGeometriMultiGroup_(layer){
+
+    const geom = layer.toGeoJSON().geometry;
+
+    fetch(GAS_URL,{
+        method:"POST",
+        body:JSON.stringify({
+            action:"update",
+            id: layer.options.id,
+            geometry: geom,
+            sheet_name: layer._data ? layer._data.sheet_name : undefined
+        })
+    })
+    .then(res=>res.text())
+    .then(msg=>{
+        msg = msg.trim();
+
+        if(msg !== "updated"){
+            alert(msg);
+            return;
+        }
+
+        layer.editing.disable();
+        editToolbar.disable();
+
+        hideEditHint();
+        map.getContainer().style.cursor="";
+
+        editState.mode = null;
+        editState.layer = null;
+        editState.dirty = false;
+        editState.originalGeometry = null;
+
+        attachEditMenu(layer, layer._data);
+
+        setTimeout(() => {
+            layer.openPopup();
+        },100);
+    })
+    .catch(err=>{
+        layer.editing.disable();
+        editToolbar.disable();
+        hideEditHint();
+        map.getContainer().style.cursor="";
+        alert("Gagal update data : "+err);
+    });
+}
+
 // ===============================
 // KONFIRMASI BATAL
 // ===============================
 function konfirmasiBatalYa(){
 
     map.closePopup();
+
+    const layer = editState.layer;
+
+    // Sama seperti simpan: editToolbar.revertLayers() bawaan gak
+    // bisa diandalkan buat layer gabungan Multi*, karena dia gak
+    // tau harus balikin perubahan di bagian mana di dalam
+    // featureGroup. Solusi paling aman: bongkar total layer yang
+    // lagi diedit, lalu bangun ulang dari originalGeometry yang
+    // sudah di-snapshot pas editGeometriLayer() mulai.
+    if(layer && layer._isMultiGroup){
+        const freshLayer = batalkanEditGeometriMultiGroup_(layer);
+
+        hideEditHint();
+        map.getContainer().style.cursor="";
+
+        if(freshLayer){
+            freshLayer.openPopup();
+        }
+
+        editState.mode = null;
+        editState.layer = null;
+        editState.dirty = false;
+        editState.originalGeometry = null;
+        return;
+    }
 
     if(editState.dirty){
     editToolbar.revertLayers();
@@ -1461,6 +1521,48 @@ function konfirmasiBatalYa(){
     editState.layer = null;
     editState.dirty = false;
     editState.originalGeometry = null;
+}
+
+// dipakai khusus buat layer gabungan Multi* (lihat komentar di
+// konfirmasiBatalYa di atas). Buang layer lama (yang mungkin sudah
+// ke-drag vertex-nya), bangun ulang dari originalGeometry, lalu
+// tukar referensinya di semua tempat yang nyimpen layer lama itu
+// (drawnItems, layerGroups per OPD, treeLayerObjects) supaya gak
+// ada yang nyangkut nunjuk ke layer yang sudah dibuang.
+function batalkanEditGeometriMultiGroup_(oldLayer){
+
+    oldLayer.editing.disable();
+
+    const originalGeom = editState.originalGeometry;
+    const data = oldLayer._data;
+    const paneName = oldLayer.options.pane;
+
+    const freshLayer = buatLayerDariGeometry_(originalGeom, { pane: paneName });
+    if(!freshLayer){
+        return oldLayer; // safety net -- gagal rebuild, biarin apa adanya
+    }
+
+    freshLayer.options.id = oldLayer.options.id;
+
+    drawnItems.removeLayer(oldLayer);
+    drawnItems.addLayer(freshLayer);
+
+    Object.values(layerGroups).forEach(g=>{
+        if(g.hasLayer(oldLayer)){
+            g.removeLayer(oldLayer);
+            g.addLayer(freshLayer);
+        }
+    });
+
+    if(treeLayerObjects[data.layer]){
+        const idx = treeLayerObjects[data.layer].indexOf(oldLayer);
+        if(idx !== -1) treeLayerObjects[data.layer][idx] = freshLayer;
+    }
+
+    attachEditMenu(freshLayer, data);
+    applyLayerStyle(data.layer);
+
+    return freshLayer;
 }
 
 // Menyimpan grup layer berdasarkan OPD + Layer
@@ -1519,6 +1621,119 @@ function geomTier_(type){
     if(type === "Point" || type === "MultiPoint") return "point";
     if(type === "LineString" || type === "MultiLineString") return "line";
     return "polygon"; // Polygon, MultiPolygon, dll
+}
+
+// ===============================
+// DUKUNGAN GEOMETRY MULTI* (MultiPolygon/MultiLineString/MultiPoint)
+// ===============================
+// Leaflet.draw PUNYA BUG LAMA (belum di-fix sampai sekarang, lihat
+// github.com/Leaflet/Leaflet.draw/issues/999): layer.editing.enable()
+// bakal crash ("Cannot read properties of null (reading 'lat')" di
+// Projection.SphericalMercator.js) kalau layer-nya adalah 1 L.Polygon/
+// L.Polyline yang mewakili geometry Multi* SEJATI (multi-part, misal
+// kecamatan yang punya pulau terpisah, atau ruas jalan yang putus jadi
+// beberapa segmen). Ini KHUSUS Multi* (3 level nested coordinates),
+// bukan Polygon biasa yang cuma punya lubang/hole (2 level) -- itu
+// tetap aman dan TIDAK lewat jalur di bawah ini.
+//
+// Solusinya: pecah tiap "bagian" (part) dari geometry Multi* jadi
+// layer Leaflet tersendiri (masing-masing Polygon/LineString/Point
+// tunggal, yang memang didukung penuh oleh Leaflet.draw), lalu
+// gabungkan semua bagian itu jadi 1 L.featureGroup yang kita kasih
+// beberapa method tambahan (shim) supaya kode lain di file ini
+// (attachEditMenu, registerLayer, applyLayerStyle, hapusLayerSekarang,
+// dst) tetap bisa memperlakukannya PERSIS seperti 1 layer biasa --
+// gak perlu tau/peduli itu sebenarnya gabungan banyak bagian.
+//
+// FeatureGroup Leaflet MEMANG sudah native mendukung .bindPopup(),
+// .setStyle(), .getBounds(), dst dengan cara meneruskan (invoke) ke
+// semua layer anaknya -- jadi bagian itu otomatis ikut, gak perlu
+// di-shim manual. Yang perlu di-shim manual cuma 2: .toGeoJSON()
+// (biar hasil gabungannya balik jadi 1 geometry Multi* utuh lagi,
+// bukan malah kepisah) dan .editing.enable()/.disable() (biar bisa
+// dipanggil kayak layer biasa, padahal di baliknya nyalain/matiin
+// editing di SEMUA bagian sekaligus).
+function buatGroupMultiGeometry_(subLayers, multiType, paneName){
+
+    const group = L.featureGroup(subLayers, { pane: paneName });
+
+    group._isMultiGroup = true;
+    group._multiType = multiType; // "MultiPolygon" / "MultiLineString" / "MultiPoint"
+    group._subLayers = subLayers;
+
+    // gabungkan lagi coordinates tiap bagian jadi 1 geometry Multi*
+    // yang utuh -- bentuknya HARUS persis kayak hasil toGeoJSON()
+    // bawaan Leaflet (Feature + geometry di dalamnya), karena di
+    // banyak tempat kodenya manggil layer.toGeoJSON().geometry
+    group.toGeoJSON = function(){
+        return {
+            type: "Feature",
+            properties: {},
+            geometry: {
+                type: multiType,
+                coordinates: subLayers.map(l => l.toGeoJSON().geometry.coordinates)
+            }
+        };
+    };
+
+    // nyala/matiin editing di SEMUA bagian sekaligus. Event
+    // draw:editvertex/draw:editmove tetap otomatis kedengeran oleh
+    // listener map.on(...) yang sudah ada (map.on("draw:editvertex"...)
+    // dst di bawah), karena masing-masing bagian tetap fire event itu
+    // ke map seperti biasa -- gak perlu diubah apa-apa di situ.
+    group.editing = {
+        enable: function(){
+            subLayers.forEach(l => l.editing && l.editing.enable());
+        },
+        disable: function(){
+            subLayers.forEach(l => l.editing && l.editing.disable());
+        }
+    };
+
+    return group;
+}
+
+// Bikin 1 layer Leaflet dari 1 object geometry GeoJSON. Kalau
+// tipenya Point/LineString/Polygon biasa -> jalan lama persis
+// (L.geoJSON(...).getLayers()[0]), gak ada yang berubah. Kalau
+// tipenya MultiPolygon/MultiLineString/MultiPoint -> dipecah per
+// bagian lalu digabung lewat buatGroupMultiGeometry_ di atas.
+function buatLayerDariGeometry_(geometry, opts){
+
+    opts = opts || {};
+    const paneName = opts.pane;
+
+    const MULTI_KE_SINGLE = {
+        "MultiPolygon": "Polygon",
+        "MultiLineString": "LineString",
+        "MultiPoint": "Point"
+    };
+
+    const singleType = MULTI_KE_SINGLE[geometry.type];
+
+    if(!singleType){
+        // tipe single biasa -> cara lama, tidak berubah
+        const gLayer = L.geoJSON(geometry, {
+            pane: paneName,
+            pointToLayer: opts.pointToLayer
+        });
+        return gLayer.getLayers()[0] || null;
+    }
+
+    const subLayers = geometry.coordinates
+        .map(partCoords => {
+            const partGeom = { type: singleType, coordinates: partCoords };
+            const gLayer = L.geoJSON(partGeom, {
+                pane: paneName,
+                pointToLayer: opts.pointToLayer
+            });
+            return gLayer.getLayers()[0];
+        })
+        .filter(Boolean);
+
+    if(!subLayers.length) return null;
+
+    return buatGroupMultiGeometry_(subLayers, geometry.type, paneName);
 }
 
 function getLayerZOrder_(){
@@ -2085,14 +2300,15 @@ function muatBulkLayer(sheetName, layerName, master){
             const tier = geomTier_(d.geometry.type);
             const paneName = getPane_(tier, layerName);
 
-            // pakai L.geoJSON buat bikin layer-nya biar otomatis
-            // support semua tipe geometry (termasuk Multi*), gak
-            // perlu rekonstruksi manual per tipe kayak di renderLayerData
-            const gLayer = L.geoJSON(d.geometry, {
+            // pakai buatLayerDariGeometry_ biar otomatis support semua
+            // tipe geometry (termasuk Multi*, yang dipecah jadi
+            // beberapa bagian + digabung lewat featureGroup supaya
+            // mode edit gak crash -- lihat catatan panjang di
+            // definisi buatLayerDariGeometry_/buatGroupMultiGeometry_)
+            const layer = buatLayerDariGeometry_(d.geometry, {
                 pane: paneName,
                 pointToLayer: (f, latlng) => L.marker(latlng, { pane: paneName })
             });
-            const layer = gLayer.getLayers()[0];
             if(!layer) return;
 
             layer.options.id = d.id;

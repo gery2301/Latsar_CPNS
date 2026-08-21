@@ -120,7 +120,7 @@ function attachEditMenu(layer, data) {
               ${d.atribut[k] ?? ""}
               </div>
             `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
-        infoHtml = `<div style="max-height:280px; overflow-y:auto; padding-right:4px;">${rows}</div>`;
+        infoHtml = rows;
     } else {
         judul = d.nama;
         infoHtml = `
@@ -169,7 +169,18 @@ function attachEditMenu(layer, data) {
       </button>
       </div>
     `;
-  }, { minWidth: 260, maxWidth: 340 });
+  }, {
+    minWidth: 260,
+    maxWidth: 340,
+    // PENTING: pakai maxHeight bawaan Leaflet (bukan div custom
+    // "max-height:280px; overflow-y:auto" nested) supaya scroll-clamp-nya
+    // ikut dikelola Leaflet sendiri di _updateLayout(). Div custom nested
+    // bikin popup bisa membengkak permanen pas zoom lewat scroll mouse,
+    // karena Leaflet ngukur ulang tinggi popup pas animasi zoom tanpa
+    // "tahu" ada scroll region custom di dalamnya.
+    autoPanPadding: [40, 40],
+    maxHeight: 380
+  });
 
 }
 
@@ -458,15 +469,18 @@ function editAtributShp() {
 
   L.popup({
     minWidth: 320,
-    maxWidth: 340
+    maxWidth: 340,
+    // Sama seperti attachEditMenu: pakai maxHeight bawaan Leaflet,
+    // bukan div custom, biar konsisten saat zoom/pan (lihat komentar
+    // di attachEditMenu untuk penjelasan lengkap).
+    autoPanPadding: [40, 40],
+    maxHeight: 380
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
     <div class="popup-form">
       <div class="popup-title">${judulFiturShp_(d)}</div>
-      <div style="max-height:280px; overflow-y:auto; padding-right:4px;">
       ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
-      </div>
       <button
       id="btnEditShp"
       class="popup-button"

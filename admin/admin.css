@@ -104,6 +104,27 @@
     background:#b71c1c;
 }
 
+/* ===============================
+   POPUP STICKY FOOTER (tombol aksi)
+   Dipakai buat bungkus tombol Edit/Hapus/Simpan di popup yang isinya
+   bisa panjang (banyak atribut SHP). Elemen ini HARUS jadi anak
+   langsung dari .leaflet-popup-content (elemen yang di-scroll Leaflet
+   sendiri lewat opsi maxHeight di JS) supaya position:sticky-nya
+   nempel ke bawah area scroll itu, bukan ke bawah halaman/viewport.
+=============================== */
+
+.popup-actions{
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding-top: 10px;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 -8px 10px -8px rgba(0,0,0,.18);
+}
+
 @keyframes fadeHint{
 
 from{

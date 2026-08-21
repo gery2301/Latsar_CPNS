@@ -160,13 +160,14 @@ function attachEditMenu(layer, data) {
 
       ${infoHtml}
 
-      <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
-      <br><br>
-      <button
-      class="popup-button popup-button-danger"
-      onclick="hapusLayerSekarang()">
-      🗑 Hapus Data
-      </button>
+      <div class="popup-actions">
+        <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
+        <button
+        class="popup-button popup-button-danger"
+        onclick="hapusLayerSekarang()">
+        🗑 Hapus Data
+        </button>
+      </div>
       </div>
     `;
   }, {
@@ -481,10 +482,13 @@ function editAtributShp() {
     <div class="popup-form">
       <div class="popup-title">${judulFiturShp_(d)}</div>
       ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
-      <button
-      id="btnEditShp"
-      class="popup-button"
-      onclick="simpanEditAtributShp()">Simpan</button></div>
+      <div class="popup-actions">
+        <button
+        id="btnEditShp"
+        class="popup-button"
+        onclick="simpanEditAtributShp()">Simpan</button>
+      </div>
+    </div>
     `)
     .openOn(map);
 }

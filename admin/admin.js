@@ -98,8 +98,23 @@ function attachEditMenu(layer, data) {
   layer._data = data;
   layer.off('click.popupMenu');
   layer.unbindPopup();
-  layer.bindPopup(() => {
+  layer.bindPopup(function(sourceLayer){
      window.currentLayer = layer;
+
+    // KHUSUS fitur gabungan Multi* (lihat buatGroupMultiGeometry_):
+    // Leaflet motret popup ini per-bagian (masing2 bagian punya
+    // popup sendiri2), dan `sourceLayer` di sini adalah BAGIAN FISIK
+    // yang barusan diklik user -- bukan grup gabungannya. Kita catat
+    // biar nanti pas "Edit Geometri" cuma bagian INI yang dinyalain
+    // mode edit-nya, bukan SEMUA bagian sekaligus (fitur kayak
+    // kecamatan bisa punya ratusan bagian & puluhan ribu vertex
+    // total -- nyalain semua sekaligus bikin browser hang total,
+    // lihat catatan performa di buatGroupMultiGeometry_).
+    if(layer._isMultiGroup){
+        layer._lastClickedPart =
+            (sourceLayer && sourceLayer !== layer) ? sourceLayer : null;
+    }
+
     const d = layer._data;
 
     // fitur SHP (d.atribut ada) punya kolom dinamis sesuai DBF-nya,
@@ -744,7 +759,25 @@ function editGeometriLayer() {
     }
     });
 
-    // aktifkan edit layer yang dipilih
+    // aktifkan edit layer yang dipilih. Untuk fitur gabungan Multi*
+    // yang bagiannya lebih dari 1, cuma bagian yang barusan diklik
+    // user yang benar2 masuk mode edit (lihat shim .editing di
+    // buatGroupMultiGeometry_) -- kasih tau user biar gak bingung
+    // kenapa cuma sebagian yang bisa digeser vertex-nya.
+    if(layer._isMultiGroup && layer._subLayers.length > 1){
+        const idx = (layer._lastClickedPart
+            ? layer._subLayers.indexOf(layer._lastClickedPart)
+            : 0);
+        alert(
+            `Fitur ini punya ${layer._subLayers.length} bagian terpisah (pulau/pecahan polygon).\n\n` +
+            `Yang masuk mode edit cuma bagian ke-${idx + 1} (yang barusan Anda klik). ` +
+            `Kalau mau edit bagian lain, batalkan/simpan dulu, lalu klik bagian lain di peta ` +
+            `sebelum pilih "Edit Geometri" lagi.\n\n` +
+            `Ini untuk menghindari lag/hang -- menyalakan edit di semua bagian sekaligus ` +
+            `bisa membuat browser membeku kalau totalnya belasan/puluhan ribu titik vertex.`
+        );
+    }
+
     if(layer.editing){
     layer.editing.enable();
     }
@@ -1676,17 +1709,39 @@ function buatGroupMultiGeometry_(subLayers, multiType, paneName){
         };
     };
 
-    // nyala/matiin editing di SEMUA bagian sekaligus. Event
-    // draw:editvertex/draw:editmove tetap otomatis kedengeran oleh
-    // listener map.on(...) yang sudah ada (map.on("draw:editvertex"...)
-    // dst di bawah), karena masing-masing bagian tetap fire event itu
-    // ke map seperti biasa -- gak perlu diubah apa-apa di situ.
+    // nyala/matiin editing. PENTING soal performa: .enable() SENGAJA
+    // cuma nyalain 1 bagian (bukan semua sekaligus) -- fitur kayak
+    // kecamatan bisa punya ratusan bagian & puluhan ribu vertex
+    // total; kalau semua bagian dinyalain edit-nya bersamaan,
+    // Leaflet.draw bikin marker vertex + marker tengah untuk SEMUA
+    // titik itu sekaligus (puluhan ribu elemen DOM dalam 1 kali
+    // jalan) -> tab browser hang total tanpa error apapun.
+    //
+    // Bagian yang dipilih: yang TERAKHIR DIKLIK user (lihat
+    // attachEditMenu -> layer._lastClickedPart, diisi otomatis pas
+    // user klik salah satu bagian di peta buat buka popup-nya),
+    // atau bagian pertama kalau belum pernah ada yang diklik. Pas
+    // simpan (lihat .toGeoJSON() di atas), bagian2 lain yang gak
+    // ikut diedit otomatis ikut kebawa apa adanya (gak berubah),
+    // jadi hasil akhirnya tetap 1 geometry Multi* yang utuh & benar.
     group.editing = {
         enable: function(){
-            subLayers.forEach(l => l.editing && l.editing.enable());
+            const idx = (group._editingPartIndex != null)
+                ? group._editingPartIndex
+                : (group._lastClickedPart ? subLayers.indexOf(group._lastClickedPart) : 0);
+
+            group._editingPartIndex = idx >= 0 ? idx : 0;
+            const sub = subLayers[group._editingPartIndex];
+            if(sub && sub.editing){
+                sub.editing.enable();
+            }
         },
         disable: function(){
+            // disable tetap nyapu SEMUA bagian sekaligus -- aman &
+            // idempotent (matiin yang gak aktif = no-op), jaga2 kalau
+            // ada bagian yang somehow ketinggalan nyala
             subLayers.forEach(l => l.editing && l.editing.disable());
+            group._editingPartIndex = null;
         }
     };
 

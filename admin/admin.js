@@ -770,6 +770,9 @@ console.log("Layer type:", layer?.constructor?.name);
 console.log("GeoJSON:", layer?.toGeoJSON());
 console.log("Geometry:", layer?.toGeoJSON()?.geometry);
 console.log("Coordinates:", layer?.toGeoJSON()?.geometry?.coordinates);
+console.log("LatLngs:", layer.getLatLngs());
+console.log("LatLngs length:", layer.getLatLngs()?.length);
+console.log("First LatLng:", layer.getLatLngs()?.[0]);
     if(layer.editing){
     layer.editing.enable();
     }

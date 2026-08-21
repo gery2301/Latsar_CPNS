@@ -773,6 +773,9 @@ console.log("Coordinates:", layer?.toGeoJSON()?.geometry?.coordinates);
 console.log("LatLngs:", layer.getLatLngs());
 console.log("LatLngs length:", layer.getLatLngs()?.length);
 console.log("First LatLng:", layer.getLatLngs()?.[0]);
+console.log(
+    "Ada null di LatLngs:",
+    JSON.stringify(layer.getLatLngs()).includes("null")
     if(layer.editing){
     layer.editing.enable();
     }

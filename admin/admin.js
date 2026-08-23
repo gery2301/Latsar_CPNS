@@ -127,15 +127,18 @@ function attachEditMenu(layer, data) {
     if(d.atribut){
         judul = judulFiturShp_(d);
         const skip = new Set(["id","geometry","created_at","updated_at"]);
-        const rows = Object.keys(d.atribut)
-            .filter(k => !skip.has(k))
+        const summaryFields = getSummaryFields_(d.layer)
+            .filter(k => k in d.atribut && !skip.has(k));
+        const fieldsToShow = summaryFields.length ? summaryFields :
+            Object.keys(d.atribut).filter(k => !skip.has(k)).slice(0, 4);
+
+        infoHtml = fieldsToShow
             .map(k => `
               <div class="popup-info">
               <b>${k}</b><br>
               ${d.atribut[k] ?? ""}
               </div>
             `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
-        infoHtml = `<div style="max-height:280px; overflow-y:auto; padding-right:4px;">${rows}</div>`;
     } else {
         judul = d.nama;
         infoHtml = `
@@ -175,16 +178,20 @@ function attachEditMenu(layer, data) {
 
       ${infoHtml}
 
+      <div class="popup-actions">
+      ${d.atribut ? `
+      <button class="popup-button popup-button-secondary" onclick="bukaDashboardShp(window.currentLayer)">📊 Lihat Dashboard</button>
+      ` : ""}
       <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
-      <br><br>
       <button
       class="popup-button popup-button-danger"
       onclick="hapusLayerSekarang()">
       🗑 Hapus Data
       </button>
       </div>
+      </div>
     `;
-  }, { minWidth: 260, maxWidth: 340 });
+  }, { minWidth: 260, maxWidth: 340, maxHeight: 380, autoPanPadding: [40, 40] });
 
 }
 
@@ -473,19 +480,22 @@ function editAtributShp() {
 
   L.popup({
     minWidth: 320,
-    maxWidth: 340
+    maxWidth: 340,
+    maxHeight: 380,
+    autoPanPadding: [40, 40]
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
     <div class="popup-form">
       <div class="popup-title">${judulFiturShp_(d)}</div>
-      <div style="max-height:280px; overflow-y:auto; padding-right:4px;">
       ${fields || '<div class="popup-info">(tidak ada atribut untuk diedit)</div>'}
-      </div>
+      <div class="popup-actions">
       <button
       id="btnEditShp"
       class="popup-button"
-      onclick="simpanEditAtributShp()">Simpan</button></div>
+      onclick="simpanEditAtributShp()">Simpan</button>
+      </div>
+    </div>
     `)
     .openOn(map);
 }
@@ -1873,6 +1883,21 @@ function judulFiturShp_(d){
     return "📦 " + (nilai || d.layer);
 }
 
+// daftar kolom atribut yang ditampilkan di Popup Summary (popup info
+// pertama, bukan Dashboard), per layer -- diatur manual lewat panel
+// 🎨 Style. Kalau belum diatur, attachEditMenu fallback ke 4 field
+// pertama secara otomatis.
+function getSummaryFields_(layerName){
+    try{
+        const raw = localStorage.getItem("wgis_summary_" + layerName);
+        return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+}
+
+function saveSummaryFields_(layerName, fields){
+    localStorage.setItem("wgis_summary_" + layerName, JSON.stringify(fields));
+}
+
 function hexToRgb_(hex){
     hex = (hex || "#3388ff").replace("#", "");
     if(hex.length === 3) hex = hex.split("").map(c => c + c).join("");
@@ -2084,6 +2109,24 @@ function bukaStyleLayer(layerName){
                 ${opsiLabelField}
             </select>
             <br><br>
+
+            <label class="popup-label">Field di Popup Summary (Ringkasan)</label><br>
+            <div style="max-height:160px; overflow-y:auto; border:1px solid #ddd; border-radius:6px; padding:8px; margin-bottom:10px;">
+                ${(() => {
+                    const keys = Object.keys(contoh._data.atribut)
+                        .filter(k => !["id","geometry","created_at","updated_at"].includes(k));
+                    const dipilih = getSummaryFields_(layerName);
+                    return keys.map(k => `
+                        <label style="display:block; font-weight:400; font-size:13px; margin-bottom:4px;">
+                            <input type="checkbox" class="style_summaryField" value="${k}" ${dipilih.includes(k) ? "checked":""}>
+                            ${k}
+                        </label>
+                    `).join("");
+                })()}
+            </div>
+            <div class="popup-info" style="font-size:11px; color:#888; margin-top:-6px;">
+                Kalau tidak dipilih sama sekali, otomatis pakai 4 field pertama.
+            </div>
             ` : ""}
 
             <button class="popup-button" onclick="simpanStyleLayer('${layerName}')">✓ Terapkan</button>
@@ -2130,6 +2173,14 @@ function simpanStyleLayer(layerName){
     const labelFieldEl = document.getElementById("style_labelField");
     if(labelFieldEl){
         saveLayerLabelField_(layerName, labelFieldEl.value);
+    }
+
+    const summaryChecks = document.querySelectorAll(".style_summaryField");
+    if(summaryChecks.length){
+        const dipilih = Array.from(summaryChecks)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        saveSummaryFields_(layerName, dipilih);
     }
 
     applyLayerStyle(layerName);
@@ -3182,6 +3233,186 @@ function loadScriptSekali_(src){
         s.onerror = () => reject(new Error("Gagal memuat " + src));
         document.head.appendChild(s);
     });
+}
+
+// ===============================
+// DASHBOARD ADAPTIF (per-fitur SHP)
+// ===============================
+// Dibuka dari tombol "📊 Lihat Dashboard" di Popup Summary
+// (attachEditMenu). Cuma BACA data yang sudah tersimpan (d.atribut) --
+// gak ada input/edit di sini sama sekali, dan gak ada perubahan ke
+// form Create/Edit SHP yang sudah ada. Dashboard dibuat generik:
+// TIDAK ada logic khusus per nama layer (Desa/Kecamatan/Jalan/dst),
+// murni baca pola nama kolom & tipe datanya.
+const CHARTJS_CDN = "https://unpkg.com/chart.js@4/dist/chart.umd.min.js";
+let dashboardChartInstances = [];
+
+// Deteksi pola dari 1 objek atribut fitur:
+// - temporal: kolom yang namanya berakhiran <prefix>_<tahun 4 digit>,
+//   dikelompokkan per prefix, DIANGGAP seri temporal kalau grupnya
+//   punya >= 2 titik data (1 titik doang bukan tren)
+// - numerikLain: kolom angka yang bukan bagian dari seri temporal
+// - lainnya: sisanya (teks/kode wilayah/dll)
+// Sengaja TIDAK mencoba menebak pasangan "perbandingan" numerik secara
+// generik (misal jumlah_penduduk vs jumlah_miskin) -- itu terlalu
+// beresiko salah tebak kalau pola nama kolom SHP-nya nggak konsisten.
+// Untuk V1: temporal -> line chart, numerik lain -> stat card.
+function deteksiPolaAtribut_(atribut){
+    const skip = new Set(["id","geometry","created_at","updated_at"]);
+    const keys = Object.keys(atribut).filter(k => !skip.has(k));
+
+    const reTemporal = /^(.*?)_?(\d{4})$/;
+    const temporalGroups = {};
+    const numerikLain = [];
+    const lainnya = [];
+
+    keys.forEach(k => {
+        const val = atribut[k];
+        const num = parseFloat(val);
+        const isNumeric =
+            val !== "" && val !== null && val !== undefined &&
+            !isNaN(num) && String(val).trim() === String(num);
+
+        const m = k.match(reTemporal);
+
+        if(m && isNumeric){
+            const prefix = m[1].replace(/_$/, "") || "nilai";
+            const year = parseInt(m[2], 10);
+            if(!temporalGroups[prefix]) temporalGroups[prefix] = [];
+            temporalGroups[prefix].push({ year, value: num, key: k });
+        } else if(isNumeric){
+            numerikLain.push({ key: k, value: num });
+        } else {
+            lainnya.push({ key: k, value: val });
+        }
+    });
+
+    const temporal = [];
+    Object.keys(temporalGroups).forEach(prefix => {
+        const series = temporalGroups[prefix].sort((a,b) => a.year - b.year);
+        if(series.length >= 2){
+            temporal.push({ prefix, series });
+        } else {
+            // grup cuma 1 titik -> bukan tren, perlakukan sebagai angka biasa
+            numerikLain.push({ key: series[0].key, value: series[0].value });
+        }
+    });
+
+    return { temporal, numerikLain, lainnya };
+}
+
+async function bukaDashboardShp(layer){
+    const d = layer._data;
+    if(!d || !d.atribut) return;
+
+    tutupDashboardShp();
+
+    try{
+        await loadScriptSekali_(CHARTJS_CDN);
+    }catch(err){
+        alert("Gagal memuat library chart: " + err.message);
+        return;
+    }
+
+    const pola = deteksiPolaAtribut_(d.atribut);
+    const judul = judulFiturShp_(d);
+
+    // stat card: semua numerik non-temporal + nilai TAHUN TERBARU dari
+    // tiap seri temporal (biar tetap ada angka headline walau grafiknya
+    // panjang)
+    const statCards = pola.numerikLain.map(n => ({ label: n.key, value: n.value }));
+    pola.temporal.forEach(t => {
+        const terakhir = t.series[t.series.length - 1];
+        statCards.push({ label: `${t.prefix} (${terakhir.year})`, value: terakhir.value });
+    });
+
+    const statHtml = statCards.length ? `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin:14px 0;">
+            ${statCards.map(s => `
+                <div style="background:#f5f7fa; border-radius:8px; padding:10px 8px; text-align:center;">
+                    <div style="font-size:19px; font-weight:700; color:#1976d2;">${s.value.toLocaleString('id-ID')}</div>
+                    <div style="font-size:11px; color:#666; margin-top:3px; word-break:break-word;">${s.label}</div>
+                </div>
+            `).join("")}
+        </div>
+    ` : "";
+
+    const chartBlocksHtml = pola.temporal.map((t, i) => `
+        <div style="margin-top:18px;">
+            <div style="font-weight:600; font-size:13px; margin-bottom:8px;">📈 Tren ${t.prefix}</div>
+            <canvas id="dashChart_${i}" height="150"></canvas>
+        </div>
+    `).join("");
+
+    const lainnyaHtml = pola.lainnya.length ? `
+        <div style="margin-top:18px; border-top:1px solid #eee; padding-top:10px;">
+            <div style="font-weight:600; font-size:13px; margin-bottom:6px;">Info Lainnya</div>
+            ${pola.lainnya.map(l => `
+                <div style="font-size:13px; margin-bottom:4px;"><b>${l.key}:</b> ${l.value ?? ""}</div>
+            `).join("")}
+        </div>
+    ` : "";
+
+    const kosongHtml = (!statCards.length && !pola.temporal.length) ? `
+        <div class="popup-info">Tidak ada data numerik yang bisa divisualisasikan untuk fitur ini.</div>
+    ` : "";
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "dashboardPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10000; background:#fff; border-radius:12px;
+        box-shadow:0 4px 28px rgba(0,0,0,0.3);
+        padding:20px 22px; width:520px; max-width:94vw; max-height:88vh;
+        overflow-y:auto;
+    `;
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">📊 Dashboard: ${judul}</div>
+            ${statHtml}
+            ${chartBlocksHtml}
+            ${kosongHtml}
+            ${lainnyaHtml}
+            <div class="popup-actions">
+                <button class="popup-button popup-button-secondary" onclick="tutupDashboardShp()">✕ Tutup</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+
+    pola.temporal.forEach((t, i) => {
+        const ctx = document.getElementById(`dashChart_${i}`);
+        if(!ctx) return;
+        const chart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: t.series.map(s => s.year),
+                datasets: [{
+                    label: t.prefix,
+                    data: t.series.map(s => s.value),
+                    borderColor: "#1976d2",
+                    backgroundColor: "rgba(25,118,210,0.12)",
+                    tension: 0.25,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+        dashboardChartInstances.push(chart);
+    });
+}
+
+function tutupDashboardShp(){
+    dashboardChartInstances.forEach(c => c.destroy());
+    dashboardChartInstances = [];
+    const panel = document.getElementById("dashboardPanel");
+    if(panel) panel.remove();
 }
 
 // input file tersembunyi, dipicu dari tombol Import di FAB menu

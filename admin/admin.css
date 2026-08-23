@@ -312,24 +312,24 @@ TREE LAYER
 }
 
 .tree-layer{
-    padding:4px 10px;
-    margin:2px 0;
-    border-radius:6px;
+    padding:6px 8px;
+    margin:4px 0;
+    border-radius:8px;
+    border:1px solid transparent;
     transition:all .18s ease;
 }
 
 .tree-layer:hover{
-    background:#f5f3ff;
-    color:#5b21b6;
-    transform:translateX(3px);
+    background:#f8f7ff;
+    border-color:#e4e0fb;
+    box-shadow:0 2px 8px rgba(91,33,182,.08);
 }
 
 
 .tree-layer-label{
     display:flex;
-    align-items:flex-start;
-    gap:6px;
-    margin-left:6px;
+    align-items:center;
+    gap:8px;
     cursor:pointer;
     width:100%;
     font-size:14px;
@@ -339,6 +339,10 @@ TREE LAYER
 .tree-layer-label input{
     margin:0;
     flex-shrink:0;
+    width:18px;
+    height:18px;
+    accent-color:#1976d2;
+    cursor:pointer;
 }
 
 .tree-layer-name{
@@ -347,14 +351,39 @@ TREE LAYER
 }
 
 .tree-count{
-    color:#666;
-    margin-left:8px;
+    background:#eef2ff;
+    color:#4338ca;
+    font-size:11px;
+    font-weight:700;
+    padding:2px 9px;
+    border-radius:999px;
+    margin-left:2px;
     white-space:nowrap;
 }
 
 .tree-layer-text{
     flex:1;
     word-break:break-word;
+}
+
+.tree-style-btn{
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:15px;
+    flex-shrink:0;
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .15s ease, transform .15s ease;
+}
+
+.tree-style-btn:hover{
+    background:#ede9fe;
+    transform:scale(1.08);
 }
 
 .tree-tema > .tree-header{
@@ -537,4 +566,81 @@ transition-delay:.17s;
 
 background:#1976d2;
 color:white;
+}
+
+/* ==================================
+   TREE MODERNIZATION (poin B feedback)
+   - toolbar "Urutan Tampilan Layer" jadi tombol proper (bukan inline
+     style polos)
+   - panah expand/collapse rotate smooth (bukan ganti karakter ▶/▼
+     mendadak) -- lihat .tree-arrow & class "open" yang di-toggle di
+     admin.js (initTreeCollapse/setCollapse)
+   - kategori vs tema dikasih beda warna/berat visual biar hirarkinya
+     kebaca sekali lihat (sebelumnya dua-duanya solid biru sama persis)
+================================== */
+
+.tree-toolbar{
+    padding:8px 8px 10px 8px;
+    margin-bottom:4px;
+    border-bottom:1px solid #eee;
+}
+
+.tree-toolbar-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:none;
+    background:#f5f3ff;
+    color:#5b21b6;
+    border-radius:8px;
+    padding:9px 10px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease, transform .15s ease;
+}
+
+.tree-toolbar-btn:hover{
+    background:#ede9fe;
+    transform:translateY(-1px);
+}
+
+.tree-arrow{
+    display:inline-block;
+    transition:transform .2s ease;
+    margin-right:6px;
+    font-size:11px;
+}
+
+.tree-header.open .tree-arrow{
+    transform:rotate(90deg);
+}
+
+.kategori-header{
+    background:linear-gradient(135deg,#4338ca,#6d28d9);
+    color:#fff;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:.2px;
+    padding:11px 12px;
+    border-radius:10px;
+    box-shadow:0 3px 10px rgba(67,56,202,.25);
+}
+
+.kategori-header:hover{
+    background:linear-gradient(135deg,#3730a3,#5b21b6);
+    color:#fff;
+}
+
+.tema-header{
+    background:#eef2ff;
+    color:#3730a3;
+    box-shadow:none;
+}
+
+.tema-header:hover{
+    background:#e0e7ff;
+    color:#312e81;
 }

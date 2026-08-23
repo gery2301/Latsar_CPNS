@@ -587,10 +587,8 @@ function toggleLayer(layerName, visible){
 function renderLayerTree(){
     const div = document.getElementById("treeContent");
     div.innerHTML = `
-        <div style="padding:6px 8px; border-bottom:1px solid #ddd;">
-            <button type="button"
-                onclick="bukaAturUrutanLayer()"
-                style="border:1px solid #ccc; background:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px;">
+        <div class="tree-toolbar">
+            <button type="button" class="tree-toolbar-btn" onclick="bukaAturUrutanLayer()">
                 ⚙ Urutan Tampilan Layer
             </button>
         </div>
@@ -600,9 +598,9 @@ function renderLayerTree(){
     for(const kategori in tree){
           let html = `
             <div class="tree-kategori">
-                <div class="tree-header kategori-header"
+                <div class="tree-header kategori-header open"
                    data-title="${kategori}">
-                   ▶ ${kategori}
+                   <span class="tree-arrow">▶</span><span class="tree-header-title">${kategori}</span>
                 </div>
                 <div class="tree-body show">
         `;
@@ -610,9 +608,9 @@ function renderLayerTree(){
         for(const tema in tree[kategori]){
             html += `
                 <div class="tree-tema">
-                    <div class="tree-header tema-header"
+                    <div class="tree-header tema-header open"
                          data-title="${tema}">
-                         ▶ ${tema}
+                         <span class="tree-arrow">▶</span><span class="tree-header-title">${tema}</span>
                     </div>
                     <div class="tree-body show">
             `;
@@ -648,9 +646,9 @@ function renderLayerTree(){
                         </span>
                         </label>
                         <button type="button"
+                          class="tree-style-btn"
                           onclick="bukaStyleLayer('${layer}')"
-                          title="Atur warna & transparansi layer ini"
-                          style="border:none; background:none; cursor:pointer; font-size:14px; flex-shrink:0;">
+                          title="Atur warna & transparansi layer ini">
                           🎨
                         </button>
                     </div>
@@ -677,19 +675,13 @@ function setCollapse(header, open){
         
         body.style.maxHeight = body.scrollHeight + "px";
         body.style.opacity = "1";
-        header.innerHTML = "▼ " + header.dataset.title;
-      console.log(
-            "SET COLLAPSE",
-            header.dataset.title,
-            "scrollHeight =", body.scrollHeight,
-            "maxHeight =", body.style.maxHeight
-        );
+        header.classList.add("open");
      
     }else{
         body.classList.remove("show");
         body.style.maxHeight = "0px";
         body.style.opacity = "0";
-        header.innerHTML = "▶ " + header.dataset.title;
+        header.classList.remove("open");
     }
 }
 
@@ -726,11 +718,11 @@ function initTreeCollapse(){
         if(body.classList.contains("show")){
             body.style.maxHeight = body.scrollHeight + "px";
             body.style.opacity = "1";
-            header.innerHTML = "▼ " + header.dataset.title;
+            header.classList.add("open");
         }else{
             body.style.maxHeight = "0px";
             body.style.opacity = "0";
-            header.innerHTML = "▶ " + header.dataset.title;
+            header.classList.remove("open");
         }
         header.addEventListener("click",()=>{
             const buka = !body.classList.contains("show");
@@ -2090,25 +2082,30 @@ function bukaStyleLayer(layerName){
 
             <div id="style_gradient_box" style="${config.mode==="gradient" ? "":"display:none;"}">
                 <label class="popup-label">Kolom Atribut</label><br>
-                <select class="popup-select" id="style_attribute" style="width:100%;">
+                <select class="popup-input" id="style_attribute">
                     <option value="">-- pilih kolom --</option>
                     ${opsiAtribut}
-                </select><br><br>
+                </select>
 
-                <label class="popup-label">Warna Nilai Rendah</label><br>
-                <input type="color" id="style_colorMin" value="${config.colorMin}">
-                &nbsp;&nbsp;
-                <label class="popup-label">Warna Nilai Tinggi</label><br>
-                <input type="color" id="style_colorMax" value="${config.colorMax}">
+                <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:14px;">
+                    <div style="flex:1; text-align:center;">
+                        <label class="popup-label" style="display:block; margin-bottom:6px;">Nilai Terendah</label>
+                        <input type="color" id="style_colorMin" value="${config.colorMin}" style="width:100%; height:38px; border:1px solid #bbb; border-radius:6px; cursor:pointer;">
+                    </div>
+                    <div style="flex:1; text-align:center;">
+                        <label class="popup-label" style="display:block; margin-bottom:6px;">Nilai Tertinggi</label>
+                        <input type="color" id="style_colorMax" value="${config.colorMax}" style="width:100%; height:38px; border:1px solid #bbb; border-radius:6px; cursor:pointer;">
+                    </div>
+                </div>
             </div>
 
             ${isShpLoaded ? `
             <label class="popup-label">Kolom untuk Judul Popup</label><br>
-            <select class="popup-select" id="style_labelField" style="width:100%;">
+            <select class="popup-input" id="style_labelField">
                 <option value="">-- pakai nama layer (default) --</option>
                 ${opsiLabelField}
             </select>
-            <br><br>
+            <br>
 
             <label class="popup-label">Field di Popup Summary (Ringkasan)</label><br>
             <div style="max-height:160px; overflow-y:auto; border:1px solid #ddd; border-radius:6px; padding:8px; margin-bottom:10px;">

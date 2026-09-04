@@ -125,20 +125,41 @@ function attachEditMenu(layer, data) {
     let judul, infoHtml;
 
     if(d.atribut){
-        judul = judulFiturShp_(d);
-        const skip = new Set(["id","geometry","created_at","updated_at"]);
-        const summaryFields = getSummaryFields_(d.layer)
-            .filter(k => k in d.atribut && !skip.has(k));
-        const fieldsToShow = summaryFields.length ? summaryFields :
-            Object.keys(d.atribut).filter(k => !skip.has(k)).slice(0, 4);
+        // Layer Desa: judul HARUS nama desa yang benar (dipakai juga
+        // buat mencocokkan data bantuan by nama) -- jangan gantung ke
+        // config "Kolom Judul Popup" di panel Style, karena itu bisa
+        // saja belum diatur user utk layer ini (fallback-nya cuma
+        // "📦 <nama layer>", bukan nama desa -- bakal salah cocok ke
+        // data bantuan). Coba beberapa kandidat nama kolom umum dulu;
+        // kalau gak ketemu, baru jatuh ke judulFiturShp_ biasa.
+        if(d.layer === getDesaLayerConfig_()){
+            judul = namaDesaDari_(d.atribut) || judulFiturShp_(d);
+        } else {
+            judul = judulFiturShp_(d);
+        }
 
-        infoHtml = fieldsToShow
-            .map(k => `
-              <div class="popup-info">
-              <b>${k}</b><br>
-              ${d.atribut[k] ?? ""}
-              </div>
-            `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
+        // ===== Layer Desa: pakai Popup Ringkasan khusus (spek
+        // "Dashboard Desa — Intervensi Bantuan"), bukan popup generic
+        // SHP di bawah. SEMUA layer SHP lain (kecamatan, jalan, dst)
+        // TETAP pakai popup generic seperti sebelumnya -- gak berubah
+        // sama sekali.
+        if(d.layer === getDesaLayerConfig_()){
+            infoHtml = renderRingkasanDesaBody_(d);
+        } else {
+            const skip = new Set(["id","geometry","created_at","updated_at"]);
+            const summaryFields = getSummaryFields_(d.layer)
+                .filter(k => k in d.atribut && !skip.has(k));
+            const fieldsToShow = summaryFields.length ? summaryFields :
+                Object.keys(d.atribut).filter(k => !skip.has(k)).slice(0, 4);
+
+            infoHtml = fieldsToShow
+                .map(k => `
+                  <div class="popup-info">
+                  <b>${k}</b><br>
+                  ${d.atribut[k] ?? ""}
+                  </div>
+                `).join("") || `<div class="popup-info">(tidak ada atribut)</div>`;
+        }
     } else {
         judul = d.nama;
         infoHtml = `
@@ -179,9 +200,13 @@ function attachEditMenu(layer, data) {
       ${infoHtml}
 
       <div class="popup-actions">
-      ${d.atribut ? `
+      ${d.atribut && d.layer === getDesaLayerConfig_() ? `
+        ${cariBantuanUntukDesa_(judul).length ? `
+        <button class="popup-button popup-button-secondary" onclick="bukaDetailIntervensi_(window.currentLayer)">📊 Lihat Detail Intervensi Bantuan</button>
+        ` : ""}
+      ` : (d.atribut ? `
       <button class="popup-button popup-button-secondary" onclick="bukaDashboardShp(window.currentLayer)">📊 Lihat Dashboard</button>
-      ` : ""}
+      ` : "")}
       <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
       <button
       class="popup-button popup-button-danger"
@@ -192,6 +217,20 @@ function attachEditMenu(layer, data) {
       </div>
     `;
   }, { minWidth: 260, maxWidth: 340, maxHeight: 380, autoPanPadding: [40, 40] });
+
+  // render ulang chart (donut/bar) di Popup Ringkasan Desa TIAP kali
+  // popup ini kebuka -- canvas cuma benar2 ada di DOM setelah Leaflet
+  // merender popup-nya, jadi gak bisa langsung diisi Chart.js pas
+  // bikin string HTML di atas (sama pola-nya kayak alasan "popupopen"
+  // di bagian create digitasi manual). Namespaced (.desaRingkasan)
+  // biar aman di-attachEditMenu ulang berkali2 (mis. tiap habis
+  // simpan) tanpa numpuk listener dobel.
+  layer.off('popupopen.desaRingkasan');
+  layer.on('popupopen.desaRingkasan', function(){
+      const d = layer._data;
+      if(!d || !d.atribut || d.layer !== getDesaLayerConfig_()) return;
+      renderChartRingkasanDesa_(d);
+  });
 
 }
 
@@ -590,6 +629,9 @@ function renderLayerTree(){
         <div class="tree-toolbar">
             <button type="button" class="tree-toolbar-btn" onclick="bukaAturUrutanLayer()">
                 ⚙ Urutan Tampilan Layer
+            </button>
+            <button type="button" class="tree-toolbar-btn" onclick="bukaAturLayerDesa()" style="margin-top:6px;">
+                🏘 Atur Layer Desa
             </button>
         </div>
     `;
@@ -1660,6 +1702,156 @@ const treeLayers = {};
 // nama layer SHP yang datanya SUDAH pernah di-bulk-load ke peta
 // di sesi ini (biar toggle OFF/ON berikutnya gak fetch ulang)
 const shpLoadedLayers = new Set();
+
+// ===============================
+// DASHBOARD DESA — data bantuan (Detail Intervensi)
+// ===============================
+// Sheet TERPISAH (`data_bantuan`) dari shp_kemiskinan -- dihubungkan
+// cuma lewat NAMA DESA di sisi client (bukan JOIN di backend). Di-fetch
+// SEKALI per sesi (bukan per-desa, bukan polling) via ?action=bantuan,
+// lalu di-cache di sini -- semua desa berikutnya tinggal filter dari
+// cache ini. Lihat AI_CONTEXT.md §6a buat alasan lengkap keputusan ini.
+let dataBantuan = [];
+let dataBantuanReady = false;
+
+async function muatDataBantuan_(){
+    try{
+        const res = await fetch(GAS_URL + "?action=bantuan");
+        const resp = await res.json();
+        dataBantuan = (resp && resp.status === "ok" && Array.isArray(resp.data)) ? resp.data : [];
+    }catch(err){
+        console.error("Gagal memuat data bantuan:", err);
+        dataBantuan = [];
+    }
+    dataBantuanReady = true;
+}
+
+// cocokkan by nama desa, toleran beda kapitalisasi/spasi nempel
+function cariBantuanUntukDesa_(namaDesa){
+    if(!namaDesa) return [];
+    const target = String(namaDesa).trim().toLowerCase();
+    return dataBantuan.filter(b =>
+        String(b.desa_nama || "").trim().toLowerCase() === target
+    );
+}
+
+// ===============================
+// DASHBOARD DESA — konfigurasi layer mana yang berperan sebagai
+// "layer Desa" (dipakai search box + popup ringkasan khusus). Sengaja
+// dibikin konfigurasi (bukan hardcode nama layer "Kemiskinan"/"Desa"),
+// konsisten sama filosofi adaptif Dashboard V1 -- kalau nanti nama
+// layer desa berubah atau ada >1 kandidat, tinggal diatur ulang lewat
+// UI (lihat bukaAturLayerDesa()), gak perlu ubah kode.
+function getDesaLayerConfig_(){
+    return localStorage.getItem("wgis_desa_layer") || "";
+}
+function saveDesaLayerConfig_(layerName){
+    localStorage.setItem("wgis_desa_layer", layerName);
+}
+
+// UI buat set/ganti getDesaLayerConfig_ -- SEBELUMNYA cuma
+// direferensikan di komentar tapi fungsinya belum pernah ditulis,
+// akibatnya getDesaLayerConfig_() selalu balik string kosong dan
+// Popup Ringkasan Desa gak pernah aktif untuk layer manapun. Ini
+// baru beneran ada sekarang.
+function bukaAturLayerDesa(){
+    tutupAturLayerDesa();
+
+    const current = getDesaLayerConfig_();
+    const kandidat = masterLayer.filter(m => m.source_type === "shp");
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "aturLayerDesaPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10000; background:#fff; border-radius:10px;
+        box-shadow:0 4px 24px rgba(0,0,0,0.25);
+        padding:16px 20px; width:360px; max-width:92vw; max-height:80vh;
+        overflow-y:auto;
+    `;
+
+    const options = [`<option value="">(Tidak ada / nonaktifkan)</option>`]
+        .concat(kandidat.map(m => `
+            <option value="${m.layer}" ${m.layer === current ? "selected" : ""}>${m.layer}</option>
+        `)).join("");
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">🏘 Atur Layer Desa</div>
+            <div class="popup-info">
+                Pilih layer SHP mana yang berperan sebagai "layer Desa".
+                Layer ini akan pakai Popup Ringkasan (kartu statistik,
+                komposisi penduduk, bar bantuan per OPD), panel Detail
+                Intervensi Bantuan, dan bisa dicari lewat search box nama
+                desa. Layer SHP lain (kecamatan, jalan, dst) tidak
+                terpengaruh sama sekali, tetap pakai popup biasa.
+            </div>
+            <br>
+            <select class="popup-select" id="aturLayerDesaSelect" style="width:100%; padding:8px; height:auto;">
+                ${options}
+            </select>
+            <br><br>
+            <div class="popup-actions">
+                <button class="popup-button" onclick="simpanLayerDesa_()">Simpan</button>
+                <button class="popup-button popup-button-secondary" onclick="tutupAturLayerDesa()">✕ Tutup</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+}
+
+function simpanLayerDesa_(){
+    const val = document.getElementById("aturLayerDesaSelect").value;
+    saveDesaLayerConfig_(val);
+    tutupAturLayerDesa();
+    alert(val
+        ? `Layer "${val}" sekarang jadi layer Desa.`
+        : `Layer Desa dinonaktifkan — semua layer SHP kembali pakai popup biasa.`);
+}
+
+function tutupAturLayerDesa(){
+    const panel = document.getElementById("aturLayerDesaPanel");
+    if(panel) panel.remove();
+}
+
+// cari nilai atribut dari beberapa kemungkinan nama kolom (case-
+// insensitive) -- dipakai buat field yang namanya bisa beda-beda antar
+// sumber SHP (mis. kecamatan bisa "WADMKC" atau "kecamatan")
+function cariNilaiAtribut_(atribut, candidates){
+    if(!atribut) return null;
+    const keys = Object.keys(atribut);
+    for(const cand of candidates){
+        const found = keys.find(k => k.toLowerCase() === cand.toLowerCase());
+        if(found && atribut[found] !== "" && atribut[found] != null) return atribut[found];
+    }
+    return null;
+}
+
+// cari 1 field numerik (dari hasil deteksiPolaAtribut_().numerikLain)
+// yang nama kolomnya mengandung salah satu alias -- dipakai buat
+// nebak field "penduduk"/"miskin" tanpa hardcode 1 nama kolom persis
+// (data asli sekarang pakai "Jumlah_Pen"/"Jumlah_Mis", tapi kalau
+// SHP lain pakai "jumlah_penduduk" dst, tetap kedeteksi)
+function cariFieldNumerik_(numerikLain, aliases){
+    return numerikLain.find(n => {
+        const key = n.key.toLowerCase();
+        return aliases.some(a => key.includes(a));
+    }) || null;
+}
+
+// daftar kandidat nama kolom nama-desa/kecamatan -- SATU sumber
+// kebenaran dipakai di semua tempat (popup ringkasan, chart, search
+// box) biar gak ada resiko drift kalau nanti perlu nambah alias baru
+const KANDIDAT_KOLOM_NAMA_DESA = ["WADMKD","nama_desa","NAMOBJ","desa","nama"];
+const KANDIDAT_KOLOM_KECAMATAN = ["WADMKC","kecamatan","nama_kecamatan"];
+
+function namaDesaDari_(atribut){
+    return cariNilaiAtribut_(atribut, KANDIDAT_KOLOM_NAMA_DESA);
+}
+function kecamatanDari_(atribut){
+    return cariNilaiAtribut_(atribut, KANDIDAT_KOLOM_KECAMATAN);
+}
 
 // cache jumlah fitur per layer SHP, dipakai buat nampilin angka
 // di tree SEBELUM layer-nya di-load (dari hasil import atau bulk load
@@ -3450,6 +3642,236 @@ function tutupDashboardShp(){
     if(panel) panel.remove();
 }
 
+// ===============================
+// DASHBOARD DESA — Popup Ringkasan + Detail Intervensi Bantuan
+// ===============================
+// Khusus buat layer yang dikonfigurasi sebagai "layer Desa" (lihat
+// getDesaLayerConfig_/bukaAturLayerDesa). Popup pertamanya BEDA dari
+// popup generic SHP (lihat attachEditMenu): bukan daftar atribut,
+// tapi ringkasan compact (header nama+kecamatan, kartu statistik,
+// donut komposisi penduduk, bar bantuan per OPD) + tombol ke panel
+// detail. SEMUA nilai diambil dari atribut/data yang beneran ada --
+// gak ada yang dikarang; bagian yang datanya gak tersedia otomatis
+// disembunyikan (bukan ditampilkan kosong).
+let ringkasanDesaChartInstances = [];
+
+// isi body popup (dipanggil SYNCHRONOUS dari attachEditMenu, jadi
+// cuma nyiapin HTML + placeholder <canvas> kosong -- chart-nya
+// sendiri baru digambar belakangan lewat renderChartRingkasanDesa_,
+// dipanggil dari listener 'popupopen' karena elemen <canvas> baru
+// beneran ada di DOM setelah Leaflet merender popup-nya)
+function renderRingkasanDesaBody_(d){
+    const pola = deteksiPolaAtribut_(d.atribut);
+    const namaDesa = namaDesaDari_(d.atribut);
+    const kecamatan = kecamatanDari_(d.atribut);
+
+    const fPenduduk = cariFieldNumerik_(pola.numerikLain, ["penduduk","jumlah_pen","pop"]);
+    const fMiskin = cariFieldNumerik_(pola.numerikLain, ["miskin","desil","jumlah_mis"]);
+
+    const bantuanRows = cariBantuanUntukDesa_(namaDesa);
+    const totalPenerima = bantuanRows.reduce((s,r) => s + (parseFloat(r.jumlah_penerima) || 0), 0);
+
+    // ===== kartu statistik (Kondisi Utama) =====
+    const cards = [];
+    if(fPenduduk) cards.push({ label: fPenduduk.key, value: fPenduduk.value.toLocaleString("id-ID") });
+    if(fMiskin) cards.push({ label: fMiskin.key, value: fMiskin.value.toLocaleString("id-ID") });
+    if(fPenduduk && fMiskin && fPenduduk.value > 0){
+        const persen = fMiskin.value / fPenduduk.value * 100;
+        cards.push({ label: "Proporsi " + fMiskin.key, value: persen.toFixed(1) + "%" });
+    }
+    if(bantuanRows.length){
+        cards.push({ label: "Total Penerima Bantuan", value: totalPenerima.toLocaleString("id-ID") });
+    }
+    // field tambahan yang dipilih manual lewat panel 🎨 Style ("Field
+    // di Popup Summary"), selain yang otomatis kedeteksi di atas --
+    // biar tetap bisa dikustom per layer tanpa ubah kode
+    const sudahDipakai = new Set([fPenduduk && fPenduduk.key, fMiskin && fMiskin.key]);
+    getSummaryFields_(d.layer).forEach(k => {
+        if(sudahDipakai.has(k)) return;
+        const found = pola.numerikLain.find(n => n.key === k);
+        if(found) cards.push({ label: found.key, value: found.value.toLocaleString("id-ID") });
+    });
+
+    const statHtml = cards.length ? `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:8px; margin:10px 0;">
+            ${cards.map(c => `
+                <div style="background:#f5f7fa; border-radius:8px; padding:8px 6px; text-align:center;">
+                    <div style="font-size:17px; font-weight:700; color:#1976d2;">${c.value}</div>
+                    <div style="font-size:10px; color:#666; margin-top:2px; word-break:break-word;">${c.label}</div>
+                </div>
+            `).join("")}
+        </div>
+    ` : `<div class="popup-info">Belum ada data kondisi yang bisa ditampilkan.</div>`;
+
+    // ===== placeholder chart (digambar belakangan, lihat catatan atas) =====
+    const donutHtml = (fPenduduk && fMiskin && fPenduduk.value > 0) ? `
+        <div style="margin-top:8px;">
+            <div style="font-weight:600; font-size:12px; margin-bottom:6px;">Komposisi Penduduk</div>
+            <canvas id="ringkasanDesaDonut" height="160"></canvas>
+        </div>
+    ` : "";
+
+    const barHtml = bantuanRows.length ? `
+        <div style="margin-top:14px;">
+            <div style="font-weight:600; font-size:12px; margin-bottom:6px;">Bantuan per OPD</div>
+            <canvas id="ringkasanDesaBar" height="140"></canvas>
+        </div>
+    ` : "";
+
+    return `
+        <div class="popup-info"><b>Kecamatan</b><br>${kecamatan || "-"}</div>
+        ${statHtml}
+        ${donutHtml}
+        ${barHtml}
+    `;
+}
+
+// dipanggil dari listener 'popupopen' di attachEditMenu -- muat
+// Chart.js on-demand (sama CDN/pola kayak Dashboard V1), lalu gambar
+// donut/bar KALAU elemen canvas-nya ada (artinya datanya memang
+// tersedia, lihat renderRingkasanDesaBody_ di atas)
+async function renderChartRingkasanDesa_(d){
+    try{
+        await loadScriptSekali_(CHARTJS_CDN);
+    }catch(err){
+        console.error("Gagal memuat Chart.js:", err);
+        return;
+    }
+
+    // popup mungkin sudah ketutup/ganti sebelum CDN kelar dimuat --
+    // cek ulang elemennya masih ada sebelum gambar apapun
+    const pola = deteksiPolaAtribut_(d.atribut);
+    const namaDesa = namaDesaDari_(d.atribut);
+    const fPenduduk = cariFieldNumerik_(pola.numerikLain, ["penduduk","jumlah_pen","pop"]);
+    const fMiskin = cariFieldNumerik_(pola.numerikLain, ["miskin","desil","jumlah_mis"]);
+    const bantuanRows = cariBantuanUntukDesa_(namaDesa);
+
+    ringkasanDesaChartInstances.forEach(c => c.destroy());
+    ringkasanDesaChartInstances = [];
+
+    const donutCtx = document.getElementById("ringkasanDesaDonut");
+    if(donutCtx && fPenduduk && fMiskin && fPenduduk.value > 0){
+        const nonMiskin = Math.max(fPenduduk.value - fMiskin.value, 0);
+        ringkasanDesaChartInstances.push(new Chart(donutCtx, {
+            type: "doughnut",
+            data: {
+                labels: [fMiskin.key, "Penduduk Lainnya"],
+                datasets: [{ data: [fMiskin.value, nonMiskin], backgroundColor: ["#e53935","#90caf9"] }]
+            },
+            options: { plugins: { legend: { position: "bottom", labels: { font: { size: 10 } } } } }
+        }));
+    }
+
+    const barCtx = document.getElementById("ringkasanDesaBar");
+    if(barCtx && bantuanRows.length){
+        const perOpd = {};
+        bantuanRows.forEach(r => {
+            const opd = r.opd || "(OPD tidak diketahui)";
+            perOpd[opd] = (perOpd[opd] || 0) + (parseFloat(r.jumlah_penerima) || 0);
+        });
+        const labels = Object.keys(perOpd);
+        ringkasanDesaChartInstances.push(new Chart(barCtx, {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [{ label: "Jumlah Penerima", data: labels.map(l => perOpd[l]), backgroundColor: "#1976d2" }]
+            },
+            options: {
+                indexAxis: "y",
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        }));
+    }
+}
+
+// ===== Panel "Detail Intervensi Bantuan" =====
+// Dibuka dari tombol di Popup Ringkasan. Card per OPD -> daftar
+// program (penerima + tahun), BUKAN tabel raksasa (sesuai spek).
+function bukaDetailIntervensi_(layer){
+    const d = layer._data;
+    if(!d || !d.atribut) return;
+
+    tutupDetailIntervensi_();
+
+    const namaDesa = namaDesaDari_(d.atribut) || judulFiturShp_(d);
+    const kecamatan = kecamatanDari_(d.atribut);
+    const rows = cariBantuanUntukDesa_(namaDesa);
+
+    // grup per OPD -> per program -> kumpulan {penerima, tahun}
+    const perOpd = {};
+    rows.forEach(r => {
+        const opd = r.opd || "(OPD tidak diketahui)";
+        const program = r.program || "(Program tidak diketahui)";
+        if(!perOpd[opd]) perOpd[opd] = {};
+        if(!perOpd[opd][program]) perOpd[opd][program] = { penerimaTerbaru: null, tahunList: [] };
+
+        const tahun = parseInt(r.tahun, 10);
+        const penerima = parseFloat(r.jumlah_penerima);
+
+        if(!isNaN(tahun)) perOpd[opd][program].tahunList.push(tahun);
+        // "jumlah penerima" ditampilkan dari baris tahun TERBARU program itu
+        if(!isNaN(penerima) && (
+            perOpd[opd][program].penerimaTerbaru === null ||
+            !isNaN(tahun) && tahun >= Math.max(...perOpd[opd][program].tahunList, 0)
+        )){
+            perOpd[opd][program].penerimaTerbaru = penerima;
+        }
+    });
+
+    const opdCardsHtml = Object.keys(perOpd).map(opd => {
+        const programs = perOpd[opd];
+        const programHtml = Object.keys(programs).map(prog => {
+            const info = programs[prog];
+            const tahunSorted = [...new Set(info.tahunList)].sort((a,b) => a - b);
+            return `
+                <div style="padding:8px 0; border-bottom:1px solid #eee;">
+                    <div style="font-weight:600; font-size:13px;">${prog}</div>
+                    <div style="font-size:12px; color:#444; margin-top:2px;">
+                        ${info.penerimaTerbaru !== null ? info.penerimaTerbaru.toLocaleString("id-ID") + " penerima" : ""}
+                    </div>
+                    ${tahunSorted.length ? `<div style="font-size:11px; color:#888; margin-top:2px;">Tahun: ${tahunSorted.join(", ")}</div>` : ""}
+                </div>
+            `;
+        }).join("");
+
+        return `
+            <div style="background:#f9fafb; border-radius:10px; padding:10px 12px; margin-bottom:10px;">
+                <div style="font-weight:700; font-size:13px; color:#1976d2; margin-bottom:4px;">${opd}</div>
+                ${programHtml}
+            </div>
+        `;
+    }).join("") || `<div class="popup-info">Belum ada data intervensi bantuan untuk desa ini.</div>`;
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "detailIntervensiPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10000; background:#fff; border-radius:12px;
+        box-shadow:0 4px 28px rgba(0,0,0,0.3);
+        padding:20px 22px; width:480px; max-width:94vw; max-height:88vh;
+        overflow-y:auto;
+    `;
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">📊 Detail Intervensi Bantuan</div>
+            <div class="popup-info" style="margin-top:-8px;"><b>${namaDesa}</b>${kecamatan ? " — " + kecamatan : ""}</div>
+            <div style="margin-top:12px;">${opdCardsHtml}</div>
+            <div class="popup-actions">
+                <button class="popup-button popup-button-secondary" onclick="tutupDetailIntervensi_()">✕ Tutup</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(wrapper);
+}
+
+function tutupDetailIntervensi_(){
+    const panel = document.getElementById("detailIntervensiPanel");
+    if(panel) panel.remove();
+}
+
 // input file tersembunyi, dipicu dari tombol Import di FAB menu
 const shpFileInput = document.createElement("input");
 shpFileInput.type = "file";
@@ -3851,7 +4273,130 @@ function prosesImportShp(){
 async function init(){
  await loadMasterLayer();
  await loadDataAwal();
+ // DIAWAIT (bukan fire-and-forget): popup Ringkasan Desa baca
+ // dataBantuan secara SYNCHRONOUS (bukan lewat listener popupopen
+ // kayak chart-nya), jadi harus sudah siap sebelum user sempat klik
+ // desa pertama kali. Datanya kecil, jadi ini gak nambah loading
+ // time yang berarti.
+ await muatDataBantuan_();
 }
+
+// ===============================
+// SEARCH BOX — nama desa (poin 1B Dashboard Desa)
+// ===============================
+// Ditaruh SEKALI sebagai elemen persisten di luar #treeContent (bukan
+// bagian yang di-render ulang renderLayerTree()), karena #treeContent
+// di-rebuild TOTAL tiap 5 detik lewat polling data manual
+// (refreshLayerData) -- kalau kotak search ditaruh di dalam situ, query
+// yang lagi diketik user bakal kehapus sendiri tiap 5 detik. Cuma
+// aktif kalau "Layer Desa" sudah dikonfigurasi lewat bukaAturLayerDesa().
+// Pola dropdown-nya SENGAJA niru persis pasangAutocomplete_ (form
+// import SHP) -- <select multi-baris> + class layer-list/layer-search
+// yang sudah ada di admin.css, bukan bikin komponen baru.
+(function initSearchDesa_(){
+    const treeEl = document.getElementById("layerTree");
+    if(!treeEl) return;
+
+    const wrap = document.createElement("div");
+    wrap.className = "layer-picker";
+    wrap.style.cssText = "margin:10px;";
+    wrap.innerHTML = `
+        <input type="text" id="searchDesaInput" class="popup-input layer-search"
+               placeholder="🔍 Cari nama desa..." autocomplete="off">
+        <select class="popup-select layer-list" id="searchDesaList" size="6"></select>
+    `;
+
+    const treeContent = document.getElementById("treeContent");
+    treeEl.insertBefore(wrap, treeContent || treeEl.firstChild);
+
+    const inputEl = wrap.querySelector("#searchDesaInput");
+    const listEl = wrap.querySelector("#searchDesaList");
+    let sedangMuat = false;
+
+    // layer Desa mungkin belum pernah di-toggle ON manual sesi ini
+    // (lazy-load) -- kalau user langsung ngetik di search box, muat
+    // dulu di belakang layar (pola sama kayak toggle checkbox manual,
+    // lewat handleLayerToggle yang sudah ada) baru filter hasilnya.
+    async function pastikanLayerDesaSiap_(namaLayer){
+        if(shpLoadedLayers.has(namaLayer)) return true;
+
+        sedangMuat = true;
+        listEl.innerHTML = `<option disabled>Memuat data desa...</option>`;
+        listEl.classList.add("show");
+
+        await handleLayerToggle(namaLayer, true);
+        renderLayerTree();
+        initTreeCollapse();
+
+        sedangMuat = false;
+        return shpLoadedLayers.has(namaLayer);
+    }
+
+    async function tampilkanHasil_(){
+        const namaLayer = getDesaLayerConfig_();
+        if(!namaLayer){
+            listEl.innerHTML = `<option disabled>Layer Desa belum diatur (klik 🏘 Atur Layer Desa dulu)</option>`;
+            listEl.classList.add("show");
+            return;
+        }
+
+        const q = inputEl.value.trim().toLowerCase();
+        if(!q){
+            listEl.classList.remove("show");
+            listEl.innerHTML = "";
+            return;
+        }
+
+        const siap = await pastikanLayerDesaSiap_(namaLayer);
+        // input/query bisa saja berubah lagi selagi nunggu fetch di
+        // atas kelar -- baca ulang biar hasilnya sinkron sama yang
+        // beneran diketik user sekarang, bukan snapshot lama
+        const qSekarang = inputEl.value.trim().toLowerCase();
+        if(!siap || sedangMuat || !qSekarang) return;
+
+        const fitur = treeLayerObjects[namaLayer] || [];
+        const hasil = fitur
+            .map(layer => ({ layer, nama: namaDesaDari_(layer._data && layer._data.atribut) || "" }))
+            .filter(h => h.nama.toLowerCase().includes(qSekarang))
+            .slice(0, 20);
+
+        window._hasilSearchDesa = hasil;
+
+        listEl.innerHTML = hasil.length
+            ? hasil.map((h,i) => `<option value="${i}">${h.nama}</option>`).join("")
+            : `<option disabled>Tidak ada desa yang cocok</option>`;
+        listEl.classList.add("show");
+    }
+
+    inputEl.addEventListener("input", tampilkanHasil_);
+    inputEl.addEventListener("focus", tampilkanHasil_);
+    inputEl.addEventListener("blur", function(){
+        setTimeout(() => listEl.classList.remove("show"), 150);
+    });
+
+    listEl.addEventListener("change", function(){
+        const idx = listEl.value;
+        const hasil = window._hasilSearchDesa;
+        listEl.classList.remove("show");
+        if(!hasil || !hasil[idx]) return;
+
+        const layer = hasil[idx].layer;
+        inputEl.value = "";
+        listEl.innerHTML = "";
+
+        // HARUS berperilaku identik kayak user klik polygon-nya
+        // langsung di peta (poin 1B spek) -- zoom ke desa, lalu buka
+        // popup ringkasan yang SAMA PERSIS (bukan bikin popup baru)
+        const bounds = layer.getBounds ? layer.getBounds() : null;
+        if(bounds && bounds.isValid && bounds.isValid()){
+            map.fitBounds(bounds, { maxZoom: 16, padding:[40,40] });
+            setTimeout(() => layer.openPopup(), 400);
+        } else if(layer.getLatLng){
+            map.setView(layer.getLatLng(), 16);
+            setTimeout(() => layer.openPopup(), 100);
+        }
+    });
+})();
 init();
 window.refreshLayerData = refreshLayerData;
 // refresh tiap 5 detik

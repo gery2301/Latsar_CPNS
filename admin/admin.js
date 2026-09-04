@@ -864,44 +864,6 @@ const map = L.map('map').setView([-8.5, 119.9], 10);
 // manual, jadi keyboard handler bawaan ini aman dimatikan total.
 map.keyboard.disable();
 
-// PENTING: paksa Leaflet re-layout ulang popup yang lagi kebuka
-// setiap zoom (termasuk scroll-wheel zoom) selesai. Ini fix buat bug
-// "popup melar/kegedean permanen kalau di-scroll-zoom saat kebuka".
-//
-// Root cause aslinya BUKAN div custom overflow-y:auto yang sempat
-// dicurigai sebelumnya (opsi `maxHeight` bawaan Leaflet di bindPopup/
-// L.popup() sudah dipakai di semua popup relevan -- attachEditMenu,
-// editAtributShp -- tapi bug tetap muncul, jadi teori itu terbukti
-// SALAH/gak lengkap; catatan lama soal ini di AI_CONTEXT perlu
-// dianggap belum terbukti, bukan solusi final).
-//
-// Akar masalah yang sebenarnya: scroll-wheel zoom Leaflet melakukan
-// animasi zoom pakai CSS `transform:scale()` sementara di map pane
-// (termasuk popup-nya, karena popup ikut jadi child yang di-transform).
-// Leaflet ngukur ulang tinggi konten popup (buat mutusin perlu
-// `leaflet-popup-scrolled`/maxHeight px berapa) lewat `_updateLayout()`,
-// dan kalau pengukuran itu kejadian PAS di tengah/ujung animasi
-// transform:scale (bukan pas transform sudah balik ke normal), hasil
-// ukurnya keukur lebih besar dari aslinya (ke-scale ikut transform),
-// dan angka yang salah itu ke-`set` permanen ke style popup -> popup
-// keliatan "melar" terus walau animasi zoom sudah selesai & transform
-// sudah balik normal, karena _updateLayout() gak otomatis jalan lagi
-// sesudahnya.
-//
-// Fix: panggil `.update()` (method publik Popup bawaan Leaflet -- ada
-// dokumentasinya, gunanya emang buat "re-run layout & posisi") di
-// popup yang lagi aktif SETIAP kali `zoomend` fire (nah, di titik itu
-// animasi transform SUDAH selesai & sudah balik ke ukuran normal),
-// biar Leaflet ngukur ulang dari kondisi yang benar dan overwrite
-// angka yang salah tadi. Aman dipanggil kapan saja (no-op kalau lagi
-// gak ada popup terbuka), dan berlaku otomatis buat SEMUA popup di
-// aplikasi ini (gak perlu sentuh kode pembuat kontennya satu-satu).
-map.on('zoomend', function(){
-    if(map._popup){
-        map._popup.update();
-    }
-});
-
 // Box hint "Mode Digitasi"/"Mode Edit" pakai zIndex:9999 (lihat
 // showCreateHint/showEditHint). Pane popup Leaflet default-nya
 // jauh di bawah itu (~700), jadi popup konfirmasi bisa ketutup

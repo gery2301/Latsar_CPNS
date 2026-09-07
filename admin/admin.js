@@ -4368,7 +4368,7 @@ setInterval(refreshLayerData,5000);
     const wrapper = document.createElement("div");
     wrapper.id = "sidebarKabupaten";
     wrapper.style.cssText = `
-        position:fixed; top:10px; right:16px; width:260px; max-height:90vh;
+        position:fixed; top:90px; right:16px; width:260px; max-height:calc(100vh - 100px);
         overflow-y:auto; background:#fff; border-radius:10px;
         box-shadow:0 5px 20px rgba(0,0,0,.25); z-index:998;
         font-family:Segoe UI,sans-serif; padding:14px;

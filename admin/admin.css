@@ -644,3 +644,122 @@ color:white;
     background:#e0e7ff;
     color:#312e81;
 }
+
+/* ==================================
+   POPUP RINGKASAN DESA (stat card, donut, dst)
+================================== */
+
+.ringkasan-subtitle{
+    color:#666;
+    font-size:12.5px;
+    margin-top:-10px;
+    margin-bottom:10px;
+}
+
+.ringkasan-stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(90px,1fr));
+    gap:8px;
+    margin-bottom:12px;
+}
+
+.ringkasan-card{
+    background:#f5f7fa;
+    border-radius:8px;
+    padding:8px 6px;
+    text-align:center;
+}
+
+.ringkasan-card-value{
+    font-size:16px;
+    font-weight:700;
+    color:#1976d2;
+}
+
+.ringkasan-card-label{
+    font-size:10.5px;
+    color:#666;
+    margin-top:2px;
+    word-break:break-word;
+    line-height:1.25;
+}
+
+.ringkasan-chart-box{
+    margin-top:8px;
+    margin-bottom:4px;
+    max-width:220px;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+/* ==================================
+   DETAIL INTERVENSI BANTUAN (card per OPD)
+================================== */
+
+.intervensi-opd-card{
+    background:#f9fafb;
+    border:1px solid #eee;
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:10px;
+}
+
+.intervensi-opd-title{
+    font-weight:700;
+    font-size:13.5px;
+    color:#1e3a8a;
+    margin-bottom:6px;
+}
+
+.intervensi-program-row{
+    padding:4px 0;
+    border-top:1px solid #eee;
+}
+
+.intervensi-program-row:first-of-type{
+    border-top:none;
+}
+
+.intervensi-program-name{
+    font-size:13px;
+    font-weight:600;
+}
+
+.intervensi-program-tahun{
+    font-size:11.5px;
+    color:#888;
+    margin-top:1px;
+}
+
+/* ==================================
+   SEARCH FITUR DI LAYER (misal cari nama desa)
+================================== */
+
+.search-result-item{
+    padding:8px 10px;
+    font-size:13px;
+    cursor:pointer;
+    border-radius:6px;
+}
+
+.search-result-item:hover{
+    background:#ede9fe;
+    color:#5b21b6;
+}
+
+/* ==================================
+   PANEL TITLE "🗂 Layer" (poin A & D feedback)
+   - #layerTree > .tree-header nargetin SPESIFIK div judul teratas
+     (direct child dari #layerTree), BUKAN header kategori/tema yang
+     nested di dalam #treeContent -- jadi aman, gak nyenggol style
+     kategori/tema di atas.
+   - position:sticky bikin judulnya nempel di atas pas #layerTree
+     di-scroll (poin A). Klik buat collapse/expand + animasi arrow-nya
+     di-handle initLayerPanelCollapse() di admin.js (poin D).
+================================== */
+
+#layerTree > .tree-header{
+    position:sticky;
+    top:0;
+    z-index:10;
+}

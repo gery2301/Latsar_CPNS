@@ -3769,21 +3769,32 @@ async function bukaDetailIntervensi(layer){
     const subtitleField = getLayerSubtitleField_(d.layer);
     const kecamatan = subtitleField ? d.atribut[subtitleField] : null;
 
+    const overlay = document.createElement("div");
+    overlay.id = "detailIntervensiOverlay";
+    overlay.style.cssText = `position:fixed; inset:0; background:rgba(15,15,35,0.35); z-index:9999;`;
+    overlay.onclick = tutupDetailIntervensi;
+    document.body.appendChild(overlay);
+
     const wrapper = document.createElement("div");
     wrapper.id = "detailIntervensiPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10000; background:#fff; border-radius:12px;
-        box-shadow:0 4px 28px rgba(0,0,0,0.3);
+        z-index:10000; background:#fff; border-radius:14px;
+        box-shadow:0 12px 40px rgba(0,0,0,0.22);
         padding:20px 22px; width:480px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
     `;
 
     wrapper.innerHTML = `
         <div class="popup-form">
-            <div class="popup-title">🧾 Detail Intervensi Bantuan</div>
-            <div class="ringkasan-subtitle">${namaDesa}${kecamatan ? " — " + kecamatan : ""}</div>
-            <div id="detailIntervensiBody" style="margin-top:12px;">
+            <div class="intervensi-header">
+                <div class="intervensi-header-icon">🧾</div>
+                <div class="intervensi-header-text">
+                    <div class="intervensi-title">Detail Intervensi Bantuan</div>
+                    <div class="ringkasan-subtitle">${namaDesa}${kecamatan ? " • " + kecamatan : ""}</div>
+                </div>
+            </div>
+            <div id="detailIntervensiBody" style="margin-top:6px;">
                 <div class="popup-info">Memuat data...</div>
             </div>
             <div class="popup-actions">
@@ -3800,7 +3811,12 @@ async function bukaDetailIntervensi(layer){
     if(!body) return; // panel sudah keburu ditutup user
 
     if(!records.length){
-        body.innerHTML = `<div class="popup-info">Belum ada data bantuan tercatat untuk desa ini.</div>`;
+        body.innerHTML = `
+            <div class="intervensi-empty">
+                <div class="intervensi-empty-icon">📭</div>
+                Belum ada data bantuan tercatat untuk desa ini.
+            </div>
+        `;
         return;
     }
 
@@ -3818,26 +3834,41 @@ async function bukaDetailIntervensi(layer){
         perOpd[opd][program].totalPenerima += jml;
     });
 
-    body.innerHTML = Object.keys(perOpd).map(opd => `
+    body.innerHTML = `<div class="intervensi-list">` + Object.keys(perOpd).map(opd => {
+        const totalOpd = Object.values(perOpd[opd]).reduce((sum, p) => sum + p.totalPenerima, 0);
+        return `
         <div class="intervensi-opd-card">
-            <div class="intervensi-opd-title">🏛 ${opd}</div>
+            <div class="intervensi-opd-title">
+                <span>🏛 ${opd}</span>
+                <span class="intervensi-opd-badge">${totalOpd.toLocaleString('id-ID')} penerima</span>
+            </div>
             ${Object.keys(perOpd[opd]).map(program => {
                 const info = perOpd[opd][program];
                 const tahunUnik = Array.from(new Set(info.tahun.filter(t => t !== "" && t != null))).sort();
+                const isEmpty = program === "(tanpa nama program)";
                 return `
                     <div class="intervensi-program-row">
-                        <div class="intervensi-program-name">${program} — ${info.totalPenerima.toLocaleString('id-ID')} penerima</div>
-                        ${tahunUnik.length ? `<div class="intervensi-program-tahun">Tahun: ${tahunUnik.join(", ")}</div>` : ""}
+                        <div class="intervensi-program-info">
+                            <div class="intervensi-program-name${isEmpty ? " is-empty" : ""}">${program}</div>
+                            ${tahunUnik.length ? `<div class="intervensi-program-tahun">Tahun ${tahunUnik.join(", ")}</div>` : ""}
+                        </div>
+                        <div class="intervensi-program-count">
+                            <div class="intervensi-count-number">${info.totalPenerima.toLocaleString('id-ID')}</div>
+                            <div class="intervensi-count-label">penerima</div>
+                        </div>
                     </div>
                 `;
             }).join("")}
         </div>
-    `).join("");
+        `;
+    }).join("") + `</div>`;
 }
 
 function tutupDetailIntervensi(){
     const panel = document.getElementById("detailIntervensiPanel");
     if(panel) panel.remove();
+    const overlay = document.getElementById("detailIntervensiOverlay");
+    if(overlay) overlay.remove();
 }
 
 // ===============================

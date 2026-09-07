@@ -4405,6 +4405,21 @@ setInterval(refreshLayerData,5000);
         font-family:Segoe UI,sans-serif; padding:14px;
     `;
     wrapper.innerHTML = `
+        <div style="margin-bottom:14px;">
+            <label style="font-size:11px; color:#888;">Cari nama desa:</label>
+            <div style="display:flex; gap:6px; align-items:flex-start; margin-top:2px;">
+                <div class="layer-picker" style="flex:1; margin-bottom:0;">
+                    <input class="popup-input layer-search" id="searchDesaSidebar"
+                        placeholder="Cari nama desa..." autocomplete="off">
+                    <select class="popup-select layer-list" id="searchDesaSidebarList" size="6"></select>
+                </div>
+                <button type="button" id="searchDesaSidebarBtn" class="tree-style-btn"
+                    title="Tampilkan desa ini di peta"
+                    style="flex-shrink:0; width:36px; height:36px; background:#eef2ff; border-radius:8px;">
+                    🔍
+                </button>
+            </div>
+        </div>
         <div style="font-weight:700; font-size:14px; margin-bottom:8px;">📊 Dashboard Kabupaten</div>
         <label style="font-size:11px; color:#888;">Sumber data kemiskinan (pilih layer):</label>
         <select id="kabupatenDashboardLayer" class="popup-input" style="margin-bottom:8px;"></select>
@@ -4413,7 +4428,96 @@ setInterval(refreshLayerData,5000);
         </div>
     `;
     document.body.appendChild(wrapper);
+    initSearchDesaSidebar_();
 })();
+
+// Search nama desa di sidebar kanan -- cari HANYA di layer yang lagi
+// dipilih di dropdown "Sumber data" dashboard (treeLayerObjects-nya
+// sudah pasti ke-load penuh karena refreshDashboardKabupaten() maksa
+// full-load layer itu). Ngetik = live suggestion (dropdown, klik cuma
+// ngisi kotak input, BELUM navigasi). Baru pas tombol 🔍 diklik (atau
+// Enter) peta pindah + popup kebuka -- perilaku identik klik polygon
+// langsung, reuse pilihHasilSearch_() yang sama dipakai search per-layer.
+function initSearchDesaSidebar_(){
+    const input = document.getElementById("searchDesaSidebar");
+    const ddl = document.getElementById("searchDesaSidebarList");
+    const btn = document.getElementById("searchDesaSidebarBtn");
+    if(!input || !ddl || !btn) return;
+
+    function daftarFiturAktif_(){
+        const layerName = localStorage.getItem("wgis_dashboard_layer");
+        return (treeLayerObjects[layerName] || []).filter(l => l._data && l._data.atribut);
+    }
+
+    function namaFitur_(l){
+        return judulFiturShp_(l._data).replace(/^📦\s*/, "");
+    }
+
+    function filterDesaDropdown_(keyword){
+        keyword = keyword.trim().toLowerCase();
+        const fitur = daftarFiturAktif_();
+        const cocok = keyword
+            ? fitur.filter(l => namaFitur_(l).toLowerCase().includes(keyword))
+            : fitur;
+
+        ddl.innerHTML = cocok.slice(0, 50).map((l, i) =>
+            `<option value="${i}">${namaFitur_(l)}</option>`
+        ).join("");
+
+        ddl._cocok = cocok;
+    }
+
+    input.addEventListener("focus", function(){
+        ddl.classList.add("show");
+        filterDesaDropdown_(input.value);
+    });
+
+    input.addEventListener("input", function(){
+        ddl.classList.add("show");
+        filterDesaDropdown_(input.value);
+    });
+
+    input.addEventListener("blur", function(){
+        setTimeout(() => ddl.classList.remove("show"), 150);
+    });
+
+    ddl.addEventListener("change", function(){
+        const idx = parseInt(ddl.value, 10);
+        const terpilih = (ddl._cocok || [])[idx];
+        if(terpilih) input.value = namaFitur_(terpilih);
+        ddl.classList.remove("show");
+    });
+
+    input.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){
+            e.preventDefault();
+            jalankanSearchDesaSidebar_();
+        }
+    });
+
+    btn.addEventListener("click", jalankanSearchDesaSidebar_);
+
+    function jalankanSearchDesaSidebar_(){
+        const keyword = input.value.trim().toLowerCase();
+        if(!keyword){
+            alert("Ketik dulu nama desanya.");
+            return;
+        }
+
+        const fitur = daftarFiturAktif_();
+        // prioritas: cocok PERSIS (case-insensitive) dulu, baru fallback
+        // ke yang cuma MENGANDUNG keyword
+        let target = fitur.find(l => namaFitur_(l).toLowerCase() === keyword);
+        if(!target) target = fitur.find(l => namaFitur_(l).toLowerCase().includes(keyword));
+
+        if(!target){
+            alert(`Desa "${input.value}" tidak ditemukan di layer ini.`);
+            return;
+        }
+
+        pilihHasilSearch_(target);
+    }
+}
 
 function populateKabupatenDashboardSelector_(){
     const sel = document.getElementById("kabupatenDashboardLayer");

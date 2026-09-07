@@ -258,6 +258,17 @@ cursor:pointer;
 user-select:none;
 }
 
+/* Judul panel "🗂 Layer" -- ini DIRECT CHILD #layerTree (bukan header
+   kategori/tema yang nested di #treeContent), makanya selector ini
+   presisi cuma kena dia doang. Dipasangkan sama initLayerPanelCollapse()
+   di admin.js (arrow icon + klik collapse) -- sticky di sini yang
+   bikin dia tetap nangkring pas #layerTree discroll. */
+#layerTree > .tree-header{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
 #treeContent{
 padding:8px;
 }
@@ -751,7 +762,7 @@ color:white;
 }
 
 .intervensi-program-name{
-    font-size:15px;
+    font-size:13.5px;
     color:#333;
     font-weight:600;
     word-break:break-word;
@@ -765,7 +776,7 @@ color:white;
 
 .intervensi-program-tahun{
     margin-top:2px;
-    font-size:13px;
+    font-size:11px;
     color:#9ca3af;
 }
 
@@ -782,7 +793,7 @@ color:white;
 }
 
 .intervensi-count-label{
-    font-size:12px;
+    font-size:10.5px;
     color:#9ca3af;
     font-weight:600;
 }
@@ -800,8 +811,3 @@ color:white;
     opacity:.6;
 }
 
-#treeMainHeader{
-    position: sticky;
-    top: 0;
-    z-index: 20;
-}

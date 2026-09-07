@@ -799,3 +799,9 @@ color:white;
     margin-bottom:8px;
     opacity:.6;
 }
+
+#treeMainHeader{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}

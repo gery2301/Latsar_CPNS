@@ -751,7 +751,7 @@ color:white;
 }
 
 .intervensi-program-name{
-    font-size:13.5px;
+    font-size:15px;
     color:#333;
     font-weight:600;
     word-break:break-word;
@@ -765,7 +765,7 @@ color:white;
 
 .intervensi-program-tahun{
     margin-top:2px;
-    font-size:11px;
+    font-size:13px;
     color:#9ca3af;
 }
 
@@ -782,7 +782,7 @@ color:white;
 }
 
 .intervensi-count-label{
-    font-size:10.5px;
+    font-size:12px;
     color:#9ca3af;
     font-weight:600;
 }

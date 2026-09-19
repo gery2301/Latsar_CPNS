@@ -2692,17 +2692,22 @@ function muatBulkLayer(sheetName, layerName, master){
     });
 }
 
-// OSM (default)
+// ===============================
+// BASEMAP / PETA DASAR
+// ===============================
+// Semua basemap didefinisikan di SATU tempat (`basemapDefs`) supaya
+// picker visual di sidebar kanan (renderBasemapPicker_) bisa dibangun
+// otomatis dari sini -- nambah/ganti basemap cukup edit array ini,
+// UI-nya ikut sendiri, gak perlu disentuh.
+//
+// `preview` = URL 1 tile statis di sekitar Labuan Bajo (z=10, x=852,
+// y=536) yang dipakai jadi thumbnail kartu pilihan, biar user milih
+// berdasarkan RUPA petanya, bukan cuma nebak dari nama teks.
+
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors'
 });
-
-//Skala Peta
-L.control.scale().addTo(map);
-
-//Kompas
-new L.Control.Compass({ autoActive: true, showDigit: true }).addTo(map);
 
 // SATELIT ESRI
 const esriSat = L.tileLayer(
@@ -2711,18 +2716,161 @@ const esriSat = L.tileLayer(
   attribution: 'Tiles &copy; Esri'
 });
 
-// Tambah ke map (default OSM)
-osm.addTo(map);
+// TOPOGRAFI ESRI
+const esriTopo = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles &copy; Esri'
+});
 
-const baseMaps = {
-  "OpenStreetMap": osm,
-  "Satelit Esri": esriSat
-};
+// PETA POLOS (CartoDB Positron) -- latar terang low-contrast, enak buat
+// layer choropleth/gradient biar warna datanya yang menonjol
+const cartoLight = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors, &copy; CARTO'
+});
 
+const basemapDefs = [
+  {
+    id: "osm",
+    nama: "OpenStreetMap",
+    ket: "Jalan & tempat umum",
+    layer: osm,
+    preview: "https://a.tile.openstreetmap.org/10/852/536.png"
+  },
+  {
+    id: "satelit",
+    nama: "Satelit",
+    ket: "Citra satelit Esri",
+    layer: esriSat,
+    preview: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/10/536/852"
+  },
+  {
+    id: "topo",
+    nama: "Topografi",
+    ket: "Kontur & relief",
+    layer: esriTopo,
+    preview: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/10/536/852"
+  },
+  {
+    id: "polos",
+    nama: "Polos",
+    ket: "Latar terang, fokus ke data",
+    layer: cartoLight,
+    preview: "https://a.basemaps.cartocdn.com/light_all/10/852/536.png"
+  }
+];
+
+// Dipertahankan untuk kompatibilitas (dipakai waktu bikin objek
+// L.control.layers di bawah).
+const baseMaps = {};
+basemapDefs.forEach(b => { baseMaps[b.nama] = b.layer; });
+
+const BASEMAP_KEY = "wgis_basemap";
+const BASEMAP_OPACITY_KEY = "wgis_basemap_opacity";
+
+let basemapAktif = null;
+
+function getBasemapOpacity_(){
+    const v = parseInt(localStorage.getItem(BASEMAP_OPACITY_KEY), 10);
+    return isNaN(v) ? 100 : Math.min(100, Math.max(10, v));
+}
+
+function setBasemapOpacity_(persen){
+    persen = Math.min(100, Math.max(10, parseInt(persen, 10) || 100));
+    localStorage.setItem(BASEMAP_OPACITY_KEY, persen);
+    if(basemapAktif && basemapAktif.layer.setOpacity){
+        basemapAktif.layer.setOpacity(persen / 100);
+    }
+    const lbl = document.getElementById("basemapOpacityVal");
+    if(lbl) lbl.textContent = persen + "%";
+}
+
+// Ganti basemap aktif. Cuma SATU basemap yang nempel di peta dalam satu
+// waktu (yang lama di-removeLayer), persis kayak radio button bawaan
+// L.control.layers. Pilihan disimpan di localStorage biar kebawa lagi
+// pas halaman di-reload (perilaku baru -- control bawaan Leaflet gak
+// nyimpen apa-apa).
+function pilihBasemap_(id){
+    const def = basemapDefs.find(b => b.id === id) || basemapDefs[0];
+
+    if(basemapAktif && basemapAktif.id === def.id){
+        tandaiBasemapAktif_();
+        return;
+    }
+
+    if(basemapAktif) map.removeLayer(basemapAktif.layer);
+
+    def.layer.addTo(map);
+    if(def.layer.setZIndex) def.layer.setZIndex(0);
+    if(def.layer.setOpacity) def.layer.setOpacity(getBasemapOpacity_() / 100);
+
+    basemapAktif = def;
+    localStorage.setItem(BASEMAP_KEY, def.id);
+
+    tandaiBasemapAktif_();
+}
+
+// Sinkronin highlight kartu di sidebar sama basemap yang lagi aktif.
+// Dipanggil juga dari renderBasemapPicker_ (pas sidebar pertama kali
+// dirender), makanya dibikin defensif terhadap DOM yang belum ada.
+function tandaiBasemapAktif_(){
+    document.querySelectorAll(".basemap-card").forEach(el => {
+        el.classList.toggle("active", !!basemapAktif && el.dataset.basemap === basemapAktif.id);
+    });
+}
+
+// Render kartu-kartu pilihan basemap ke dalam sidebar kanan.
+function renderBasemapPicker_(){
+    const grid = document.getElementById("basemapGrid");
+    if(!grid) return;
+
+    grid.innerHTML = basemapDefs.map(b => `
+        <button type="button" class="basemap-card" data-basemap="${b.id}" title="${b.ket}">
+            <span class="basemap-thumb" style="background-image:url('${b.preview}')">
+                <span class="basemap-check">✓</span>
+            </span>
+            <span class="basemap-nama">${b.nama}</span>
+        </button>
+    `).join("");
+
+    grid.querySelectorAll(".basemap-card").forEach(el => {
+        el.addEventListener("click", () => pilihBasemap_(el.dataset.basemap));
+    });
+
+    const slider = document.getElementById("basemapOpacity");
+    if(slider){
+        slider.value = getBasemapOpacity_();
+        const lbl = document.getElementById("basemapOpacityVal");
+        if(lbl) lbl.textContent = getBasemapOpacity_() + "%";
+        slider.addEventListener("input", () => setBasemapOpacity_(slider.value));
+    }
+
+    tandaiBasemapAktif_();
+}
+
+// Pasang basemap terakhir yang dipilih user (default OSM).
+pilihBasemap_(localStorage.getItem(BASEMAP_KEY) || "osm");
+
+//Skala Peta
+L.control.scale().addTo(map);
+
+//Kompas
+new L.Control.Compass({ autoActive: true, showDigit: true }).addTo(map);
+
+// Control layer bawaan Leaflet SENGAJA tidak lagi di-addTo(map):
+// - pemilihan basemap sudah pindah ke panel kanan (#basemapGrid)
+// - daftar overlay-nya duplikat persis sama Layer Tree di kiri
+// Objeknya TETAP dibuat supaya registerLayer() yang manggil
+// layerControl.addOverlay() tetap aman -- Leaflet `_update()` langsung
+// return kalau control-nya belum punya container, jadi gak error.
+// Kalau suatu saat mau balikin control bawaan, tinggal tambah
+// `.addTo(map)` di baris ini.
 const layerControl = L.control.layers(
     baseMaps,
     overlayMaps
-).addTo(map);
+);
 
 
 // ===============================
@@ -4398,8 +4546,16 @@ setInterval(refreshLayerData,5000);
 (function initSidebarKabupaten(){
     const wrapper = document.createElement("div");
     wrapper.id = "sidebarKabupaten";
+    // Sidebar dipatok dua sisi (top + bottom), BUKAN top + max-height
+    // seperti sebelumnya. Alasannya: FAB button (#fabContainer) ada di
+    // pojok kanan-bawah (right:25px; bottom:35px; tinggi 64px), dan
+    // sidebar yang tingginya sampai `100vh - 100px` itu nutupin dia
+    // sampai gak bisa diklik. Dengan `bottom:120px`, sidebar berhenti
+    // 120px di atas dasar viewport -- aman di atas FAB (35 + 64 = 99px)
+    // plus sedikit jarak nafas. Tingginya otomatis ikut tinggi layar,
+    // isinya tetap discroll sendiri lewat overflow-y:auto.
     wrapper.style.cssText = `
-        position:fixed; top:90px; right:16px; width:260px; max-height:calc(100vh - 100px);
+        position:fixed; top:90px; right:16px; bottom:120px; width:260px;
         overflow-y:auto; background:#fff; border-radius:10px;
         box-shadow:0 5px 20px rgba(0,0,0,.25); z-index:998;
         font-family:Segoe UI,sans-serif; padding:14px;
@@ -4420,6 +4576,23 @@ setInterval(refreshLayerData,5000);
                 </button>
             </div>
         </div>
+        <div class="sidebar-section" id="basemapSection">
+            <button type="button" class="sidebar-section-head" id="basemapSectionHead">
+                <span>🗺️ Peta Dasar</span>
+                <span class="sidebar-section-arrow">▸</span>
+            </button>
+            <div class="sidebar-section-body">
+                <div class="basemap-grid" id="basemapGrid"></div>
+                <div class="basemap-opacity">
+                    <label for="basemapOpacity">
+                        Transparansi peta dasar
+                        <span id="basemapOpacityVal">100%</span>
+                    </label>
+                    <input type="range" id="basemapOpacity" min="10" max="100" step="5">
+                </div>
+            </div>
+        </div>
+
         <div style="font-weight:700; font-size:14px; margin-bottom:8px;">📊 Dashboard Kabupaten</div>
         <label style="font-size:11px; color:#888;">Sumber data kemiskinan (pilih layer):</label>
         <select id="kabupatenDashboardLayer" class="popup-input" style="margin-bottom:8px;"></select>
@@ -4429,6 +4602,19 @@ setInterval(refreshLayerData,5000);
     `;
     document.body.appendChild(wrapper);
     initSearchDesaSidebar_();
+
+    // Picker basemap (menggantikan L.control.layers bawaan Leaflet,
+    // lihat blok "BASEMAP / PETA DASAR" di atas).
+    renderBasemapPicker_();
+
+    // Section basemap bisa dilipat biar sidebar gak kepanjangan pas
+    // dashboard-nya nanti nambah isi. Default: terbuka.
+    const bmHead = document.getElementById("basemapSectionHead");
+    const bmSection = document.getElementById("basemapSection");
+    if(bmHead && bmSection){
+        bmSection.classList.add("open");
+        bmHead.addEventListener("click", () => bmSection.classList.toggle("open"));
+    }
 })();
 
 // Search nama desa di sidebar kanan -- cari HANYA di layer yang lagi

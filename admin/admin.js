@@ -4729,6 +4729,18 @@ function populateKabupatenDashboardSelector_(){
     });
 }
 
+// Palet donut "Proporsi Bantuan per OPD". Dipilih yang cukup kontras
+// satu sama lain (bukan gradient satu warna) karena potongannya =
+// kategori, bukan urutan nilai. Kalau OPD-nya lebih banyak dari palet,
+// warnanya berulang (index % panjang palet) -- legenda tetap kebaca
+// karena namanya ditulis, bukan cuma warna.
+const WARNA_OPD_ = [
+    "#4338ca", "#0891b2", "#16a34a", "#f59e0b", "#dc2626",
+    "#7c3aed", "#0ea5e9", "#65a30d", "#ea580c", "#db2777"
+];
+
+let kabupatenChartInstance = null;
+
 async function refreshDashboardKabupaten(){
     const body = document.getElementById("kabupatenDashboardBody");
     if(!body) return;
@@ -4793,26 +4805,84 @@ async function refreshDashboardKabupaten(){
         </div>
     ` : `<div class="popup-info" style="font-size:12px;">Atur dulu "Grafik Komposisi (Donut)" di panel 🎨 Style layer ini biar rekap kemiskinan bisa dihitung.</div>`;
 
-    const bantuanHtml = opdLabels.length ? `
-        <div style="font-weight:600; font-size:12px; margin:8px 0 4px;">Bantuan per OPD (Se-Mabar)</div>
-        <canvas id="kabupatenBantuanChart" height="160"></canvas>
+    // Rekap bantuan ditampilkan sebagai DONUT PROPORSI, bukan bar total.
+    // Pertanyaan yang mau dijawab panel ini: "dari seluruh bantuan yang
+    // turun se-kabupaten, porsi tiap OPD berapa persen" -- jadi angka
+    // yang menonjol adalah PERSENTASE (jumlah absolut tetap ada, tapi
+    // jadi keterangan kecil di legenda, bukan sumbu utama).
+    // OPD diurutkan dari porsi terbesar biar kebaca sekali lihat.
+    const totalBantuan = opdLabels.reduce((a, k) => a + perOpd[k], 0);
+    const opdUrut = opdLabels
+        .filter(k => perOpd[k] > 0)
+        .sort((a, b) => perOpd[b] - perOpd[a]);
+
+    const adaBantuan = opdUrut.length > 0 && totalBantuan > 0;
+
+    const persenOpd_ = k => (perOpd[k] / totalBantuan) * 100;
+
+    const bantuanHtml = adaBantuan ? `
+        <div style="font-weight:600; font-size:12px; margin:10px 0 2px;">Proporsi Bantuan per OPD (Se-Mabar)</div>
+        <div style="font-size:10.5px; color:#9ca3af; margin-bottom:6px;">
+            Total ${totalBantuan.toLocaleString('id-ID')} penerima dari ${opdUrut.length} OPD
+        </div>
+        <div class="donut-opd-wrap">
+            <canvas id="kabupatenBantuanChart"></canvas>
+        </div>
+        <div class="donut-opd-legend">
+            ${opdUrut.map((k, i) => `
+                <div class="donut-opd-item">
+                    <span class="donut-opd-dot" style="background:${WARNA_OPD_[i % WARNA_OPD_.length]}"></span>
+                    <span class="donut-opd-nama" title="${k}">${k}</span>
+                    <span class="donut-opd-persen">${persenOpd_(k).toFixed(1)}%</span>
+                    <span class="donut-opd-jml">${perOpd[k].toLocaleString('id-ID')}</span>
+                </div>
+            `).join("")}
+        </div>
     ` : `<div class="popup-info" style="font-size:12px;">Belum ada data bantuan tercatat.</div>`;
 
     body.innerHTML = statHtml + bantuanHtml;
 
-    if(opdLabels.length){
+    // chart lama di-destroy dulu biar instance Chart.js gak numpuk tiap
+    // user ganti layer di dropdown (canvas-nya memang sudah ikut kebuang
+    // pas innerHTML diganti, tapi instance JS-nya belum tentu)
+    if(kabupatenChartInstance){
+        kabupatenChartInstance.destroy();
+        kabupatenChartInstance = null;
+    }
+
+    if(adaBantuan){
         try{ await loadScriptSekali_(CHARTJS_CDN); }catch(e){ return; }
-        new Chart(document.getElementById("kabupatenBantuanChart"), {
-            type: "bar",
+        kabupatenChartInstance = new Chart(document.getElementById("kabupatenBantuanChart"), {
+            type: "doughnut",
             data: {
-                labels: opdLabels,
-                datasets: [{ data: opdLabels.map(l => perOpd[l]), backgroundColor: "#1976d2", borderRadius: 4 }]
+                labels: opdUrut,
+                datasets: [{
+                    data: opdUrut.map(k => perOpd[k]),
+                    backgroundColor: opdUrut.map((k, i) => WARNA_OPD_[i % WARNA_OPD_.length]),
+                    borderColor: "#fff",
+                    borderWidth: 2
+                }]
             },
             options: {
-                indexAxis: "y",
                 responsive: true,
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true } }
+                maintainAspectRatio: true,
+                cutout: "62%",
+                // legenda bawaan Chart.js dimatikan -- nama OPD itu
+                // panjang-panjang, di sidebar 260px legendanya bakal
+                // kepotong. Diganti legenda HTML sendiri di bawah chart
+                // (.donut-opd-legend) yang bisa wrap & nampilin % + angka.
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed || 0;
+                                const p = totalBantuan ? (v / totalBantuan) * 100 : 0;
+                                return ` ${p.toFixed(1)}% (${v.toLocaleString('id-ID')} penerima)`;
+                            }
+                        }
+                    }
+                }
             }
         });
     }

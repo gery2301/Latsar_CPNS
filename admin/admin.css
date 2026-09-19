@@ -977,3 +977,114 @@ color:white;
     accent-color:#4338ca;
     cursor:pointer;
 }
+
+/* ==================================
+   SUDUT ROUNDED — PANEL SCROLLABLE
+   Masalahnya: #layerTree & #sidebarKabupaten dua-duanya punya
+   border-radius + overflow:auto. Begitu isinya lebih panjang dari
+   panel, scrollbar bawaan browser muncul dan DIPAKSA digambar
+   persegi di sisi kanan — hasilnya sudut kanan-atas & kanan-bawah
+   kelihatan lancip padahal border-radius-nya ada.
+   Solusi: scrollbar dibikin melayang (track transparan, thumb tipis
+   pakai trik border transparan + background-clip:padding-box), jadi
+   yang kelihatan di pojok itu latar panel yang memang sudah rounded.
+   Plus sticky header .tree-header dikasih radius atas yang SAMA
+   dengan containernya, biar bidang birunya gak motong sudut.
+================================== */
+
+#layerTree,
+#sidebarKabupaten{
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #c7c9d9 transparent;
+}
+
+#layerTree::-webkit-scrollbar,
+#sidebarKabupaten::-webkit-scrollbar{
+    width: 12px;
+}
+
+#layerTree::-webkit-scrollbar-track,
+#sidebarKabupaten::-webkit-scrollbar-track,
+#layerTree::-webkit-scrollbar-corner,
+#sidebarKabupaten::-webkit-scrollbar-corner{
+    background: transparent;
+}
+
+#layerTree::-webkit-scrollbar-thumb,
+#sidebarKabupaten::-webkit-scrollbar-thumb{
+    background: #c7c9d9;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+}
+
+#layerTree::-webkit-scrollbar-thumb:hover,
+#sidebarKabupaten::-webkit-scrollbar-thumb:hover{
+    background: #a9acc4;
+    background-clip: padding-box;
+}
+
+/* Header biru "🗂 Layer" nempel persis di sudut atas panel, jadi
+   radiusnya harus sama (10px) -- sebelumnya kena .tree-header umum
+   yang radiusnya 8px, sisa 2px-nya yang bikin sudut atas kelihatan
+   nanggung/lancip. */
+#layerTree > .tree-header{
+    border-radius: 10px 10px 0 0;
+}
+
+/* ==================================
+   DONUT PROPORSI BANTUAN PER OPD (sidebar kanan)
+   Menggantikan bar chart total penerima. Fokusnya PERSENTASE porsi
+   tiap OPD; jumlah absolutnya tetap ditampilkan tapi jadi angka
+   pendamping kecil di legenda.
+================================== */
+
+.donut-opd-wrap{
+    max-width: 180px;
+    margin: 0 auto 10px auto;
+}
+
+.donut-opd-legend{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.donut-opd-item{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    line-height: 1.3;
+}
+
+.donut-opd-dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.donut-opd-nama{
+    flex: 1;
+    min-width: 0;
+    color: #444;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.donut-opd-persen{
+    font-weight: 800;
+    color: #1e1e2d;
+    flex-shrink: 0;
+}
+
+.donut-opd-jml{
+    font-size: 10px;
+    color: #9ca3af;
+    flex-shrink: 0;
+    min-width: 34px;
+    text-align: right;
+}

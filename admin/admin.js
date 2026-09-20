@@ -533,6 +533,16 @@ setTimeout(() => {
 // bisa diubah dari sini (itu level layer, diatur lewat master_layer,
 // bukan per-fitur) — konsisten sama endpoint update_shp_atribut
 // di backend yang cuma nerima update kolom dinamis.
+//
+// CATATAN soal tombol "🧾 Kelola Data Bantuan" di bawah form:
+// data bantuan TIDAK ikut disimpan tombol "Simpan" di sini. Alasannya
+// strukturnya beda level — atribut SHP itu 1 fitur = 1 baris (relasi
+// 1:1), sedangkan bantuan itu 1 desa = BANYAK baris di sheet lain
+// (data_bantuan), beda OPD/program/tahun. Maksain keduanya ke satu
+// form bakal bikin form-nya beranak-pinak & satu tombol Simpan nulis
+// ke dua sheet sekaligus (setengah gagal = data gak konsisten).
+// Jadi tombol ini cuma PINTU MASUK ke panel Detail Intervensi, tempat
+// tiap baris bantuan punya tombol ✏/🗑 sendiri.
 function editAtributShp() {
   const layer = window.currentLayer;
   const d = layer._data;
@@ -564,6 +574,9 @@ function editAtributShp() {
       id="btnEditShp"
       class="popup-button"
       onclick="simpanEditAtributShp()">Simpan</button>
+      <button
+      class="popup-button popup-button-secondary"
+      onclick="bukaDetailIntervensi(window.currentLayer)">🧾 Kelola Data Bantuan</button>
       </div>
     </div>
     `)
@@ -3946,63 +3959,110 @@ async function bukaDetailIntervensi(layer){
                 <div class="popup-info">Memuat data...</div>
             </div>
             <div class="popup-actions">
+                <button class="popup-button" onclick="bukaFormBantuan('create')">➕ Tambah Bantuan</button>
                 <button class="popup-button popup-button-secondary" onclick="tutupDetailIntervensi()">✕ Tutup</button>
             </div>
         </div>
     `;
     document.body.appendChild(wrapper);
 
-    await muatDataBantuan();
-    const records = ambilBantuanUntukDesa_(namaDesa, kecamatan);
+    // konteks desa yang lagi dibuka disimpan di module-level supaya
+    // render ulang (setelah tambah/edit/hapus) gak perlu bawa-bawa
+    // parameter ke mana-mana
+    intervensiKonteks_ = { namaDesa, kecamatan, layer };
 
+    await muatDataBantuan();
+    renderDetailIntervensiBody_();
+}
+
+// konteks desa aktif di panel Detail Intervensi
+let intervensiKonteks_ = null;
+
+function escHtml_(v){
+    return String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+// Render isi panel Detail Intervensi dari cache `bantuanData`.
+// Dipisah dari bukaDetailIntervensi() supaya bisa dipanggil ULANG
+// setiap kali user tambah/edit/hapus record -- tanpa fetch ulang ke
+// server (cache-nya di-update lokal, lihat terapkanPerubahanBantuan_).
+//
+// PERUBAHAN PENTING dari versi sebelumnya: baris program TIDAK lagi
+// digabung lintas tahun. Dulu record dengan opd+program sama tapi tahun
+// beda dilebur jadi 1 baris ("Tahun 2023, 2024") -- tampilannya ringkas,
+// tapi jadi TIDAK bisa diedit karena 1 baris di layar gak lagi mewakili
+// 1 baris di spreadsheet. Sekarang 1 baris = 1 record = 1 row sheet,
+// jadi tombol ✏/🗑-nya punya sasaran yang jelas.
+function renderDetailIntervensiBody_(){
     const body = document.getElementById("detailIntervensiBody");
-    if(!body) return; // panel sudah keburu ditutup user
+    if(!body || !intervensiKonteks_) return; // panel sudah keburu ditutup
+
+    const { namaDesa, kecamatan } = intervensiKonteks_;
+    const records = ambilBantuanUntukDesa_(namaDesa, kecamatan);
 
     if(!records.length){
         body.innerHTML = `
             <div class="intervensi-empty">
                 <div class="intervensi-empty-icon">📭</div>
                 Belum ada data bantuan tercatat untuk desa ini.
+                <div style="margin-top:6px; font-size:12px;">
+                    Klik "➕ Tambah Bantuan" di bawah untuk mencatat yang pertama.
+                </div>
             </div>
         `;
         return;
     }
 
-    // kelompokkan: OPD -> Program -> {tahun[], totalPenerima}
+    // kelompokkan per OPD, tapi isinya tetap record utuh (bukan agregat)
     const perOpd = {};
     records.forEach(r => {
         const opd = r.opd || "Lainnya";
-        const program = r.program || "(tanpa nama program)";
-        const jml = parseFloat(r.jumlah_penerima) || 0;
-
-        if(!perOpd[opd]) perOpd[opd] = {};
-        if(!perOpd[opd][program]) perOpd[opd][program] = { tahun: [], totalPenerima: 0 };
-
-        perOpd[opd][program].tahun.push(r.tahun);
-        perOpd[opd][program].totalPenerima += jml;
+        if(!perOpd[opd]) perOpd[opd] = [];
+        perOpd[opd].push(r);
     });
 
     body.innerHTML = `<div class="intervensi-list">` + Object.keys(perOpd).map(opd => {
-        const totalOpd = Object.values(perOpd[opd]).reduce((sum, p) => sum + p.totalPenerima, 0);
+        const rows = perOpd[opd];
+        const totalOpd = rows.reduce((sum, r) => sum + (parseFloat(r.jumlah_penerima) || 0), 0);
+
         return `
         <div class="intervensi-opd-card">
             <div class="intervensi-opd-title">
-                <span>🏛 ${opd}</span>
+                <span>🏛 ${escHtml_(opd)}</span>
                 <span class="intervensi-opd-badge">${totalOpd.toLocaleString('id-ID')} penerima</span>
             </div>
-            ${Object.keys(perOpd[opd]).map(program => {
-                const info = perOpd[opd][program];
-                const tahunUnik = Array.from(new Set(info.tahun.filter(t => t !== "" && t != null))).sort();
-                const isEmpty = program === "(tanpa nama program)";
+            ${rows.map(r => {
+                const program = r.program || "(tanpa nama program)";
+                const isEmpty = !r.program;
+                const jml = parseFloat(r.jumlah_penerima) || 0;
+
+                // record tanpa id gak bisa diedit/dihapus dengan aman --
+                // backend butuh id buat nemuin barisnya. Ini kejadian
+                // kalau sheet data_bantuan masih versi lama (belum punya
+                // kolom id). Tombolnya di-disable + dikasih alasan,
+                // BUKAN dihilangkan diam-diam.
+                const bisaEdit = !!r.id;
+                const alasan = bisaEdit ? "" : "Baris ini belum punya kolom id di sheet — reload halaman agar backend mengisinya otomatis.";
+
                 return `
                     <div class="intervensi-program-row">
                         <div class="intervensi-program-info">
-                            <div class="intervensi-program-name${isEmpty ? " is-empty" : ""}">${program}</div>
-                            ${tahunUnik.length ? `<div class="intervensi-program-tahun">Tahun ${tahunUnik.join(", ")}</div>` : ""}
+                            <div class="intervensi-program-name${isEmpty ? " is-empty" : ""}">${escHtml_(program)}</div>
+                            ${r.tahun ? `<div class="intervensi-program-tahun">Tahun ${escHtml_(r.tahun)}</div>` : ""}
                         </div>
                         <div class="intervensi-program-count">
-                            <div class="intervensi-count-number">${info.totalPenerima.toLocaleString('id-ID')}</div>
+                            <div class="intervensi-count-number">${jml.toLocaleString('id-ID')}</div>
                             <div class="intervensi-count-label">penerima</div>
+                        </div>
+                        <div class="intervensi-row-actions">
+                            <button class="intervensi-icon-btn" title="${bisaEdit ? "Edit data bantuan ini" : alasan}"
+                                ${bisaEdit ? `onclick="bukaFormBantuan('edit','${escHtml_(r.id)}')"` : "disabled"}>✏</button>
+                            <button class="intervensi-icon-btn danger" title="${bisaEdit ? "Hapus data bantuan ini" : alasan}"
+                                ${bisaEdit ? `onclick="hapusDataBantuan('${escHtml_(r.id)}')"` : "disabled"}>🗑</button>
                         </div>
                     </div>
                 `;
@@ -4012,7 +4072,212 @@ async function bukaDetailIntervensi(layer){
     }).join("") + `</div>`;
 }
 
+// ===============================
+// FORM TAMBAH / EDIT DATA BANTUAN
+// ===============================
+// Nulis langsung ke sheet "data_bantuan" lewat endpoint bantuan_create /
+// bantuan_update (lihat appscript_bantuan_crud.js). Desa & kecamatan
+// SENGAJA dikunci (readonly) ngikut fitur yang lagi dibuka -- kalau dua
+// kolom ini bisa diketik bebas, gampang typo dan record-nya jadi
+// "hilang" (gak ke-join lagi ke polygon manapun). Mau pindah desa?
+// hapus lalu buat lagi dari popup desa yang benar.
+function bukaFormBantuan(mode, recordId){
+    if(!intervensiKonteks_) return;
+
+    const { namaDesa, kecamatan } = intervensiKonteks_;
+    const rec = mode === "edit"
+        ? (bantuanData || []).find(b => String(b.id) === String(recordId))
+        : null;
+
+    if(mode === "edit" && !rec){
+        alert("Data bantuan tidak ditemukan (mungkin sudah dihapus). Coba tutup dan buka lagi panelnya.");
+        return;
+    }
+
+    // saran isian dari nilai yang SUDAH pernah dipakai di sheet, biar
+    // penulisan nama OPD/program konsisten (datalist = tetap boleh
+    // ketik bebas, cuma dibantu, bukan dibatasi)
+    const opdUnik = Array.from(new Set((bantuanData || []).map(b => b.opd).filter(Boolean))).sort();
+    const programUnik = Array.from(new Set((bantuanData || []).map(b => b.program).filter(Boolean))).sort();
+
+    tutupFormBantuan();
+
+    const overlay = document.createElement("div");
+    overlay.id = "formBantuanOverlay";
+    overlay.style.cssText = `position:fixed; inset:0; background:rgba(15,15,35,0.35); z-index:10001;`;
+    overlay.onclick = tutupFormBantuan;
+    document.body.appendChild(overlay);
+
+    const wrapper = document.createElement("div");
+    wrapper.id = "formBantuanPanel";
+    wrapper.style.cssText = `
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        z-index:10002; background:#fff; border-radius:14px;
+        box-shadow:0 12px 40px rgba(0,0,0,0.25);
+        padding:20px 22px; width:420px; max-width:94vw; max-height:88vh;
+        overflow-y:auto;
+    `;
+
+    wrapper.innerHTML = `
+        <div class="popup-form">
+            <div class="popup-title">${mode === "edit" ? "✏ Edit Data Bantuan" : "➕ Tambah Data Bantuan"}</div>
+
+            <label class="popup-label">Desa</label>
+            <input class="popup-input popup-readonly" value="${escHtml_(namaDesa)}" readonly>
+
+            <label class="popup-label">Kecamatan</label>
+            <input class="popup-input popup-readonly" value="${escHtml_(kecamatan || "-")}" readonly>
+
+            <label class="popup-label">OPD / Dinas *</label>
+            <input class="popup-input" id="fbOpd" list="fbOpdList"
+                   value="${escHtml_(rec ? rec.opd : "")}" placeholder="Contoh: Dinas Sosial">
+            <datalist id="fbOpdList">
+                ${opdUnik.map(o => `<option value="${escHtml_(o)}"></option>`).join("")}
+            </datalist>
+
+            <label class="popup-label">Program</label>
+            <input class="popup-input" id="fbProgram" list="fbProgramList"
+                   value="${escHtml_(rec ? rec.program : "")}" placeholder="Contoh: PKH">
+            <datalist id="fbProgramList">
+                ${programUnik.map(p => `<option value="${escHtml_(p)}"></option>`).join("")}
+            </datalist>
+
+            <label class="popup-label">Tahun</label>
+            <input class="popup-input" id="fbTahun" type="number" min="1900" max="2999" step="1"
+                   value="${escHtml_(rec ? rec.tahun : new Date().getFullYear())}">
+
+            <label class="popup-label">Jumlah Penerima *</label>
+            <input class="popup-input" id="fbJumlah" type="number" min="0" step="1"
+                   value="${escHtml_(rec ? rec.jumlah_penerima : "")}" placeholder="0">
+
+            <div id="fbError" style="display:none; color:#d32f2f; font-size:12px; margin-bottom:8px;"></div>
+
+            <div class="popup-actions">
+                <button class="popup-button" id="fbSimpan"
+                        onclick="simpanDataBantuan('${mode}', '${escHtml_(recordId || "")}')">💾 Simpan</button>
+                <button class="popup-button popup-button-secondary" onclick="tutupFormBantuan()">✕ Batal</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(wrapper);
+
+    const fokus = document.getElementById("fbOpd");
+    if(fokus) fokus.focus();
+}
+
+function tutupFormBantuan(){
+    const p = document.getElementById("formBantuanPanel");
+    if(p) p.remove();
+    const o = document.getElementById("formBantuanOverlay");
+    if(o) o.remove();
+}
+
+function simpanDataBantuan(mode, recordId){
+    const errBox = document.getElementById("fbError");
+    const tampilError = msg => {
+        if(!errBox) return alert(msg);
+        errBox.textContent = msg;
+        errBox.style.display = "block";
+    };
+
+    const opd = document.getElementById("fbOpd").value.trim();
+    const program = document.getElementById("fbProgram").value.trim();
+    const tahun = document.getElementById("fbTahun").value.trim();
+    const jumlahRaw = document.getElementById("fbJumlah").value.trim();
+
+    // validasi di depan dulu -- lebih cepat & jelas daripada nunggu
+    // ditolak server, dan mencegah baris sampah masuk sheet
+    if(!opd) return tampilError("Nama OPD/Dinas wajib diisi.");
+    if(jumlahRaw === "" || isNaN(parseFloat(jumlahRaw)) || parseFloat(jumlahRaw) < 0){
+        return tampilError("Jumlah penerima harus berupa angka (minimal 0).");
+    }
+    if(tahun && (isNaN(parseInt(tahun, 10)) || parseInt(tahun, 10) < 1900)){
+        return tampilError("Tahun tidak valid.");
+    }
+
+    const { namaDesa, kecamatan } = intervensiKonteks_;
+
+    const payload = {
+        action: mode === "edit" ? "bantuan_update" : "bantuan_create",
+        id: recordId || undefined,
+        desa: namaDesa,
+        kecamatan: kecamatan || "",
+        opd,
+        program,
+        tahun,
+        jumlah_penerima: parseFloat(jumlahRaw)
+    };
+
+    const btn = document.getElementById("fbSimpan");
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Menyimpan...";
+
+    fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
+        .then(res => res.json())
+        .then(resp => {
+            if(resp.status !== "ok"){
+                throw new Error(resp.message || "Server menolak permintaan.");
+            }
+
+            // cache di-update LOKAL (bukan fetch ulang seluruh sheet) --
+            // sama filosofi sama muatDataBantuan yang cuma sekali per sesi
+            terapkanPerubahanBantuan_(mode, resp.data, recordId);
+
+            btn.innerHTML = "✓ Tersimpan";
+            setTimeout(() => {
+                tutupFormBantuan();
+                renderDetailIntervensiBody_();
+                if(typeof refreshDashboardKabupaten === "function") refreshDashboardKabupaten();
+            }, 400);
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = "💾 Simpan";
+            tampilError("Gagal menyimpan: " + err.message);
+        });
+}
+
+function hapusDataBantuan(recordId){
+    const rec = (bantuanData || []).find(b => String(b.id) === String(recordId));
+    if(!rec) return;
+
+    const label = `${rec.opd || "-"}${rec.program ? " – " + rec.program : ""}${rec.tahun ? " (" + rec.tahun + ")" : ""}`;
+    if(!confirm(`Hapus data bantuan ini?\n\n${label}\n${(parseFloat(rec.jumlah_penerima) || 0).toLocaleString('id-ID')} penerima\n\nBaris akan dihapus permanen dari sheet data_bantuan.`)) return;
+
+    fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "bantuan_delete", id: recordId })
+    })
+        .then(res => res.json())
+        .then(resp => {
+            if(resp.status !== "ok") throw new Error(resp.message || "Server menolak permintaan.");
+            terapkanPerubahanBantuan_("delete", null, recordId);
+            renderDetailIntervensiBody_();
+            if(typeof refreshDashboardKabupaten === "function") refreshDashboardKabupaten();
+        })
+        .catch(err => alert("Gagal menghapus: " + err.message));
+}
+
+// Sinkronisasi cache `bantuanData` setelah operasi tulis berhasil.
+// Dipisah biar satu-satunya tempat yang "tahu" cara cache ini dimutasi.
+function terapkanPerubahanBantuan_(mode, dataBaru, recordId){
+    if(!Array.isArray(bantuanData)) bantuanData = [];
+
+    if(mode === "create" && dataBaru){
+        bantuanData.push(dataBaru);
+        return;
+    }
+
+    const idx = bantuanData.findIndex(b => String(b.id) === String(recordId));
+    if(idx === -1) return;
+
+    if(mode === "delete") bantuanData.splice(idx, 1);
+    else if(dataBaru) Object.assign(bantuanData[idx], dataBaru);
+}
+
 function tutupDetailIntervensi(){
+    tutupFormBantuan();          // form anak ikut ditutup biar gak jadi yatim
+    intervensiKonteks_ = null;
     const panel = document.getElementById("detailIntervensiPanel");
     if(panel) panel.remove();
     const overlay = document.getElementById("detailIntervensiOverlay");

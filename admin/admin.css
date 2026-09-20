@@ -1088,3 +1088,61 @@ color:white;
     min-width: 34px;
     text-align: right;
 }
+
+/* ==================================
+   AKSI PER-BARIS DI PANEL DETAIL INTERVENSI
+   Tiap baris sekarang = 1 record = 1 baris di sheet data_bantuan
+   (dulu digabung lintas tahun), jadi butuh tombol ✏/🗑 sendiri.
+   Tombol disabled = record-nya belum punya kolom id di sheet.
+================================== */
+
+.intervensi-row-actions{
+    display:flex;
+    gap:4px;
+    flex-shrink:0;
+    margin-left:8px;
+}
+
+.intervensi-icon-btn{
+    border:1px solid #e4e0fb;
+    background:#f8f7ff;
+    color:#4338ca;
+    width:28px;
+    height:28px;
+    border-radius:7px;
+    font-size:13px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .15s ease, transform .15s ease;
+}
+
+.intervensi-icon-btn:hover:not(:disabled){
+    background:#ede9fe;
+    transform:scale(1.08);
+}
+
+.intervensi-icon-btn.danger{
+    border-color:#fbdcdc;
+    background:#fff6f6;
+    color:#d32f2f;
+}
+
+.intervensi-icon-btn.danger:hover:not(:disabled){
+    background:#ffeaea;
+}
+
+.intervensi-icon-btn:disabled{
+    opacity:.35;
+    cursor:not-allowed;
+}
+
+.popup-label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color:#555;
+    margin-top:2px;
+}

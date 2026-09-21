@@ -742,6 +742,12 @@ function renderLayerTree(){
                           title="Atur warna & transparansi layer ini">
                           🎨
                         </button>
+                        <button type="button"
+                          class="tree-style-btn tree-delete-btn"
+                          onclick="konfirmasiHapusLayer('${layer}', ${jumlah})"
+                          title="Hapus layer ini beserta seluruh datanya">
+                          🗑
+                        </button>
                     </div>
                 `;
             }
@@ -877,6 +883,108 @@ function editGeometriLayer() {
     map.getContainer().style.cursor = "crosshair";
     showEditHint();
 }
+// ===============================
+// HAPUS LAYER (SELURUH DATA-NYA) — DARI TREE
+// ===============================
+// BEDA sama hapusLayerSekarang() (nama itu agak menjebak) yang cuma
+// hapus SATU fitur/desa yang lagi diklik di popup. Ini nge-hapus SATU
+// LAYER UTUH: buat SHP artinya seluruh sheet-nya + baris di
+// master_layer; buat layer manual/digitasi artinya semua fitur dengan
+// nama layer itu di sheet manual + baris di master_layer. Sengaja
+// dipisah jadi 2 langkah (konfirmasi -> eksekusi) biar gampang di-cancel
+// dan pesannya bisa dibikin SPESIFIK (nyebut nama layer & jumlah
+// fitur), bukan "Yakin ingin menghapus?" generik yang gampang kepencet
+// gak sengaja.
+function konfirmasiHapusLayer(layerName, jumlahFitur){
+    const master = masterLayer.find(item => item.layer === layerName);
+    const isShp = master && master.source_type === "shp";
+
+    const pesan =
+        `Hapus layer "${layerName}"?\n\n` +
+        `${jumlahFitur} fitur akan dihapus PERMANEN` +
+        (isShp ? ` beserta sheet datanya di Spreadsheet.` : `.`) +
+        `\n\nTindakan ini TIDAK BISA DIBATALKAN.`;
+
+    if(!confirm(pesan)) return;
+
+    hapusLayerPenuh_(layerName, isShp);
+}
+
+function hapusLayerPenuh_(layerName, isShp){
+
+    // key di layerGroups/overlayMaps itu GABUNGAN `${owner_opd}_${layer}`
+    // (lihat registerLayer()), bukan nama layer polos -- makanya
+    // owner_opd-nya harus diambil DULU dari masterLayer, SEBELUM baris
+    // master_layer-nya sendiri kehapus dari cache di langkah berikutnya.
+    const masterSebelumHapus = masterLayer.find(item => item.layer === layerName);
+    const key = masterSebelumHapus ? `${masterSebelumHapus.owner_opd}_${layerName}` : null;
+
+    fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "delete_layer", layer: layerName })
+    })
+    .then(res => res.text())
+    .then(msg => {
+        msg = msg.trim();
+
+        if(msg !== "layer deleted"){
+            alert("Gagal menghapus layer: " + msg);
+            return;
+        }
+
+        // ===== bersihin SEMUA jejak layer ini dari state di browser =====
+
+        // 1. buang tiap fitur dari drawnItems + SEMUA layerGroup (jaga-
+        // jaga kalau ada yang nyasar ke grup lain)
+        if(treeLayerObjects[layerName]){
+            treeLayerObjects[layerName].forEach(l => {
+                drawnItems.removeLayer(l);
+                Object.values(layerGroups).forEach(g => g.removeLayer(l));
+            });
+            delete treeLayerObjects[layerName];
+        }
+
+        // 2. buang grup layer-nya sendiri dari peta + control layer
+        // bawaan (lihat catatan di blok BASEMAP soal kenapa objek
+        // layerControl ini tetap ada walau gak di-addTo(map))
+        if(key && layerGroups[key]){
+            map.removeLayer(layerGroups[key]);
+            layerControl.removeLayer(layerGroups[key]);
+            delete layerGroups[key];
+            delete overlayMaps[key];
+        }
+
+        // 3. buang dari cache master_layer & tracking SHP
+        const idx = masterLayer.findIndex(item => item.layer === layerName);
+        if(idx !== -1) masterLayer.splice(idx, 1);
+        shpFeatureCounts[layerName] = 0;
+        shpLoadedLayers.delete(layerName);
+
+        // 4. kalau layer ini yang lagi dipakai sebagai sumber Dashboard
+        // Kabupaten, jangan biarin nunjuk ke layer yang udah gak ada --
+        // rebuild dropdown-nya (biar opsi yang dihapus ikut ilang dari
+        // pilihan) + fallback localStorage, biar gak error diam-diam
+        if(localStorage.getItem("wgis_dashboard_layer") === layerName){
+            localStorage.removeItem("wgis_dashboard_layer");
+        }
+        populateKabupatenDashboardSelector_();
+        refreshDashboardKabupaten();
+
+        // 5. render ulang tree & legenda
+        window.layerTree = buildLayerTreeFull(lastData);
+        renderLayerTree();
+        initTreeCollapse();
+        requestAnimationFrame(() => requestAnimationFrame(refreshTreeHeight));
+        renderLegendPanel();
+
+        alert(`Layer "${layerName}" berhasil dihapus.`);
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Gagal menghubungi server: " + err.message);
+    });
+}
+
 function hapusLayerSekarang(){
 
     const layer = window.currentLayer;
@@ -3627,6 +3735,11 @@ async function refreshLayerData(){
 // yang gak pernah pakai fitur import
 const SHPJS_CDN = "https://unpkg.com/shpjs@latest/dist/shp.js";
 
+// turf.js cuma dipakai buat SIMPLIFIKASI POLYGON (opsional, lihat
+// checkbox "Sederhanakan bentuk" di form import) -- juga on-demand,
+// karena kebanyakan import gak butuh ini.
+const TURF_CDN = "https://unpkg.com/@turf/turf@6/turf.min.js";
+
 function loadScriptSekali_(src){
     return new Promise((resolve, reject) => {
         if(document.querySelector(`script[src="${src}"]`)){
@@ -4562,6 +4675,26 @@ function renderShpFormPanel(fileName, jumlahFitur){
             </div>
             <br><br>
 
+            <br><br>
+
+            <div class="shp-simplify-box">
+                <label class="shp-simplify-label">
+                    <input type="checkbox" id="shp_simplify_toggle">
+                    <span>Sederhanakan bentuk polygon</span>
+                </label>
+                <div class="shp-simplify-desc">
+                    Kurangi jumlah titik pada polygon yang sangat detail
+                    (mengurangi ukuran data secara signifikan, bentuk di
+                    peta tetap terlihat sama). <b>Cuma berlaku buat import
+                    ini</b> — tiap upload SHP baru diminta pilih lagi,
+                    gak otomatis nyala buat layer lain. Disarankan
+                    dicentang kalau file SHP-nya hasil digitasi sangat
+                    detail (ribuan titik per polygon) dan cuma dipakai
+                    buat ditampilkan di peta, bukan buat analisis ukur
+                    presisi tinggi.
+                </div>
+            </div>
+
             <button id="btnImportShp" class="popup-button" onclick="prosesImportShp()">
                 ✓ Import
             </button>
@@ -4679,6 +4812,7 @@ function prosesImportShp(){
     const kategori = document.getElementById("shp_kategori").value.trim();
     const tema = document.getElementById("shp_tema").value.trim();
     const ownerOpd = document.getElementById("shp_owner").value.trim();
+    const simplifyOn = document.getElementById("shp_simplify_toggle").checked;
 
     if(!layerNama || !kategori || !tema || !ownerOpd){
         alert("Nama Layer, Kategori, Tema, dan OPD wajib diisi.");
@@ -4705,34 +4839,35 @@ function prosesImportShp(){
 
     const btn = document.getElementById("btnImportShp");
     btn.disabled = true;
-    btn.innerHTML = "⏳ Mengimport...";
+    btn.innerHTML = simplifyOn ? "⏳ Menyederhanakan bentuk..." : "⏳ Mengimport...";
 
-    const features = importState.geojson.features.map(f => ({
-        attributes: f.properties || {},
-        geometry: f.geometry
-    }));
-
-    fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "import_shp",
-            layer: layerNama,
-            kategori,
-            tema,
-            owner_opd: ownerOpd,
-            attributeKeys: importState.attributeKeys,
-            features
+    // simplifikasi (kalau dicentang) dikerjain di SINI, pas submit --
+    // BUKAN dobel-nyimpen geometry yang udah disederhanakan ke
+    // importState.geojson. Alasan: kalau user gak jadi centang / balik
+    // ganti pikiran, data ASLI (importState.geojson) tetap utuh, gak
+    // ke-mutate permanen cuma gara-gara sempat dicentang lalu batal.
+    const kirimImport = (features) => {
+        fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "import_shp",
+                layer: layerNama,
+                kategori,
+                tema,
+                owner_opd: ownerOpd,
+                attributeKeys: importState.attributeKeys,
+                features
+            })
         })
-    })
-    .then(res => res.json())
-    .then(resp => {
+        .then(res => res.json())
+        .then(resp => {
 
-        if(resp.status !== "ok"){
-            alert("Gagal import: " + (resp.message || "unknown error"));
-            btn.disabled = false;
-            btn.innerHTML = "✓ Import";
-            return;
-        }
+            if(resp.status !== "ok"){
+                alert("Gagal import: " + (resp.message || "unknown error"));
+                btn.disabled = false;
+                btn.innerHTML = "✓ Import";
+                return;
+            }
 
         // update cache master_layer lokal biar tree & form lain
         // langsung nyadar tanpa perlu reload penuh dari server
@@ -4779,6 +4914,57 @@ function prosesImportShp(){
     .catch(err => {
         console.error(err);
         alert("Gagal mengirim data ke server: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = "✓ Import";
+    });
+    }; // -- akhir kirimImport
+
+    const featuresAsli = importState.geojson.features.map(f => ({
+        attributes: f.properties || {},
+        geometry: f.geometry
+    }));
+
+    if(!simplifyOn){
+        kirimImport(featuresAsli);
+        return;
+    }
+
+    // Checkbox dicentang -> load turf.js dulu (on-demand), baru
+    // simplifikasi. Toleransi 0.00005 derajat (~5 meter di garis
+    // khatulistiwa) dipilih supaya bentuk batas desa/wilayah masih
+    // kelihatan sama persis secara visual di peta kabupaten, tapi
+    // jumlah titiknya bisa berkurang drastis untuk polygon yang tadinya
+    // didigitasi sangat detail (ribuan titik). highQuality:true dipakai
+    // karena ini proses SEKALI pas import (bukan real-time), jadi wajar
+    // korbanin sedikit waktu proses demi hasil simplifikasi yang lebih
+    // rapi/gak "patah-patah".
+    loadScriptSekali_(TURF_CDN).then(() => {
+        const TOLERANSI_SIMPLIFY = 0.00005;
+
+        const featuresSederhana = featuresAsli.map(f => {
+            // cuma Polygon/MultiPolygon/LineString yang disederhanakan
+            // -- titik (Point) gak punya "bentuk" buat disederhanakan
+            if(!f.geometry || (f.geometry.type !== "Polygon" && f.geometry.type !== "MultiPolygon" && f.geometry.type !== "LineString" && f.geometry.type !== "MultiLineString")){
+                return f;
+            }
+            try{
+                const hasil = turf.simplify(
+                    { type: "Feature", properties: {}, geometry: f.geometry },
+                    { tolerance: TOLERANSI_SIMPLIFY, highQuality: true, mutate: false }
+                );
+                return { attributes: f.attributes, geometry: hasil.geometry };
+            } catch(e){
+                // kalau ada geometry aneh yang bikin turf error, jangan
+                // gagalin seluruh import -- pakai geometry aslinya aja
+                // buat fitur itu, catat di console biar ketahuan
+                console.warn("Gagal simplify 1 fitur, dipakai geometry asli:", e);
+                return f;
+            }
+        });
+
+        kirimImport(featuresSederhana);
+    }).catch(err => {
+        alert("Gagal memuat library simplifikasi (turf.js): " + err.message + "\n\nImport dibatalkan, coba lagi atau uncheck opsi simplifikasi.");
         btn.disabled = false;
         btn.innerHTML = "✓ Import";
     });
@@ -5024,9 +5210,21 @@ async function refreshDashboardKabupaten(){
     // yang lagi dicentang ON) -- ini SATU-satunya tempat yang sengaja
     // maksa full-load 1 layer, karena memang butuh total keseluruhan.
     // Tetap sekali per sesi (dicache shpLoadedLayers), bukan polling.
-    if(!shpLoadedLayers.has(layerName)){
-        await muatBulkLayer(master.sheet_name, layerName, master);
-    }
+    //
+    // Load SHP-nya dan load data_bantuan DIJALANKAN BARENGAN
+    // (Promise.all), BUKAN gantian (await satu-satu seperti sebelumnya).
+    // Alasan: dua-duanya sama-sama request jaringan yang independen satu
+    // sama lain (gak saling butuh hasil satu sama lain), jadi kalau
+    // dikerjain gantian, total waktu tunggu = waktu A + waktu B. Kalau
+    // bareng, total waktu tunggu = MAX(waktu A, waktu B) -- bisa hemat
+    // signifikan terutama di koneksi yang agak lambat (laptop/jaringan
+    // baru, first load tanpa cache apa-apa).
+    const tugasSHP = shpLoadedLayers.has(layerName)
+        ? Promise.resolve()
+        : muatBulkLayer(master.sheet_name, layerName, master);
+    const tugasBantuan = muatDataBantuan();
+
+    await Promise.all([tugasSHP, tugasBantuan]);
 
     const fitur = treeLayerObjects[layerName] || [];
     const donutCfg = getDonutConfig_(layerName);
@@ -5048,7 +5246,12 @@ async function refreshDashboardKabupaten(){
         });
     }
 
-    await muatDataBantuan();
+    // muatDataBantuan() TIDAK dipanggil lagi di sini -- sudah beres
+    // sebagai bagian dari Promise.all di atas (dijalankan bareng SHP,
+    // bukan gantian). muatDataBantuan() sendiri sudah self-caching
+    // (lihat definisinya), jadi manggil lagi di sini pun sebenarnya
+    // aman/gak nge-fetch ulang -- tapi dihapus biar gak ambigu urutan
+    // baca kodenya.
     const perOpd = {};
     (bantuanData || []).forEach(r => {
         const opd = r.opd || "Lainnya";

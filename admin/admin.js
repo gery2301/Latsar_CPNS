@@ -4643,6 +4643,25 @@ function renderShpFormPanel(fileName, jumlahFitur){
             <div class="popup-info">${fileName} — ${jumlahFitur} fitur terbaca</div>
             <br>
 
+            <div class="shp-simplify-box">
+                <label class="shp-simplify-label">
+                    <input type="checkbox" id="shp_simplify_toggle">
+                    <span>Sederhanakan bentuk polygon</span>
+                </label>
+                <div class="shp-simplify-desc">
+                    Kurangi jumlah titik pada polygon yang sangat detail
+                    (mengurangi ukuran data secara signifikan, bentuk di
+                    peta tetap terlihat sama). <b>Cuma berlaku buat import
+                    ini</b> — tiap upload SHP baru diminta pilih lagi,
+                    gak otomatis nyala buat layer lain. Disarankan
+                    dicentang kalau file SHP-nya hasil digitasi sangat
+                    detail (ribuan titik per polygon) dan cuma dipakai
+                    buat ditampilkan di peta, bukan buat analisis ukur
+                    presisi tinggi.
+                </div>
+            </div>
+            <br>
+
             <label class="popup-label">Nama Layer</label><br>
             <div class="layer-picker">
                 <input class="popup-input layer-search" id="shp_search_layer"
@@ -4674,26 +4693,6 @@ function renderShpFormPanel(fileName, jumlahFitur){
                 <select class="popup-select layer-list" id="shp_owner_list" size="4"></select>
             </div>
             <br><br>
-
-            <br><br>
-
-            <div class="shp-simplify-box">
-                <label class="shp-simplify-label">
-                    <input type="checkbox" id="shp_simplify_toggle">
-                    <span>Sederhanakan bentuk polygon</span>
-                </label>
-                <div class="shp-simplify-desc">
-                    Kurangi jumlah titik pada polygon yang sangat detail
-                    (mengurangi ukuran data secara signifikan, bentuk di
-                    peta tetap terlihat sama). <b>Cuma berlaku buat import
-                    ini</b> — tiap upload SHP baru diminta pilih lagi,
-                    gak otomatis nyala buat layer lain. Disarankan
-                    dicentang kalau file SHP-nya hasil digitasi sangat
-                    detail (ribuan titik per polygon) dan cuma dipakai
-                    buat ditampilkan di peta, bukan buat analisis ukur
-                    presisi tinggi.
-                </div>
-            </div>
 
             <button id="btnImportShp" class="popup-button" onclick="prosesImportShp()">
                 ✓ Import
@@ -4748,10 +4747,22 @@ function renderShpFormPanel(fileName, jumlahFitur){
         setTimeout(() => ddl.classList.remove("show"), 150);
     });
 
-    ddl.addEventListener("change", function(){
-        search.value = ddl.value;
+    // Klik opsi ditangkap lewat "mousedown" + preventDefault, BUKAN
+    // event "change" pada <select>. Alasan: "change" cuma jamin
+    // terpasang kalau focus sempat pindah dulu ke <select> lalu balik
+    // -- itu race sama blur/setTimeout di atas yang nyembunyiin
+    // dropdown, dan di beberapa kondisi klik-nya kelihatan "kepilih"
+    // (opsinya ke-highlight) tapi search.value gak ke-set (event
+    // change-nya gak sempat/gak konsisten kepanggil). preventDefault()
+    // di mousedown mencegah <select> ngerebut focus dari input sama
+    // sekali, jadi blur PUN gak pernah kejadian -- gak ada race,
+    // search.value langsung diisi manual di sini.
+    ddl.addEventListener("mousedown", function(e){
+        if(e.target.tagName !== "OPTION") return;
+        e.preventDefault();
+        search.value = e.target.value;
         ddl.classList.remove("show");
-        isiOtomatisDariMaster(ddl.value);
+        isiOtomatisDariMaster(e.target.value);
     });
 
     // ===== Kategori / Tema / OPD: suggestion dari master_layer, =====
@@ -4790,8 +4801,12 @@ function renderShpFormPanel(fileName, jumlahFitur){
         s.addEventListener("blur", function(){
             setTimeout(() => d.classList.remove("show"), 150);
         });
-        d.addEventListener("change", function(){
-            s.value = d.value;
+        // Sama seperti dropdown Nama Layer di atas: pakai "mousedown" +
+        // preventDefault, bukan "change", biar gak kena race blur/hide.
+        d.addEventListener("mousedown", function(e){
+            if(e.target.tagName !== "OPTION") return;
+            e.preventDefault();
+            s.value = e.target.value;
             d.classList.remove("show");
         });
     }

@@ -753,6 +753,7 @@ function renderLayerTree(){
                           🗑
                         </button>
                     </div>
+                    <div class="tree-layer-progress" id="treeProgress_${layer}"></div>
                 `;
             }
             html += `
@@ -2928,7 +2929,18 @@ async function handleLayerToggle(layerName, visible){
     const isShp = master && master.source_type === "shp" && master.sheet_name;
 
     if(isShp && visible && !shpLoadedLayers.has(layerName)){
-        await muatBulkLayer(master.sheet_name, layerName, master);
+        // wadah progress bar-nya nempel di baris layer ini sendiri di
+        // tree (lihat buatTree(), div#treeProgress_<layer>). Dikosongin
+        // lagi setelah selesai (baik sukses maupun gagal) biar gak
+        // nyangkut nongol terus di tree.
+        const progressContainer = document.getElementById("treeProgress_" + layerName);
+        if(progressContainer) progressContainer.innerHTML = htmlProgressBar_(layerName);
+        try{
+            await muatBulkLayer(master.sheet_name, layerName, master,
+                (phase, current, total) => updateProgressBar_(layerName, phase, current, total));
+        } finally {
+            if(progressContainer) progressContainer.innerHTML = "";
+        }
     }
 
     toggleLayer(layerName, visible);

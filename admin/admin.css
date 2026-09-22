@@ -1222,6 +1222,20 @@ color:white;
     margin-top:10px;
 }
 
+/* wadah progress bar per-baris layer di tree sidebar (checkbox toggle).
+   Kosong = gak makan tempat sama sekali; begitu diisi htmlProgressBar_()
+   pas loading SHP, baru dapat padding biar gak nempel ke baris di
+   bawahnya. Lihat handleLayerToggle() di admin.js. */
+.tree-layer-progress:empty{
+    display:none;
+}
+.tree-layer-progress:not(:empty){
+    padding:0 8px 8px 8px;
+}
+.tree-layer-progress .wgis-progress-wrap{
+    margin-top:2px;
+}
+
 .wgis-progress-label{
     font-size:12px;
     color:#666;

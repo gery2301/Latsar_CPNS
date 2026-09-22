@@ -674,6 +674,10 @@ function renderLayerTree(){
             <button type="button" class="tree-toolbar-btn" onclick="bukaAturUrutanLayer()">
                 ⚙ Urutan Tampilan Layer
             </button>
+            <button type="button" id="btnMigrasiLayerLama" class="tree-toolbar-btn"
+                onclick="migrasiSettingLayerLama()" style="margin-top:6px;">
+                ⬆ Migrasi Pengaturan Layer Lama
+            </button>
         </div>
     `;
    const tree = window.layerTree;
@@ -2089,10 +2093,148 @@ function reapplyAllPanes_(){
 }
 
 function getLayerStyleConfig_(layerName){
+    const server = bacaConfigServer_(layerName, "style_config");
+    if(server !== undefined){
+        try{ return JSON.parse(server); }catch(e){ /* lanjut ke localStorage */ }
+    }
     try{
         const raw = localStorage.getItem("wgis_style_" + layerName);
         return raw ? JSON.parse(raw) : null;
     }catch(e){ return null; }
+}
+
+// ===============================
+// SYNC CONFIG LAYER KE SERVER (master_layer, kolom label_field dst)
+// ===============================
+// Dipanggil di 2 tempat: (1) simpanStyleLayer() -- otomatis abis user
+// klik Simpan di panel 🎨 Style, SATU request ngirim SEMUA 6 field
+// config sekaligus (bukan 1 request per field), dan (2)
+// migrasiSettingLayerLama() -- migrasi manual pengaturan lama yang
+// masih nyangkut di localStorage 1 browser doang. Update ke
+// `masterLayer` (in-memory) langsung juga dilakukan di sini, biar
+// SESI INI langsung baca nilai baru tanpa nunggu reload -- browser
+// LAIN baru kebagian pas mereka reload (fetch ?action=master ulang).
+
+function ambilConfigLayerSaatIni_(layerName){
+    return {
+        label_field: getLayerLabelField_(layerName),
+        subtitle_field: getLayerSubtitleField_(layerName),
+        summary_fields: getSummaryFields_(layerName),
+        field_labels: getFieldLabels_(layerName),
+        donut_config: getDonutConfig_(layerName) || {},
+        style_config: getLayerStyleConfig_(layerName) || {}
+    };
+}
+
+function terapkanConfigKeMasterLayer_(layerName, patch){
+    let entry = masterLayer.find(m => m.layer === layerName);
+    if(!entry){
+        entry = { layer: layerName };
+        masterLayer.push(entry);
+    }
+    entry.label_field = patch.label_field || "";
+    entry.subtitle_field = patch.subtitle_field || "";
+    entry.summary_fields = JSON.stringify(patch.summary_fields || []);
+    entry.field_labels = JSON.stringify(patch.field_labels || {});
+    entry.donut_config = JSON.stringify(patch.donut_config || {});
+    entry.style_config = JSON.stringify(patch.style_config || {});
+}
+
+// versi async (return Promise<boolean> berhasil/gagal) -- dipakai
+// migrasiSettingLayerLama() yang perlu nunggu tiap layer kelar 1-1
+// biar bisa laporan hasil akhirnya
+async function syncLayerConfigKeServerAsync_(layerName){
+    const patch = ambilConfigLayerSaatIni_(layerName);
+    terapkanConfigKeMasterLayer_(layerName, patch);
+
+    try{
+        const res = await fetch(GAS_URL, {
+            method: "POST",
+            body: JSON.stringify(Object.assign(
+                { action: "update_layer_config", layer: layerName },
+                patch
+            ))
+        });
+        const resp = await res.json();
+        if(resp.status !== "ok"){
+            console.error("Gagal sync config layer ke server:", layerName, resp);
+            return false;
+        }
+        return true;
+    }catch(err){
+        console.error("Gagal sync config layer ke server:", layerName, err);
+        return false;
+    }
+}
+
+// versi fire-and-forget -- dipakai simpanStyleLayer() biar gak nge-block
+// UI pas user klik Simpan, tapi tetap kasih tau kalau ternyata gagal
+function syncLayerConfigKeServer_(layerName){
+    syncLayerConfigKeServerAsync_(layerName).then(ok => {
+        if(!ok){
+            alert("Setting tersimpan di browser ini, tapi GAGAL sync ke server. Coba klik Simpan lagi, atau cek koneksi internet.");
+        }
+    });
+}
+
+// cari semua nama layer yang PUNYA setting lokal (localStorage) di
+// browser ini -- dasar buat tombol migrasi, biar gak nge-timpa
+// setting server pakai data kosong buat layer yang emang gak pernah
+// dikustomisasi di browser ini
+function cariLayerYangPunyaSettingLokal_(){
+    const prefixes = [
+        "wgis_label_", "wgis_subtitle_", "wgis_summary_",
+        "wgis_fieldlabels_", "wgis_donut_", "wgis_style_"
+    ];
+    const layerSet = new Set();
+
+    for(let i = 0; i < localStorage.length; i++){
+        const key = localStorage.key(i);
+        for(const p of prefixes){
+            if(key.startsWith(p)){
+                layerSet.add(key.slice(p.length));
+                break;
+            }
+        }
+    }
+    return Array.from(layerSet);
+}
+
+async function migrasiSettingLayerLama(){
+    const layers = cariLayerYangPunyaSettingLokal_();
+
+    if(!layers.length){
+        alert("Nggak ada pengaturan layer tersimpan di browser ini yang perlu dimigrasi.");
+        return;
+    }
+
+    const ok = confirm(
+        `Ditemukan pengaturan lokal untuk ${layers.length} layer di browser ini:\n\n` +
+        layers.join(", ") +
+        `\n\nPindahkan semua ke server sekarang? (setting server buat layer-layer ini, kalau ada, akan ditimpa)`
+    );
+    if(!ok) return;
+
+    const btn = document.getElementById("btnMigrasiLayerLama");
+    if(btn){ btn.disabled = true; btn.textContent = "⏳ Memigrasi..."; }
+
+    const gagal = [];
+    for(const layerName of layers){
+        const berhasil = await syncLayerConfigKeServerAsync_(layerName);
+        if(!berhasil) gagal.push(layerName);
+    }
+
+    if(btn){
+        btn.disabled = false;
+        btn.textContent = "⬆ Migrasi Pengaturan Layer Lama";
+    }
+
+    if(gagal.length){
+        alert(`Migrasi selesai, tapi ${gagal.length} layer GAGAL disync:\n${gagal.join(", ")}\n\nCoba klik tombol ini lagi buat yang gagal.`);
+    } else {
+        alert(`Migrasi selesai! ${layers.length} layer berhasil dipindah ke server. Sekarang browser/perangkat lain bakal lihat setting yang sama.`);
+        renderLayerTree();
+    }
 }
 
 function saveLayerStyleConfig_(layerName, config){
@@ -2100,9 +2242,21 @@ function saveLayerStyleConfig_(layerName, config){
 }
 
 // kolom atribut yang dipakai sebagai JUDUL popup, per layer (misal
-// "NAMOBJ" buat layer desa). Kalau belum diatur / kolomnya kosong di
-// fitur tertentu, fallback ke nama layer seperti sebelumnya.
+// "NAMOBJ" buat layer desa). SUMBER UTAMA: server (masterLayer, kolom
+// label_field) -- supaya sama di semua browser. Fallback ke
+// localStorage kalau server belum punya nilainya (belum pernah
+// disimpan/dimigrasi dari browser ini). Kalau belum diatur sama
+// sekali, judulFiturShp_ fallback ke nama layer seperti sebelumnya.
+function bacaConfigServer_(layerName, kolom){
+    const entry = masterLayer.find(m => m.layer === layerName);
+    if(!entry) return undefined;
+    const v = entry[kolom];
+    return (v === undefined || v === null || v === "") ? undefined : v;
+}
+
 function getLayerLabelField_(layerName){
+    const server = bacaConfigServer_(layerName, "label_field");
+    if(server !== undefined) return server;
     return localStorage.getItem("wgis_label_" + layerName) || "";
 }
 
@@ -2125,6 +2279,10 @@ function judulFiturShp_(d){
 // 🎨 Style. Kalau belum diatur, attachEditMenu fallback ke 4 field
 // pertama secara otomatis.
 function getSummaryFields_(layerName){
+    const server = bacaConfigServer_(layerName, "summary_fields");
+    if(server !== undefined){
+        try{ return JSON.parse(server); }catch(e){ /* lanjut ke localStorage */ }
+    }
     try{
         const raw = localStorage.getItem("wgis_summary_" + layerName);
         return raw ? JSON.parse(raw) : [];
@@ -2139,6 +2297,10 @@ function saveSummaryFields_(layerName, fields){
 // "Jumlah Penerima"), per layer. Kalau kolom gak ada di map ini,
 // fallback ke nama kolom mentahnya apa adanya.
 function getFieldLabels_(layerName){
+    const server = bacaConfigServer_(layerName, "field_labels");
+    if(server !== undefined){
+        try{ return JSON.parse(server); }catch(e){ /* lanjut ke localStorage */ }
+    }
     try{
         const raw = localStorage.getItem("wgis_fieldlabels_" + layerName);
         return raw ? JSON.parse(raw) : {};
@@ -2157,6 +2319,8 @@ function labelKolom_(layerName, key){
 // kolom atribut yang dipakai sebagai SUBJUDUL popup (misal kolom
 // "kecamatan" di bawah nama desa). Opsional, per layer.
 function getLayerSubtitleField_(layerName){
+    const server = bacaConfigServer_(layerName, "subtitle_field");
+    if(server !== undefined) return server;
     return localStorage.getItem("wgis_subtitle_" + layerName) || "";
 }
 
@@ -2173,6 +2337,13 @@ function saveLayerSubtitleField_(layerName, field){
 // dirender kalau DUA-duanya diatur DAN nilainya valid angka di fitur
 // yang lagi dibuka -- gak pernah nebak pasangan kolom sendiri.
 function getDonutConfig_(layerName){
+    const server = bacaConfigServer_(layerName, "donut_config");
+    if(server !== undefined){
+        try{
+            const parsed = JSON.parse(server);
+            if(parsed && parsed.total && parsed.subset) return parsed;
+        }catch(e){ /* lanjut ke localStorage */ }
+    }
     try{
         const raw = localStorage.getItem("wgis_donut_" + layerName);
         return raw ? JSON.parse(raw) : null;

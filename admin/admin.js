@@ -712,9 +712,14 @@ function renderLayerTree(){
 
                 // layer manual selalu dianggap "sudah dimuat" (memang
                 // sudah dirender pas loadDataAwal/refreshLayerData).
-                // layer SHP baru checked kalau memang sudah pernah
-                // di-bulk-load di sesi ini (lazy-load).
-                const isChecked = !isShp || shpLoadedLayers.has(layer);
+                // layer SHP baru checked kalau memang BENERAN kelihatan
+                // di peta sekarang (shpVisibleLayers) -- BUKAN cuma
+                // "sudah pernah di-load datanya" (shpLoadedLayers).
+                // Dua hal itu bisa beda sejak Dashboard Kabupaten bisa
+                // full-load 1 layer cuma buat statistik tanpa
+                // nampilinnya (lihat muatBulkLayer/makeVisible &
+                // toggleLayer()).
+                const isChecked = !isShp || shpVisibleLayers.has(layer);
 
                 html += `
                     <div class="tree-layer" style="display:flex; align-items:center; justify-content:space-between;">
@@ -964,6 +969,7 @@ function hapusLayerPenuh_(layerName, isShp){
         if(idx !== -1) masterLayer.splice(idx, 1);
         shpFeatureCounts[layerName] = 0;
         shpLoadedLayers.delete(layerName);
+        shpVisibleLayers.delete(layerName);
 
         // 4. kalau layer ini yang lagi dipakai sebagai sumber Dashboard
         // Kabupaten, jangan biarin nunjuk ke layer yang udah gak ada --
@@ -1826,6 +1832,16 @@ const treeLayers = {};
 // nama layer SHP yang datanya SUDAH pernah di-bulk-load ke peta
 // di sesi ini (biar toggle OFF/ON berikutnya gak fetch ulang)
 const shpLoadedLayers = new Set();
+
+// nama layer SHP yang BENERAN kelihatan di peta sekarang (di-update
+// oleh toggleLayer()). Beda sama shpLoadedLayers di atas: shpLoadedLayers
+// cuma berarti "datanya udah pernah di-fetch", shpVisibleLayers berarti
+// "lagi ditampilkan". Sengaja dipisah karena Dashboard Kabupaten bisa
+// full-load 1 layer buat itung statistik TANPA nampilinnya ke peta
+// (lihat muatBulkLayer parameter makeVisible) -- checkbox di tree
+// (isChecked di buatTree()) harus ngikutin yang ini, bukan
+// shpLoadedLayers, biar gak kecentang sendiri padahal gak kelihatan.
+const shpVisibleLayers = new Set();
 
 // cache jumlah fitur per layer SHP, dipakai buat nampilin angka
 // di tree SEBELUM layer-nya di-load (dari hasil import atau bulk load
@@ -2834,6 +2850,12 @@ function buildLayerTree(data){
     return tree;
 }
 
+// CATATAN: ada 3 fungsi bernama toggleLayer() di file ini (baris ~658
+// & ~2802 duplikat/dead code lama, sudah dicatat di AI_CONTEXT §13
+// buat dibersihin lain kali). Karena deklarasi function di JS saling
+// nimpa, yang BENERAN kepake cuma definisi PALING BAWAH ini -- makanya
+// fix visibilitas (shpVisibleLayers) ditaruh di sini, bukan di dua
+// definisi lain di atas.
 function toggleLayer(layerName, visible){
     Object.keys(layerGroups).forEach(key=>{
         if(!key.endsWith("_" + layerName)) return;
@@ -2843,6 +2865,19 @@ function toggleLayer(layerName, visible){
             map.removeLayer(layerGroups[key]);
         }
     });
+    // shpVisibleLayers = layer SHP yang BENERAN kelihatan di peta
+    // sekarang. Ini sengaja dipisah dari shpLoadedLayers (yang cuma
+    // berarti "datanya sudah pernah di-fetch sesi ini", lihat
+    // muatBulkLayer/makeVisible) -- soalnya sejak Dashboard Kabupaten
+    // bisa full-load 1 layer cuma buat itung statistik tanpa
+    // nampilinnya (makeVisible=false), "sudah di-load" dan "sedang
+    // ditampilkan" itu dua hal yang beda dan checkbox tree HARUS
+    // ngikutin yang kedua (lihat isChecked di buatTree()).
+    if(visible){
+        shpVisibleLayers.add(layerName);
+    }else{
+        shpVisibleLayers.delete(layerName);
+    }
 }
 
 // ===============================
@@ -2955,6 +2990,21 @@ async function handleLayerToggle(layerName, visible){
 // dikasih (caller lama yang belum butuh progress bar), ya gak ada
 // yang manggil, perilaku persis kayak sebelumnya.
 //
+// makeVisible (opsional, default true): registerLayer() di bawah ini
+// SELALU bikin fitur baru langsung ke-render ke peta (efek samping dari
+// `map.addLayer(layerGroups[key])` pas grupnya baru dibuat -- lihat
+// registerLayer()), TERLEPAS dari status checkbox di tree. Ini benar
+// buat caller yang memang lagi nyalain layer (checkbox toggle, search,
+// import baru). TAPI Dashboard Kabupaten (refreshDashboardKabupaten())
+// butuh full-load 1 layer cuma buat itung statistik -- BUKAN buat
+// ditampilkan ke peta kalau checkbox-nya emang belum dicentang user.
+// Makanya kalau makeVisible=false, begitu semua fitur selesai
+// diregister (dan otomatis kepasang ke peta oleh registerLayer), kita
+// langsung toggleLayer(layerName, false) buat nyembunyiin lagi --
+// datanya TETAP ke-load & ke-cache (shpLoadedLayers, treeLayerObjects)
+// buat perhitungan statistik, cuma visualnya yang disembunyikan sampai
+// user beneran centang checkbox-nya sendiri.
+//
 // PENTING soal "website tetap operasional selama loading": fetch-nya
 // sendiri dari dulu emang udah non-blocking (gak pernah nge-disable
 // apapun di UI). Yang BARU di sini: loop gambar fitur ke peta (dulu
@@ -2963,7 +3013,7 @@ async function handleLayerToggle(layerName, visible){
 // dengan jeda requestAnimationFrame di antaranya -- browser sempat
 // "napas" (render ulang, respon klik) di antara tiap batch, sekalian
 // itu momen counter progress "draw" ke-update di layar.
-async function muatBulkLayer(sheetName, layerName, master, onProgress){
+async function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisible = true){
     const CHUNK_SIZE = 25;
 
     if(onProgress) onProgress("fetch", 0, 0);
@@ -3003,6 +3053,7 @@ async function muatBulkLayer(sheetName, layerName, master, onProgress){
 
             shpFeatureCounts[layerName] = 0;
             shpLoadedLayers.delete(layerName);
+            shpVisibleLayers.delete(layerName);
 
             window.layerTree = buildLayerTreeFull(lastData);
             renderLayerTree();
@@ -3070,6 +3121,16 @@ async function muatBulkLayer(sheetName, layerName, master, onProgress){
     shpFeatureCounts[layerName] = resp.data.length;
 
     applyLayerStyle(layerName);
+
+    // lihat catatan makeVisible di atas fungsi ini -- registerLayer()
+    // udah kadung nampilin semua fitur ke peta pas loop di atas, jadi
+    // kalau caller-nya emang cuma butuh DATA-nya (bukan tampilan),
+    // sembunyikan lagi di sini. toggleLayer() gak ngutak-atik
+    // shpLoadedLayers/treeLayerObjects, jadi datanya tetap kepake buat
+    // statistik walau gak kelihatan di peta.
+    if(!makeVisible){
+        toggleLayer(layerName, false);
+    }
 }
 
 // ===============================
@@ -3956,11 +4017,16 @@ async function refreshLayerData(){
 
     // clearRenderedData() di bawah ini bersih-bersih SEMUA layer di
     // peta (termasuk layer SHP yang udah di-bulk-load). Simpan dulu
-    // nama layer SHP mana aja yang lagi aktif, supaya abis refresh
-    // data manual ini, layer SHP yang tadinya udah di-ON gak
-    // mendadak hilang dari peta / harus di-toggle manual lagi.
-    const previouslyLoadedShp = Array.from(shpLoadedLayers);
+    // nama layer SHP mana aja yang lagi BENERAN KELIHATAN (shpVisibleLayers,
+    // BUKAN shpLoadedLayers -- kalau pakai shpLoadedLayers, layer yang
+    // cuma di-load diam-diam sama Dashboard Kabupaten, makeVisible=false,
+    // ikut ke-restore jadi kelihatan di sini, padahal harusnya tetap
+    // tersembunyi), supaya abis refresh data manual ini, layer SHP yang
+    // tadinya udah di-ON gak mendadak hilang dari peta / harus di-toggle
+    // manual lagi.
+    const previouslyLoadedShp = Array.from(shpVisibleLayers);
     shpLoadedLayers.clear();
+    shpVisibleLayers.clear();
 
     clearRenderedData();
     renderLayerData(newData);
@@ -3969,7 +4035,14 @@ async function refreshLayerData(){
 
     for(const layerName of previouslyLoadedShp){
         const master = masterLayer.find(item => item.layer === layerName);
-        if(master) await muatBulkLayer(master.sheet_name, layerName, master);
+        if(master){
+            await muatBulkLayer(master.sheet_name, layerName, master);
+            // makeVisible default true di atas -> registerLayer() beneran
+            // nampilin ulang fiturnya ke peta. Tandai di shpVisibleLayers
+            // juga (baru aja di-clear() di atas) biar checkbox tree tetap
+            // kecentang setelah refresh data manual ini.
+            shpVisibleLayers.add(layerName);
+        }
     }
     renderLayerTree();
 
@@ -5170,12 +5243,19 @@ function prosesImportShp(){
             treeLayerObjects[layerNama] = [];
         }
         shpLoadedLayers.delete(layerNama);
+        shpVisibleLayers.delete(layerNama);
 
         tutupPreviewShp();
 
         const masterBaru = masterLayer.find(item => item.layer === layerNama);
 
         muatBulkLayer(resp.sheet_name, layerNama, masterBaru).then(() => {
+
+            // makeVisible default true di muatBulkLayer() -> registerLayer()
+            // beneran nampilin fiturnya ke peta. Tandai di shpVisibleLayers
+            // juga (bukan cuma shpLoadedLayers) biar checkbox-nya di tree
+            // ikut kecentang, konsisten sama apa yang kelihatan di peta.
+            shpVisibleLayers.add(layerNama);
 
             window.layerTree = buildLayerTreeFull(lastData);
             renderLayerTree();
@@ -5498,8 +5578,17 @@ async function refreshDashboardKabupaten(){
     // baru, first load tanpa cache apa-apa).
     const tugasSHP = sudahAda
         ? Promise.resolve()
+        // makeVisible=false -- Dashboard cuma butuh DATA-nya buat itung
+        // statistik, bukan buat nampilin ke peta. Kalau layer ini
+        // memang lagi dicentang user di tree, dia bakal tetap kelihatan
+        // (lihat handleLayerToggle(): kalau sudah ke-cache di
+        // shpLoadedLayers, dia skip muatBulkLayer dan langsung
+        // toggleLayer(true)). Sebelum fix ini, Dashboard yang jalan
+        // otomatis pas init() bikin layer sumber datanya nongol sendiri
+        // di peta walau checkbox-nya belum pernah dicentang siapapun.
         : muatBulkLayer(master.sheet_name, layerName, master,
-            (phase, current, total) => updateProgressBar_(layerName, phase, current, total));
+            (phase, current, total) => updateProgressBar_(layerName, phase, current, total),
+            false);
     const tugasBantuan = muatDataBantuan();
 
     await Promise.all([tugasSHP, tugasBantuan]);

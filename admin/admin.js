@@ -2872,6 +2872,50 @@ function buildLayerTreeFull(manualData){
 }
 
 // ===============================
+// PROGRESS BAR LOADING SHP (reusable, dipanggil dari sidebar Dashboard
+// Kabupaten & bisa dipakai ulang di tempat lain yang manggil
+// muatBulkLayer). 2 fase, JUJUR secara visual:
+// - "fetch": request ke server lagi jalan. Backend GAS ngirim 1
+//   respons JSON utuh (bukan bertahap/streaming), jadi kita GAK
+//   TAU progress aslinya -- makanya animasinya "indeterminate"
+//   (bar geser terus, gak diam di angka tertentu, kayak YouTube).
+// - "draw": respons udah nyampe, sekarang gambar tiap fitur ke peta
+//   per-batch kecil (lihat CHUNK_SIZE di muatBulkLayer). Di fase ini
+//   progressnya REAL (angka pasti dari jumlah fitur beneran), bukan
+//   animasi palsu.
+// ===============================
+function htmlProgressBar_(layerName){
+    return `
+        <div class="wgis-progress-wrap" id="progress_${layerName}">
+            <div class="wgis-progress-label" id="progressLabel_${layerName}">
+                ⏳ Menghubungi server...
+            </div>
+            <div class="wgis-progress-track is-indeterminate" id="progressTrack_${layerName}">
+                <div class="wgis-progress-fill"></div>
+            </div>
+        </div>
+    `;
+}
+
+function updateProgressBar_(layerName, phase, current, total){
+    const label = document.getElementById("progressLabel_" + layerName);
+    const track = document.getElementById("progressTrack_" + layerName);
+    if(!label || !track) return;
+    const fill = track.querySelector(".wgis-progress-fill");
+
+    if(phase === "fetch"){
+        label.textContent = "⏳ Menghubungi server...";
+        track.classList.add("is-indeterminate");
+        if(fill) fill.style.width = "";
+    } else if(phase === "draw"){
+        track.classList.remove("is-indeterminate");
+        const pct = total ? Math.round((current / total) * 100) : 0;
+        if(fill) fill.style.width = pct + "%";
+        label.textContent = `${current} dari ${total} fitur dimuat...`;
+    }
+}
+
+// ===============================
 // TOGGLE LAYER DARI TREE (dengan lazy-load SHP)
 // ===============================
 // dipanggil dari checkbox di tree. Untuk layer manual, perilakunya
@@ -2894,50 +2938,79 @@ async function handleLayerToggle(layerName, visible){
 // ===============================
 // BULK LOAD DATA SHP (dipanggil sekali per layer per sesi)
 // ===============================
-function muatBulkLayer(sheetName, layerName, master){
+// onProgress (opsional): callback(phase, current, total) -- phase
+// "fetch" pas nunggu jaringan, "draw" pas gambar ke peta. Kalau gak
+// dikasih (caller lama yang belum butuh progress bar), ya gak ada
+// yang manggil, perilaku persis kayak sebelumnya.
+//
+// PENTING soal "website tetap operasional selama loading": fetch-nya
+// sendiri dari dulu emang udah non-blocking (gak pernah nge-disable
+// apapun di UI). Yang BARU di sini: loop gambar fitur ke peta (dulu
+// 1 forEach synchronous yang nge-freeze render browser sesaat kalau
+// fiturnya ratusan/berat) sekarang dipecah per-batch (CHUNK_SIZE)
+// dengan jeda requestAnimationFrame di antaranya -- browser sempat
+// "napas" (render ulang, respon klik) di antara tiap batch, sekalian
+// itu momen counter progress "draw" ke-update di layar.
+async function muatBulkLayer(sheetName, layerName, master, onProgress){
+    const CHUNK_SIZE = 25;
 
-    return fetch(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName))
-    .then(res => res.json())
-    .then(resp => {
+    if(onProgress) onProgress("fetch", 0, 0);
 
-        if(resp.status !== "ok"){
+    let resp;
+    try{
+        const res = await fetch(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName));
+        resp = await res.json();
+    }catch(err){
+        console.error(err);
+        alert("Gagal memuat data layer " + layerName + ": " + err.message);
+        return;
+    }
 
-            const sheetHilang = /tidak ditemukan/i.test(resp.message || "");
+    if(resp.status !== "ok"){
 
-            if(sheetHilang){
-                // sheet datanya udah beneran gak ada (kemungkinan dihapus
-                // manual langsung dari Spreadsheet, bukan lewat aplikasi),
-                // sementara row master_layer-nya masih nyangkut -> bersihin
-                // sendiri biar layer ini gak nongol lagi di tree
-                alert(
-                    `Sheet data untuk layer "${layerName}" sudah tidak ada di Spreadsheet ` +
-                    `(kemungkinan terhapus manual, bukan lewat aplikasi). ` +
-                    `Layer ini akan dibersihkan dari daftar.`
-                );
+        const sheetHilang = /tidak ditemukan/i.test(resp.message || "");
 
-                fetch(GAS_URL, {
-                    method: "POST",
-                    body: JSON.stringify({ action: "delete_layer", layer: layerName })
-                }).catch(err => console.error("Gagal membersihkan master_layer:", err));
+        if(sheetHilang){
+            // sheet datanya udah beneran gak ada (kemungkinan dihapus
+            // manual langsung dari Spreadsheet, bukan lewat aplikasi),
+            // sementara row master_layer-nya masih nyangkut -> bersihin
+            // sendiri biar layer ini gak nongol lagi di tree
+            alert(
+                `Sheet data untuk layer "${layerName}" sudah tidak ada di Spreadsheet ` +
+                `(kemungkinan terhapus manual, bukan lewat aplikasi). ` +
+                `Layer ini akan dibersihkan dari daftar.`
+            );
 
-                const idx = masterLayer.findIndex(item => item.layer === layerName);
-                if(idx !== -1) masterLayer.splice(idx, 1);
+            fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "delete_layer", layer: layerName })
+            }).catch(err => console.error("Gagal membersihkan master_layer:", err));
 
-                shpFeatureCounts[layerName] = 0;
-                shpLoadedLayers.delete(layerName);
+            const idx = masterLayer.findIndex(item => item.layer === layerName);
+            if(idx !== -1) masterLayer.splice(idx, 1);
 
-                window.layerTree = buildLayerTreeFull(lastData);
-                renderLayerTree();
-                initTreeCollapse();
-                requestAnimationFrame(() => requestAnimationFrame(refreshTreeHeight));
-            } else {
-                alert("Gagal memuat data layer " + layerName + ": " + resp.message);
-            }
+            shpFeatureCounts[layerName] = 0;
+            shpLoadedLayers.delete(layerName);
 
-            return;
+            window.layerTree = buildLayerTreeFull(lastData);
+            renderLayerTree();
+            initTreeCollapse();
+            requestAnimationFrame(() => requestAnimationFrame(refreshTreeHeight));
+        } else {
+            alert("Gagal memuat data layer " + layerName + ": " + resp.message);
         }
 
-        resp.data.forEach(d => {
+        return;
+    }
+
+    const total = resp.data.length;
+    if(onProgress) onProgress("draw", 0, total);
+
+    let drawn = 0;
+    for(let i = 0; i < resp.data.length; i += CHUNK_SIZE){
+        const batch = resp.data.slice(i, i + CHUNK_SIZE);
+
+        batch.forEach(d => {
             if(!d.geometry) return;
 
             const tier = geomTier_(d.geometry.type);
@@ -2973,15 +3046,18 @@ function muatBulkLayer(sheetName, layerName, master){
             registerLayer(layer, dataFix);
         });
 
-        shpLoadedLayers.add(layerName);
-        shpFeatureCounts[layerName] = resp.data.length;
+        drawn += batch.length;
+        if(onProgress) onProgress("draw", drawn, total);
 
-        applyLayerStyle(layerName);
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Gagal memuat data layer " + layerName + ": " + err.message);
-    });
+        // kasih browser kesempatan render ulang (update teks counter,
+        // tetap responsif ke klik/scroll) sebelum lanjut batch berikutnya
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    shpLoadedLayers.add(layerName);
+    shpFeatureCounts[layerName] = resp.data.length;
+
+    applyLayerStyle(layerName);
 }
 
 // ===============================
@@ -5390,7 +5466,10 @@ async function refreshDashboardKabupaten(){
         return;
     }
 
-    body.innerHTML = `<div class="popup-info" style="font-size:12px;">Memuat data ${layerName}...</div>`;
+    const sudahAda = shpLoadedLayers.has(layerName);
+    body.innerHTML = sudahAda
+        ? `<div class="popup-info" style="font-size:12px;">Memuat rekap ${layerName}...</div>`
+        : `<div class="popup-info" style="font-size:12px;">Memuat data ${layerName}...</div>${htmlProgressBar_(layerName)}`;
 
     // rekap kabupaten butuh SEMUA fitur layer ini ke-load (bukan cuma
     // yang lagi dicentang ON) -- ini SATU-satunya tempat yang sengaja
@@ -5405,9 +5484,10 @@ async function refreshDashboardKabupaten(){
     // bareng, total waktu tunggu = MAX(waktu A, waktu B) -- bisa hemat
     // signifikan terutama di koneksi yang agak lambat (laptop/jaringan
     // baru, first load tanpa cache apa-apa).
-    const tugasSHP = shpLoadedLayers.has(layerName)
+    const tugasSHP = sudahAda
         ? Promise.resolve()
-        : muatBulkLayer(master.sheet_name, layerName, master);
+        : muatBulkLayer(master.sheet_name, layerName, master,
+            (phase, current, total) => updateProgressBar_(layerName, phase, current, total));
     const tugasBantuan = muatDataBantuan();
 
     await Promise.all([tugasSHP, tugasBantuan]);

@@ -1206,3 +1206,56 @@ color:white;
     color:#b71c1c;
     transform:scale(1.08);
 }
+
+/* ==================================
+   PROGRESS BAR LOADING LAYER SHP (2 fase)
+   Fase 1 "fetch": network request lagi jalan, kita GAK TAU progress
+   aslinya (backend GAS ngirim 1 respons JSON utuh, bukan bertahap) --
+   makanya animasinya "indeterminate" (bar bergerak terus, gak diam di
+   angka tertentu), jujur secara visual, bukan pura-pura tau persen.
+   Fase 2 "draw": respons udah nyampe, sekarang gambar tiap fitur ke
+   peta satu-satu -- di fase ini kita BENERAN tau totalnya (length
+   array), jadi progressnya REAL (bukan animasi palsu).
+================================== */
+
+.wgis-progress-wrap{
+    margin-top:10px;
+}
+
+.wgis-progress-label{
+    font-size:12px;
+    color:#666;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+
+.wgis-progress-track{
+    position:relative;
+    width:100%;
+    height:8px;
+    background:#eee;
+    border-radius:99px;
+    overflow:hidden;
+}
+
+.wgis-progress-fill{
+    position:absolute;
+    top:0; left:0; bottom:0;
+    background:#1976d2;
+    border-radius:99px;
+    transition:width .2s ease;
+}
+
+/* fase 1: gak ada lebar pasti -- bar pendek yang geser bolak-balik
+   terus-terusan, kayak loading bar YouTube */
+.wgis-progress-track.is-indeterminate .wgis-progress-fill{
+    width:35% !important;
+    animation:wgisProgressSlide 1.1s ease-in-out infinite;
+}
+
+@keyframes wgisProgressSlide{
+    0%   { left:-35%; }
+    100% { left:100%; }
+}

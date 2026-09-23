@@ -2,6 +2,15 @@
    Layout
 ========================== */
 
+:root{
+    /* tinggi header & footer brand -- diref di banyak tempat lain
+       (posisi Layer Tree, sidebar kanan, tombol FAB, legend, dll)
+       lewat var(), jadi kalau mau diubah tinggal ganti di sini aja,
+       gak perlu cari satu-satu di file lain. */
+    --header-h: 72px;
+    --footer-h: 40px;
+}
+
     html, body {
       height: 100%;
       margin: 0;
@@ -10,6 +19,183 @@
       height: 100vh;
       width: 100%;
     }
+
+/* ==================================
+   HEADER BRAND (Pemkab Mabar / Mantap Data)
+   Overlay di atas peta (position:fixed, gak dorong #map ke bawah --
+   sama kayak semua panel lain di app ini), background gradient navy
+   yang nge-blend ke foto Labuan Bajo di kanan.
+
+   GANTI GAMBAR: taruh file logo & foto di folder "assets/" (bikin
+   foldernya di GitHub repo kamu), nama filenya HARUS PERSIS:
+   - assets/logo-pemkab-mabar.png   (logo, disaranin PNG transparan)
+   - assets/labuan-bajo.jpg         (foto buat background header)
+   Kalau file belum ada, background otomatis fallback ke warna solid
+   navy (#0a1e40) polos, logo otomatis ilang (lihat onerror di HTML)
+   -- gak bakal muncul ikon gambar rusak/broken image.
+================================== */
+
+#brandHeader{
+    position:fixed;
+    top:0; left:0; right:0;
+    height:var(--header-h);
+    z-index:20000;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    padding:0 20px;
+    color:#fff;
+    font-family:"Segoe UI",sans-serif;
+    background:
+        linear-gradient(to right, rgba(8,28,64,.96) 45%, rgba(8,28,64,.5) 85%, rgba(8,28,64,.15)),
+        url('assets/labuan-bajo.jpg') center/cover no-repeat,
+        #0a1e40;
+    box-shadow:0 2px 10px rgba(0,0,0,.25);
+    overflow:hidden;
+}
+
+.brand-logo{
+    height:44px;
+    width:44px;
+    object-fit:contain;
+    flex-shrink:0;
+}
+
+.brand-kabupaten{
+    font-size:10.5px;
+    font-weight:700;
+    line-height:1.35;
+    letter-spacing:.03em;
+    opacity:.9;
+    white-space:nowrap;
+}
+
+.brand-center{
+    display:flex;
+    flex-direction:column;
+    line-height:1.2;
+    white-space:nowrap;
+}
+
+.brand-title{
+    font-size:19px;
+    font-weight:800;
+    letter-spacing:.02em;
+}
+
+.brand-subtitle{
+    font-size:10.5px;
+    opacity:.85;
+    font-weight:500;
+}
+
+.brand-tagline{
+    font-size:12px;
+    font-style:italic;
+    opacity:.85;
+    margin-left:auto;
+    padding-right:18px;
+    text-align:right;
+    line-height:1.3;
+    display:none; /* dimunculin lagi lewat media query kalau layar lega */
+}
+
+.brand-nav{
+    display:flex;
+    gap:6px;
+    flex-shrink:0;
+}
+
+.brand-nav-item{
+    background:none;
+    border:none;
+    color:#fff;
+    opacity:.75;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    font-size:10.5px;
+    font-weight:600;
+    padding:6px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:background .15s ease, opacity .15s ease;
+    white-space:nowrap;
+    font-family:inherit;
+}
+
+.brand-nav-item span{
+    font-size:16px;
+}
+
+.brand-nav-item:hover{
+    background:rgba(255,255,255,.12);
+    opacity:1;
+}
+
+.brand-nav-item.is-active{
+    opacity:1;
+    background:rgba(255,255,255,.18);
+}
+
+@media (min-width: 1150px){
+    .brand-tagline{ display:block; }
+}
+
+@media (max-width: 760px){
+    .brand-kabupaten, .brand-subtitle{ display:none; }
+    #brandHeader{ gap:10px; padding:0 10px; }
+}
+
+/* ==================================
+   FOOTER BRAND (info + sosmed Bappeda)
+   GANTI LINK: cari class "footer-social" di index.html, ganti tiap
+   href="#" jadi link asli akun sosmed Bappeda/Pemkab Mabar.
+================================== */
+
+#brandFooter{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    height:var(--footer-h);
+    z-index:20000;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    padding:0 18px;
+    background:#0a1e40;
+    color:#cfd8e8;
+    font-size:11.5px;
+    font-family:"Segoe UI",sans-serif;
+    box-shadow:0 -2px 10px rgba(0,0,0,.2);
+    white-space:nowrap;
+    overflow:hidden;
+}
+
+.footer-center{
+    flex:1;
+    text-align:center;
+    opacity:.9;
+}
+
+.footer-social{
+    color:#fff;
+    text-decoration:none;
+    font-size:14px;
+    margin-left:10px;
+    opacity:.85;
+    transition:opacity .15s ease, transform .15s ease;
+}
+
+.footer-social:hover{
+    opacity:1;
+    transform:scale(1.15);
+}
+
+@media (max-width: 760px){
+    .footer-center{ display:none; }
+}
 
 /* ==========================
    Popup
@@ -236,10 +422,10 @@ color:white;
 
 #layerTree{
 position:absolute;
-top:10px;
-left:60px;
+top:calc(var(--header-h) + 10px);
+left:16px;
 width:280px;
-max-height:80vh;
+max-height:calc(100vh - var(--header-h) - var(--footer-h) - 20px);
 overflow:auto;
 background:white;
 border-radius:10px;
@@ -448,7 +634,7 @@ transform:scale(1.08);
 
 position:absolute;
 right:25px;
-bottom:35px;
+bottom:calc(var(--footer-h) + 35px);
 z-index:3000;
 }
 

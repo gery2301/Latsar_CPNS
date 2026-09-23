@@ -1059,7 +1059,7 @@ function hapusLayerSekarang(){
 // ===============================
 // INISIALISASI MAP
 // ===============================
-const map = L.map('map').setView([-8.5, 119.9], 10);
+const map = L.map('map', { zoomControl: false }).setView([-8.5, 119.9], 10);
 
 // PENTING: matikan keyboard handler bawaan Leaflet (L.Map.Keyboard).
 // Handler ini punya penanganan Escape sendiri (map.closePopup() lalu
@@ -2457,7 +2457,7 @@ function renderLegendPanel(){
         panel = document.createElement("div");
         panel.id = "legendPanel";
         panel.style.cssText = `
-            position:fixed; left:12px; bottom:12px; z-index:9000;
+            position:fixed; left:12px; bottom:calc(var(--footer-h) + 12px); z-index:9000;
             background:#fff; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
             padding:8px 10px; font-size:12px; max-width:220px;
         `;
@@ -3297,8 +3297,10 @@ pilihBasemap_(localStorage.getItem(BASEMAP_KEY) || "osm");
 //Skala Peta
 L.control.scale().addTo(map);
 
-//Kompas
-new L.Control.Compass({ autoActive: true, showDigit: true }).addTo(map);
+//Kompas -- SENGAJA gak di-addTo(map) lagi, disembunyikan sesuai desain
+// baru (branding Pemkab Mabar). Objeknya tetap dibuat (harmless),
+// tinggal tambah .addTo(map) lagi kalau suatu saat mau dimunculkan.
+new L.Control.Compass({ autoActive: true, showDigit: true });
 
 // Control layer bawaan Leaflet SENGAJA tidak lagi di-addTo(map):
 // - pemilihan basemap sudah pindah ke panel kanan (#basemapGrid)
@@ -3330,7 +3332,13 @@ const drawControl = new L.Control.Draw({
     circlemarker: false
   }
 });
-map.addControl(drawControl);
+// SENGAJA gak di-map.addControl() lagi -- toolbar visual bawaan ini
+// disembunyikan sesuai desain baru. Fitur Digitasi (titik/garis/
+// polygon) TETAP jalan normal karena tombol FAB custom
+// (btnPoint/btnLine/btnPolygon) manggil L.Draw.Marker/Polyline/
+// Polygon LANGSUNG, gak lewat toolbar ini sama sekali -- jadi ini
+// beneran cuma dekorasi yang gak kepakai.
+// map.addControl(drawControl);
 
 // ===============================
 // SEARCH LOKASI (PHOTON + BOUND MAP)
@@ -3357,8 +3365,11 @@ const geocoder = L.Control.geocoder({
     map.removeLayer(searchMarker);
   });
 
-})
-.addTo(map);
+});
+// SENGAJA gak di-.addTo(map) lagi -- search bar bawaan ini
+// disembunyikan sesuai desain baru. Search nama desa custom (sidebar
+// Dashboard Kabupaten, initSearchDesaSidebar_) SAMA SEKALI GAK
+// bergantung ke geocoder ini, jadi tetap jalan normal.
 
 // UPDATE BBOX PHOTON SESUAI VIEW MAP
 map.on('moveend', function () {
@@ -4743,7 +4754,7 @@ async function bukaSearchLayer(layerName){
     const wrapper = document.createElement("div");
     wrapper.id = "searchLayerPanel";
     wrapper.style.cssText = `
-        position:fixed; top:70px; left:50%; transform:translateX(-50%);
+        position:fixed; top:calc(var(--header-h) + 16px); left:50%; transform:translateX(-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
         padding:14px 16px; width:320px; max-width:92vw;
@@ -5351,16 +5362,16 @@ setInterval(refreshLayerData,5000);
 (function initSidebarKabupaten(){
     const wrapper = document.createElement("div");
     wrapper.id = "sidebarKabupaten";
-    // Sidebar dipatok dua sisi (top + bottom), BUKAN top + max-height
-    // seperti sebelumnya. Alasannya: FAB button (#fabContainer) ada di
-    // pojok kanan-bawah (right:25px; bottom:35px; tinggi 64px), dan
-    // sidebar yang tingginya sampai `100vh - 100px` itu nutupin dia
-    // sampai gak bisa diklik. Dengan `bottom:120px`, sidebar berhenti
-    // 120px di atas dasar viewport -- aman di atas FAB (35 + 64 = 99px)
-    // plus sedikit jarak nafas. Tingginya otomatis ikut tinggi layar,
-    // isinya tetap discroll sendiri lewat overflow-y:auto.
+    // Sidebar dipatok 4 sisi (top, right, bottom pakai var() header/
+    // footer, bukan angka mati) -- otomatis ngikut kalau tinggi header/
+    // footer brand (:root --header-h/--footer-h di admin.css) diubah,
+    // gak perlu disesuain manual di sini tiap kali. `bottom` dihitung
+    // supaya berhenti di atas tombol FAB (#fabContainer, sekarang ikut
+    // naik `var(--footer-h) + 35px` dari dasar, tinggi tombol 64px)
+    // plus jarak nafas.
     wrapper.style.cssText = `
-        position:fixed; top:90px; right:16px; bottom:120px; width:260px;
+        position:fixed; top:calc(var(--header-h) + 10px); right:16px;
+        bottom:calc(var(--footer-h) + 120px); width:260px;
         overflow-y:auto; background:#fff; border-radius:10px;
         box-shadow:0 5px 20px rgba(0,0,0,.25); z-index:998;
         font-family:Segoe UI,sans-serif; padding:14px;

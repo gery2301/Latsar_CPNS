@@ -25,6 +25,39 @@
   
 </head>
 <body>
+  <!-- ================================================
+       HEADER BRAND -- ganti gambar dengan upload file ke folder
+       "assets/" di repo GitHub kamu, nama file HARUS PERSIS:
+         assets/logo-pemkab-mabar.png
+         assets/labuan-bajo.jpg   (dipakai sbg background, lihat admin.css)
+       Kalau logo belum ada, onerror di bawah otomatis nyembunyiin
+       <img>-nya (gak muncul ikon gambar rusak).
+  ================================================= -->
+  <header id="brandHeader">
+    <img src="assets/logo-pemkab-mabar.png" alt="Logo Pemkab Manggarai Barat"
+         class="brand-logo" onerror="this.style.display='none'">
+    <div class="brand-kabupaten">PEMERINTAH KABUPATEN<br>MANGGARAI BARAT</div>
+    <div class="brand-center">
+        <div class="brand-title">MANTAP DATA</div>
+        <div class="brand-subtitle">Manajemen Terpadu Data Pembangunan</div>
+    </div>
+    <div class="brand-tagline">"Data Akurat,<br>Pembangunan Tepat Sasaran"</div>
+    <nav class="brand-nav">
+        <button type="button" class="brand-nav-item" title="Segera hadir">
+            <span>🏠</span>Beranda
+        </button>
+        <button type="button" class="brand-nav-item is-active" title="Halaman ini">
+            <span>🗺️</span>Peta Data
+        </button>
+        <button type="button" class="brand-nav-item" title="Segera hadir">
+            <span>📄</span>Laporan
+        </button>
+        <button type="button" class="brand-nav-item" title="Segera hadir">
+            <span>👤</span>Akun
+        </button>
+    </nav>
+  </header>
+
   <div id="layerTree">
     <div class="tree-header" id="treeMainHeader">
         🗂 Layer
@@ -66,6 +99,22 @@
         +
     </div>
 </div>
+
+  <!-- ================================================
+       FOOTER BRAND -- ganti href="#" di bawah dengan link asli akun
+       sosmed Bappeda/Pemkab Mabar (urutan: Website, Instagram,
+       Facebook, YouTube -- boleh diedit/dihapus sesuai yang ada)
+  ================================================= -->
+  <footer id="brandFooter">
+    <div class="footer-left">📍 Kabupaten Manggarai Barat&nbsp;|&nbsp;NTT - Indonesia</div>
+    <div class="footer-center">🏔️ Labuan Bajo — <em>Destinasi Super Prioritas</em></div>
+    <div class="footer-right">
+        <a href="#" title="Website Bappeda" class="footer-social">🌐</a>
+        <a href="#" title="Instagram" class="footer-social">📷</a>
+        <a href="#" title="Facebook" class="footer-social">📘</a>
+        <a href="#" title="YouTube" class="footer-social">▶️</a>
+    </div>
+  </footer>
 
   <!-- Pastikan plugin siap sebelum admin.js jalan -->
 <script>

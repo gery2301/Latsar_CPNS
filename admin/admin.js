@@ -248,7 +248,14 @@ function attachEditMenu(layer, data) {
       </div>
       </div>
     `;
-  }, { minWidth: 260, maxWidth: 340, maxHeight: 420, autoPanPadding: [40, 40] });
+  }, {
+      minWidth: 260, maxWidth: 340, maxHeight: 420,
+      // jaga jarak biar peta auto-pan duluan sebelum popup nongol
+      // ketutup header (72px+margin) / footer (40px+margin) --
+      // pelengkap dari fix z-index .leaflet-popup-pane di admin.css
+      autoPanPaddingTopLeft: [40, 90],
+      autoPanPaddingBottomRight: [40, 56]
+  });
 
   // render chart (donut komposisi + bar bantuan per OPD) SETELAH popup
   // beneran kebuka -- gak bisa sinkron di dalam factory function di
@@ -562,7 +569,8 @@ function editAtributShp() {
     minWidth: 320,
     maxWidth: 340,
     maxHeight: 380,
-    autoPanPadding: [40, 40]
+    autoPanPaddingTopLeft: [40, 90],
+    autoPanPaddingBottomRight: [40, 56]
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
@@ -2456,10 +2464,20 @@ function renderLegendPanel(){
     if(!panel){
         panel = document.createElement("div");
         panel.id = "legendPanel";
+        // Posisi SENGAJA di kanan Layer Tree (bukan di bawahnya) --
+        // sebelumnya legend nempel left:12px, numpuk/ketutupan sama
+        // Layer Tree yang tingginya bisa sampai hampir penuh layar
+        // (lihat komplain user, "ketutupan atau bertumpuk di Layer
+        // Tree"). Layer Tree: left:16px + width:280px -> tepi
+        // kanannya ada di 296px, legend mulai dari 312px biar ada
+        // jarak nafas 16px, gak peduli setinggi apa Layer Tree-nya.
         panel.style.cssText = `
-            position:fixed; left:12px; bottom:calc(var(--footer-h) + 12px); z-index:9000;
-            background:#fff; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
-            padding:8px 10px; font-size:12px; max-width:220px;
+            position:fixed; left:312px; bottom:calc(var(--footer-h) + 12px); z-index:9000;
+            background:rgba(255,255,255,.88); backdrop-filter:blur(6px);
+            -webkit-backdrop-filter:blur(6px);
+            border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.18);
+            padding:10px 14px; font-size:12px; width:260px;
+            font-family:Segoe UI,sans-serif;
         `;
         document.body.appendChild(panel);
     }
@@ -2474,13 +2492,20 @@ function renderLegendPanel(){
         })
         .map(layerName => {
             const rt = layerStyleRuntime[layerName];
+            const unit = rt.config.unit ? ` ${rt.config.unit}` : "";
+            // pakai nama tampilan custom kolom kalau user udah isi
+            // (panel 🎨 Style), fallback ke nama kolom mentah
+            const namaKolom = labelKolom_(layerName, rt.config.attribute) || rt.config.attribute;
             return `
-                <div style="margin-bottom:6px;">
-                    <div style="font-weight:600; margin-bottom:2px;">${layerName}</div>
-                    <div style="height:10px; border-radius:4px; background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
-                    <div style="display:flex; justify-content:space-between; color:#555;">
-                        <span>${rt.min.toLocaleString('id-ID')}</span>
-                        <span>${rt.max.toLocaleString('id-ID')}</span>
+                <div style="margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+                        <span style="font-weight:600;">${layerName}</span>
+                        <span style="font-size:10.5px; color:#777;">${namaKolom}</span>
+                    </div>
+                    <div style="height:10px; border-radius:99px; background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
+                    <div style="display:flex; justify-content:space-between; color:#555; margin-top:3px;">
+                        <span>${rt.min.toLocaleString('id-ID')}${unit}</span>
+                        <span>${rt.max.toLocaleString('id-ID')}${unit}</span>
                     </div>
                 </div>
             `;
@@ -2491,7 +2516,7 @@ function renderLegendPanel(){
         return;
     }
     panel.style.display = "block";
-    panel.innerHTML = `<div style="font-weight:700; margin-bottom:4px;">Legenda</div>${rows}`;
+    panel.innerHTML = `<div style="font-weight:700; margin-bottom:8px;">📊 Legenda</div>${rows}`;
 }
 
 // ===============================
@@ -2582,7 +2607,7 @@ function bukaStyleLayer(layerName){
                     ${opsiAtribut}
                 </select>
 
-                <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:14px;">
+                <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:10px;">
                     <div style="flex:1; text-align:center;">
                         <label class="popup-label" style="display:block; margin-bottom:6px;">Nilai Terendah</label>
                         <input type="color" id="style_colorMin" value="${config.colorMin}" style="width:100%; height:38px; border:1px solid #bbb; border-radius:6px; cursor:pointer;">
@@ -2592,6 +2617,12 @@ function bukaStyleLayer(layerName){
                         <input type="color" id="style_colorMax" value="${config.colorMax}" style="width:100%; height:38px; border:1px solid #bbb; border-radius:6px; cursor:pointer;">
                     </div>
                 </div>
+
+                <label class="popup-label">Satuan (opsional)</label><br>
+                <input type="text" class="popup-input" id="style_unit"
+                    placeholder="contoh: jiwa, KK, %"
+                    value="${config.unit || ""}"
+                    style="margin-bottom:14px;">
             </div>
 
             ${isShpLoaded ? `
@@ -2695,6 +2726,7 @@ function simpanStyleLayer(layerName){
         config.attribute = attribute;
         config.colorMin = document.getElementById("style_colorMin").value;
         config.colorMax = document.getElementById("style_colorMax").value;
+        config.unit = document.getElementById("style_unit").value.trim();
     } else {
         config.color = document.getElementById("style_color").value;
     }
@@ -3485,7 +3517,9 @@ console.log("CREATED :", e.layerType);
 
  layer.bindPopup(form,{
     minWidth:420,
-    maxWidth:420
+    maxWidth:420,
+    autoPanPaddingTopLeft: [40, 90],
+    autoPanPaddingBottomRight: [40, 56]
 });
  
 

@@ -2545,10 +2545,10 @@ function bukaStyleLayer(layerName){
     const wrapper = document.createElement("div");
     wrapper.id = "styleLayerPanel";
     wrapper.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
-        padding:16px 20px; width:340px; max-width:92vw; max-height:88vh;
+        padding:16px 20px; width:340px; max-width:92vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
         overflow-y:auto;
     `;
 
@@ -2764,10 +2764,10 @@ function bukaAturUrutanLayer(){
     const wrapper = document.createElement("div");
     wrapper.id = "zOrderPanel";
     wrapper.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
-        padding:16px 20px; width:360px; max-width:92vw; max-height:80vh;
+        padding:16px 20px; width:360px; max-width:92vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
         overflow-y:auto;
     `;
 
@@ -4222,10 +4222,10 @@ async function bukaDashboardShp(layer){
     const wrapper = document.createElement("div");
     wrapper.id = "dashboardPanel";
     wrapper.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:12px;
         box-shadow:0 4px 28px rgba(0,0,0,0.3);
-        padding:20px 22px; width:520px; max-width:94vw; max-height:88vh;
+        padding:20px 22px; width:520px; max-width:94vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
         overflow-y:auto;
     `;
 
@@ -4395,10 +4395,10 @@ async function bukaDetailIntervensi(layer){
     const wrapper = document.createElement("div");
     wrapper.id = "detailIntervensiPanel";
     wrapper.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:14px;
         box-shadow:0 12px 40px rgba(0,0,0,0.22);
-        padding:20px 22px; width:480px; max-width:94vw; max-height:88vh;
+        padding:20px 22px; width:480px; max-width:94vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
         overflow-y:auto;
     `;
 
@@ -4567,10 +4567,10 @@ function bukaFormBantuan(mode, recordId){
     const wrapper = document.createElement("div");
     wrapper.id = "formBantuanPanel";
     wrapper.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
         z-index:10002; background:#fff; border-radius:14px;
         box-shadow:0 12px 40px rgba(0,0,0,0.25);
-        padding:20px 22px; width:420px; max-width:94vw; max-height:88vh;
+        padding:20px 22px; width:420px; max-width:94vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
         overflow-y:auto;
     `;
 
@@ -4973,10 +4973,10 @@ function renderShpFormPanel(fileName, jumlahFitur){
     const wrapper = document.createElement("div");
     wrapper.id = "shpImportPanel";
     wrapper.style.cssText = `
-        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
-        padding:16px 20px; width:380px; max-width:92vw; max-height:88vh;
+        padding:16px 20px; width:380px; max-width:92vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
         overflow-y:auto;
     `;
 
@@ -5365,13 +5365,16 @@ setInterval(refreshLayerData,5000);
     // Sidebar dipatok 4 sisi (top, right, bottom pakai var() header/
     // footer, bukan angka mati) -- otomatis ngikut kalau tinggi header/
     // footer brand (:root --header-h/--footer-h di admin.css) diubah,
-    // gak perlu disesuain manual di sini tiap kali. `bottom` dihitung
-    // supaya berhenti di atas tombol FAB (#fabContainer, sekarang ikut
-    // naik `var(--footer-h) + 35px` dari dasar, tinggi tombol 64px)
-    // plus jarak nafas.
+    // gak perlu disesuain manual di sini tiap kali.
+    // `bottom` sekarang cuma jarak nafas kecil ke footer -- SEBELUMNYA
+    // ini `footer-h + 120px` buat ngasih ruang ke tombol FAB
+    // (#fabContainer), tapi FAB udah digeser ke KIRI (lihat CSS-nya,
+    // gak lagi di bawah sidebar ini), jadi clearance segede itu udah
+    // gak perlu lagi -- sidebar bisa lebih panjang, dashboard-nya gak
+    // kepotong/harus discroll buat keliatan.
     wrapper.style.cssText = `
         position:fixed; top:calc(var(--header-h) + 10px); right:16px;
-        bottom:calc(var(--footer-h) + 120px); width:260px;
+        bottom:calc(var(--footer-h) + 16px); width:260px;
         overflow-y:auto; background:#fff; border-radius:10px;
         box-shadow:0 5px 20px rgba(0,0,0,.25); z-index:998;
         font-family:Segoe UI,sans-serif; padding:14px;
@@ -5423,12 +5426,14 @@ setInterval(refreshLayerData,5000);
     // lihat blok "BASEMAP / PETA DASAR" di atas).
     renderBasemapPicker_();
 
-    // Section basemap bisa dilipat biar sidebar gak kepanjangan pas
-    // dashboard-nya nanti nambah isi. Default: terbuka.
+    // Section basemap bisa dilipat biar sidebar gak kepanjangan.
+    // Default: TERTUTUP -- biar begitu sidebar kebuka, langsung
+    // kelihatan statistik Dashboard Kabupaten di bawahnya tanpa perlu
+    // scroll ngelewatin grid basemap dulu. User tetap bisa buka
+    // manual kapan aja lewat klik headernya.
     const bmHead = document.getElementById("basemapSectionHead");
     const bmSection = document.getElementById("basemapSection");
     if(bmHead && bmSection){
-        bmSection.classList.add("open");
         bmHead.addEventListener("click", () => bmSection.classList.toggle("open"));
     }
 })();

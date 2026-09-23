@@ -633,7 +633,13 @@ transform:scale(1.08);
 #fabContainer{
 
 position:absolute;
-right:25px;
+/* digeser ke kiri, keluar dari bawah sidebar Dashboard Kabupaten
+   (sidebar: width:260px + right:16px -> tepi kirinya ada di 276px
+   dari kanan layar) -- jarak 300px kasih sedikit napas biar gak
+   mepet nempel. Kalau lebar/posisi sidebar diubah nanti, angka ini
+   perlu disesuain ulang juga (sidebar-nya di admin.js, IIFE
+   initSidebarKabupaten). */
+right:300px;
 bottom:calc(var(--footer-h) + 35px);
 z-index:3000;
 }

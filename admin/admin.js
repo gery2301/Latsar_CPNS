@@ -2705,7 +2705,7 @@ function bukaStyleLayer(layerName){
     wrapper.id = "styleLayerPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10000; background:#fff; border-radius:10px;
+        z-index:21000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
         padding:16px 20px; width:340px; max-width:92vw; max-height:88vh;
         overflow-y:auto;
@@ -2956,7 +2956,7 @@ function bukaAturUrutanLayer(){
     wrapper.id = "zOrderPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10000; background:#fff; border-radius:10px;
+        z-index:21000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
         padding:16px 20px; width:360px; max-width:92vw; max-height:80vh;
         overflow-y:auto;
@@ -4443,7 +4443,7 @@ async function bukaDashboardShp(layer){
     wrapper.id = "dashboardPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10000; background:#fff; border-radius:12px;
+        z-index:21000; background:#fff; border-radius:12px;
         box-shadow:0 4px 28px rgba(0,0,0,0.3);
         padding:20px 22px; width:520px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
@@ -4608,7 +4608,7 @@ async function bukaDetailIntervensi(layer){
 
     const overlay = document.createElement("div");
     overlay.id = "detailIntervensiOverlay";
-    overlay.style.cssText = `position:fixed; inset:0; background:rgba(15,15,35,0.35); z-index:9999;`;
+    overlay.style.cssText = `position:fixed; inset:0; background:rgba(15,15,35,0.35); z-index:20999;`;
     overlay.onclick = tutupDetailIntervensi;
     document.body.appendChild(overlay);
 
@@ -4616,7 +4616,7 @@ async function bukaDetailIntervensi(layer){
     wrapper.id = "detailIntervensiPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10000; background:#fff; border-radius:14px;
+        z-index:21000; background:#fff; border-radius:14px;
         box-shadow:0 12px 40px rgba(0,0,0,0.22);
         padding:20px 22px; width:480px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
@@ -4780,7 +4780,7 @@ function bukaFormBantuan(mode, recordId){
 
     const overlay = document.createElement("div");
     overlay.id = "formBantuanOverlay";
-    overlay.style.cssText = `position:fixed; inset:0; background:rgba(15,15,35,0.35); z-index:10001;`;
+    overlay.style.cssText = `position:fixed; inset:0; background:rgba(15,15,35,0.35); z-index:21001;`;
     overlay.onclick = tutupFormBantuan;
     document.body.appendChild(overlay);
 
@@ -4788,7 +4788,7 @@ function bukaFormBantuan(mode, recordId){
     wrapper.id = "formBantuanPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10002; background:#fff; border-radius:14px;
+        z-index:21002; background:#fff; border-radius:14px;
         box-shadow:0 12px 40px rgba(0,0,0,0.25);
         padding:20px 22px; width:420px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
@@ -4975,7 +4975,7 @@ async function bukaSearchLayer(layerName){
     wrapper.id = "searchLayerPanel";
     wrapper.style.cssText = `
         position:fixed; top:70px; left:50%; transform:translateX(-50%);
-        z-index:10000; background:#fff; border-radius:10px;
+        z-index:21000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
         padding:14px 16px; width:320px; max-width:92vw;
     `;
@@ -5194,7 +5194,7 @@ function renderShpFormPanel(fileName, jumlahFitur){
     wrapper.id = "shpImportPanel";
     wrapper.style.cssText = `
         position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-        z-index:10000; background:#fff; border-radius:10px;
+        z-index:21000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
         padding:16px 20px; width:380px; max-width:92vw; max-height:88vh;
         overflow-y:auto;

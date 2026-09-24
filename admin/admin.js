@@ -4,6 +4,45 @@
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
 
+// ===============================
+// POPUP LEAFLET vs HEADER/FOOTER BRAND
+// ===============================
+// #brandHeader & #brandFooter itu overlay (position:fixed, z-index 20000)
+// di atas peta, sedangkan popup Leaflet hidup DI DALAM pane peta
+// (z-index jauh di bawah) -- jadi popup gak mungkin "menang" di atas
+// mereka, dan peta sendiri tingginya 100vh, artinya Leaflet ngira area
+// di bawah header/footer itu masih ruang kosong yang kelihatan. Akibatnya
+// popup yang muncul dekat tepi atas/bawah layar ketutup header/footer.
+// Solusinya bukan ngangkat z-index, tapi kasih tau Leaflet bahwa area
+// selebar header (atas) dan footer (bawah) itu "terlarang": auto-pan
+// bakal menggeser peta sampai popup sepenuhnya masuk area yang
+// kelihatan. Berlaku untuk SEMUA popup (default global); tinggi maksimum
+// popup yang scrollable ikut disesuaikan tinggi layar lewat
+// tinggiPopupMaks_().
+function ukuranBrandPx_(){
+    const cs = getComputedStyle(document.documentElement);
+    return {
+        header: parseInt(cs.getPropertyValue("--header-h"), 10) || 72,
+        footer: parseInt(cs.getPropertyValue("--footer-h"), 10) || 40
+    };
+}
+
+L.Popup.mergeOptions({
+    // di Leaflet, autoPanPaddingTopLeft/BottomRight lebih diprioritaskan
+    // daripada autoPanPadding -- jadi popup yang masih pakai
+    // autoPanPadding:[40,40] ikut kena juga
+    autoPanPaddingTopLeft: [40, ukuranBrandPx_().header + 16],
+    autoPanPaddingBottomRight: [40, ukuranBrandPx_().footer + 16]
+});
+
+// tinggi konten popup maksimum: `base` (desain awal), tapi dipangkas kalau
+// layar pendek supaya popup + ekornya tetap muat di antara header & footer
+function tinggiPopupMaks_(base){
+    const b = ukuranBrandPx_();
+    const tersedia = window.innerHeight - b.header - b.footer - 130;
+    return Math.max(180, Math.min(base, tersedia));
+}
+
 // Fetch dengan retry otomatis. Google Apps Script Web App (exec URL)
 // KADANG (jarang, tapi nyata -- dikonfirmasi user: dibuka fresh di tab
 // baru pun kadang tetap gagal, walau deployment-nya cuma 1 & bener)
@@ -274,7 +313,7 @@ function attachEditMenu(layer, data) {
       </div>
       </div>
     `;
-  }, { minWidth: 260, maxWidth: 340, maxHeight: 420, autoPanPadding: [40, 40] });
+  }, { minWidth: 260, maxWidth: 340, maxHeight: tinggiPopupMaks_(420), autoPanPadding: [40, 40] });
 
   // render chart (donut komposisi + bar bantuan per OPD) SETELAH popup
   // beneran kebuka -- gak bisa sinkron di dalam factory function di
@@ -587,7 +626,7 @@ function editAtributShp() {
   L.popup({
     minWidth: 320,
     maxWidth: 340,
-    maxHeight: 380,
+    maxHeight: tinggiPopupMaks_(380),
     autoPanPadding: [40, 40]
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())

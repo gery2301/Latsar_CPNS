@@ -3,6 +3,32 @@
 // ===============================
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
+
+// Fetch dengan retry otomatis. Google Apps Script Web App (exec URL)
+// KADANG (jarang, tapi nyata -- dikonfirmasi user: dibuka fresh di tab
+// baru pun kadang tetap gagal, walau deployment-nya cuma 1 & bener)
+// balikin error transient (404 "tidak dapat membuka file", dsb). Ini
+// masalah infrastruktur Google sendiri, BUKAN salah kode/config kita,
+// dan biasanya PULIH SENDIRI dalam hitungan detik. Daripada langsung
+// nyerah/nge-throw ke user pas kena gangguan sesaat kayak gini, coba
+// ulang dulu beberapa kali dengan jeda singkat sebelum benar-benar
+// dianggap gagal.
+async function fetchDenganRetry_(url, options, maxRetry = 2, delayMs = 1200){
+    let lastErr;
+    for(let percobaan = 0; percobaan <= maxRetry; percobaan++){
+        try{
+            const res = await fetch(url, options);
+            if(res.ok) return res;
+            lastErr = new Error("HTTP " + res.status);
+        } catch(err){
+            lastErr = err;
+        }
+        if(percobaan < maxRetry){
+            await new Promise(r => setTimeout(r, delayMs));
+        }
+    }
+    throw lastErr;
+}
  
 // ===============================
 // MASTER LAYER
@@ -248,14 +274,7 @@ function attachEditMenu(layer, data) {
       </div>
       </div>
     `;
-  }, {
-      minWidth: 260, maxWidth: 340, maxHeight: 420,
-      // jaga jarak biar peta auto-pan duluan sebelum popup nongol
-      // ketutup header (72px+margin) / footer (40px+margin) --
-      // pelengkap dari fix z-index .leaflet-popup-pane di admin.css
-      autoPanPaddingTopLeft: [40, 90],
-      autoPanPaddingBottomRight: [40, 56]
-  });
+  }, { minWidth: 260, maxWidth: 340, maxHeight: 420, autoPanPadding: [40, 40] });
 
   // render chart (donut komposisi + bar bantuan per OPD) SETELAH popup
   // beneran kebuka -- gak bisa sinkron di dalam factory function di
@@ -569,8 +588,7 @@ function editAtributShp() {
     minWidth: 320,
     maxWidth: 340,
     maxHeight: 380,
-    autoPanPaddingTopLeft: [40, 90],
-    autoPanPaddingBottomRight: [40, 56]
+    autoPanPadding: [40, 40]
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
     .setContent(`
@@ -1067,7 +1085,7 @@ function hapusLayerSekarang(){
 // ===============================
 // INISIALISASI MAP
 // ===============================
-const map = L.map('map', { zoomControl: false }).setView([-8.5, 119.9], 10);
+const map = L.map('map').setView([-8.5, 119.9], 10);
 
 // PENTING: matikan keyboard handler bawaan Leaflet (L.Map.Keyboard).
 // Handler ini punya penanganan Escape sendiri (map.closePopup() lalu
@@ -2464,20 +2482,10 @@ function renderLegendPanel(){
     if(!panel){
         panel = document.createElement("div");
         panel.id = "legendPanel";
-        // Posisi SENGAJA di kanan Layer Tree (bukan di bawahnya) --
-        // sebelumnya legend nempel left:12px, numpuk/ketutupan sama
-        // Layer Tree yang tingginya bisa sampai hampir penuh layar
-        // (lihat komplain user, "ketutupan atau bertumpuk di Layer
-        // Tree"). Layer Tree: left:16px + width:280px -> tepi
-        // kanannya ada di 296px, legend mulai dari 312px biar ada
-        // jarak nafas 16px, gak peduli setinggi apa Layer Tree-nya.
         panel.style.cssText = `
-            position:fixed; left:312px; bottom:calc(var(--footer-h) + 12px); z-index:9000;
-            background:rgba(255,255,255,.88); backdrop-filter:blur(6px);
-            -webkit-backdrop-filter:blur(6px);
-            border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.18);
-            padding:10px 14px; font-size:12px; width:260px;
-            font-family:Segoe UI,sans-serif;
+            position:fixed; left:12px; bottom:12px; z-index:9000;
+            background:#fff; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
+            padding:8px 10px; font-size:12px; max-width:220px;
         `;
         document.body.appendChild(panel);
     }
@@ -2492,20 +2500,13 @@ function renderLegendPanel(){
         })
         .map(layerName => {
             const rt = layerStyleRuntime[layerName];
-            const unit = rt.config.unit ? ` ${rt.config.unit}` : "";
-            // pakai nama tampilan custom kolom kalau user udah isi
-            // (panel 🎨 Style), fallback ke nama kolom mentah
-            const namaKolom = labelKolom_(layerName, rt.config.attribute) || rt.config.attribute;
             return `
-                <div style="margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
-                        <span style="font-weight:600;">${layerName}</span>
-                        <span style="font-size:10.5px; color:#777;">${namaKolom}</span>
-                    </div>
-                    <div style="height:10px; border-radius:99px; background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
-                    <div style="display:flex; justify-content:space-between; color:#555; margin-top:3px;">
-                        <span>${rt.min.toLocaleString('id-ID')}${unit}</span>
-                        <span>${rt.max.toLocaleString('id-ID')}${unit}</span>
+                <div style="margin-bottom:6px;">
+                    <div style="font-weight:600; margin-bottom:2px;">${layerName}</div>
+                    <div style="height:10px; border-radius:4px; background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
+                    <div style="display:flex; justify-content:space-between; color:#555;">
+                        <span>${rt.min.toLocaleString('id-ID')}</span>
+                        <span>${rt.max.toLocaleString('id-ID')}</span>
                     </div>
                 </div>
             `;
@@ -2516,7 +2517,7 @@ function renderLegendPanel(){
         return;
     }
     panel.style.display = "block";
-    panel.innerHTML = `<div style="font-weight:700; margin-bottom:8px;">📊 Legenda</div>${rows}`;
+    panel.innerHTML = `<div style="font-weight:700; margin-bottom:4px;">Legenda</div>${rows}`;
 }
 
 // ===============================
@@ -2570,10 +2571,10 @@ function bukaStyleLayer(layerName){
     const wrapper = document.createElement("div");
     wrapper.id = "styleLayerPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
-        padding:16px 20px; width:340px; max-width:92vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
+        padding:16px 20px; width:340px; max-width:92vw; max-height:88vh;
         overflow-y:auto;
     `;
 
@@ -2607,7 +2608,7 @@ function bukaStyleLayer(layerName){
                     ${opsiAtribut}
                 </select>
 
-                <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:10px;">
+                <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:14px;">
                     <div style="flex:1; text-align:center;">
                         <label class="popup-label" style="display:block; margin-bottom:6px;">Nilai Terendah</label>
                         <input type="color" id="style_colorMin" value="${config.colorMin}" style="width:100%; height:38px; border:1px solid #bbb; border-radius:6px; cursor:pointer;">
@@ -2617,12 +2618,6 @@ function bukaStyleLayer(layerName){
                         <input type="color" id="style_colorMax" value="${config.colorMax}" style="width:100%; height:38px; border:1px solid #bbb; border-radius:6px; cursor:pointer;">
                     </div>
                 </div>
-
-                <label class="popup-label">Satuan (opsional)</label><br>
-                <input type="text" class="popup-input" id="style_unit"
-                    placeholder="contoh: jiwa, KK, %"
-                    value="${config.unit || ""}"
-                    style="margin-bottom:14px;">
             </div>
 
             ${isShpLoaded ? `
@@ -2726,7 +2721,6 @@ function simpanStyleLayer(layerName){
         config.attribute = attribute;
         config.colorMin = document.getElementById("style_colorMin").value;
         config.colorMax = document.getElementById("style_colorMax").value;
-        config.unit = document.getElementById("style_unit").value.trim();
     } else {
         config.color = document.getElementById("style_color").value;
     }
@@ -2796,10 +2790,10 @@ function bukaAturUrutanLayer(){
     const wrapper = document.createElement("div");
     wrapper.id = "zOrderPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
-        padding:16px 20px; width:360px; max-width:92vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
+        padding:16px 20px; width:360px; max-width:92vw; max-height:80vh;
         overflow-y:auto;
     `;
 
@@ -3000,13 +2994,31 @@ async function handleLayerToggle(layerName, visible){
         // tree (lihat buatTree(), div#treeProgress_<layer>). Dikosongin
         // lagi setelah selesai (baik sukses maupun gagal) biar gak
         // nyangkut nongol terus di tree.
+        //
+        // PENTING: .tree-body (wadah baris-baris layer) dipatok
+        // max-height dalam pixel + overflow:hidden (lihat setCollapse()/
+        // refreshTreeHeight()), dihitung dari scrollHeight PAS tree
+        // dibuka/dirender -- BUKAN otomatis nyesuain kalau kontennya
+        // berubah belakangan. Begitu progress bar disuntik ke sini,
+        // tinggi baris ini nambah tapi max-height parent-nya masih
+        // yang lama -> progress bar-nya KEPOTONG/ke-cut sama
+        // overflow:hidden, kelihatannya kayak "gak nongol" padahal
+        // sebenarnya cuma ketutup. Makanya WAJIB refreshTreeHeight()
+        // manual di sini tiap kali ukuran baris ini berubah (nambah
+        // ATAU balik ngosong).
         const progressContainer = document.getElementById("treeProgress_" + layerName);
-        if(progressContainer) progressContainer.innerHTML = htmlProgressBar_(layerName);
+        if(progressContainer){
+            progressContainer.innerHTML = htmlProgressBar_(layerName);
+            refreshTreeHeight();
+        }
         try{
             await muatBulkLayer(master.sheet_name, layerName, master,
                 (phase, current, total) => updateProgressBar_(layerName, phase, current, total));
         } finally {
-            if(progressContainer) progressContainer.innerHTML = "";
+            if(progressContainer){
+                progressContainer.innerHTML = "";
+                refreshTreeHeight();
+            }
         }
     }
 
@@ -3052,7 +3064,7 @@ async function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisib
 
     let resp;
     try{
-        const res = await fetch(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName));
+        const res = await fetchDenganRetry_(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName));
         resp = await res.json();
     }catch(err){
         console.error(err);
@@ -3329,10 +3341,8 @@ pilihBasemap_(localStorage.getItem(BASEMAP_KEY) || "osm");
 //Skala Peta
 L.control.scale().addTo(map);
 
-//Kompas -- SENGAJA gak di-addTo(map) lagi, disembunyikan sesuai desain
-// baru (branding Pemkab Mabar). Objeknya tetap dibuat (harmless),
-// tinggal tambah .addTo(map) lagi kalau suatu saat mau dimunculkan.
-new L.Control.Compass({ autoActive: true, showDigit: true });
+//Kompas
+new L.Control.Compass({ autoActive: true, showDigit: true }).addTo(map);
 
 // Control layer bawaan Leaflet SENGAJA tidak lagi di-addTo(map):
 // - pemilihan basemap sudah pindah ke panel kanan (#basemapGrid)
@@ -3364,13 +3374,7 @@ const drawControl = new L.Control.Draw({
     circlemarker: false
   }
 });
-// SENGAJA gak di-map.addControl() lagi -- toolbar visual bawaan ini
-// disembunyikan sesuai desain baru. Fitur Digitasi (titik/garis/
-// polygon) TETAP jalan normal karena tombol FAB custom
-// (btnPoint/btnLine/btnPolygon) manggil L.Draw.Marker/Polyline/
-// Polygon LANGSUNG, gak lewat toolbar ini sama sekali -- jadi ini
-// beneran cuma dekorasi yang gak kepakai.
-// map.addControl(drawControl);
+map.addControl(drawControl);
 
 // ===============================
 // SEARCH LOKASI (PHOTON + BOUND MAP)
@@ -3397,11 +3401,8 @@ const geocoder = L.Control.geocoder({
     map.removeLayer(searchMarker);
   });
 
-});
-// SENGAJA gak di-.addTo(map) lagi -- search bar bawaan ini
-// disembunyikan sesuai desain baru. Search nama desa custom (sidebar
-// Dashboard Kabupaten, initSearchDesaSidebar_) SAMA SEKALI GAK
-// bergantung ke geocoder ini, jadi tetap jalan normal.
+})
+.addTo(map);
 
 // UPDATE BBOX PHOTON SESUAI VIEW MAP
 map.on('moveend', function () {
@@ -3517,9 +3518,7 @@ console.log("CREATED :", e.layerType);
 
  layer.bindPopup(form,{
     minWidth:420,
-    maxWidth:420,
-    autoPanPaddingTopLeft: [40, 90],
-    autoPanPaddingBottomRight: [40, 56]
+    maxWidth:420
 });
  
 
@@ -4043,7 +4042,7 @@ try{
 
 async function refreshLayerData(){
 
-    const res = await fetch(GAS_URL);
+    const res = await fetchDenganRetry_(GAS_URL);
     if(!res.ok){
         throw new Error("HTTP " + res.status);
     }
@@ -4256,10 +4255,10 @@ async function bukaDashboardShp(layer){
     const wrapper = document.createElement("div");
     wrapper.id = "dashboardPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:12px;
         box-shadow:0 4px 28px rgba(0,0,0,0.3);
-        padding:20px 22px; width:520px; max-width:94vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
+        padding:20px 22px; width:520px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
     `;
 
@@ -4429,10 +4428,10 @@ async function bukaDetailIntervensi(layer){
     const wrapper = document.createElement("div");
     wrapper.id = "detailIntervensiPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:14px;
         box-shadow:0 12px 40px rgba(0,0,0,0.22);
-        padding:20px 22px; width:480px; max-width:94vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
+        padding:20px 22px; width:480px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
     `;
 
@@ -4601,10 +4600,10 @@ function bukaFormBantuan(mode, recordId){
     const wrapper = document.createElement("div");
     wrapper.id = "formBantuanPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         z-index:10002; background:#fff; border-radius:14px;
         box-shadow:0 12px 40px rgba(0,0,0,0.25);
-        padding:20px 22px; width:420px; max-width:94vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
+        padding:20px 22px; width:420px; max-width:94vw; max-height:88vh;
         overflow-y:auto;
     `;
 
@@ -4788,7 +4787,7 @@ async function bukaSearchLayer(layerName){
     const wrapper = document.createElement("div");
     wrapper.id = "searchLayerPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + 16px); left:50%; transform:translateX(-50%);
+        position:fixed; top:70px; left:50%; transform:translateX(-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
         padding:14px 16px; width:320px; max-width:92vw;
@@ -5007,10 +5006,10 @@ function renderShpFormPanel(fileName, jumlahFitur){
     const wrapper = document.createElement("div");
     wrapper.id = "shpImportPanel";
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + (100vh - var(--header-h) - var(--footer-h)) / 2); left:50%; transform:translate(-50%,-50%);
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
         z-index:10000; background:#fff; border-radius:10px;
         box-shadow:0 4px 24px rgba(0,0,0,0.25);
-        padding:16px 20px; width:380px; max-width:92vw; max-height:calc(100vh - var(--header-h) - var(--footer-h) - 40px);
+        padding:16px 20px; width:380px; max-width:92vw; max-height:88vh;
         overflow-y:auto;
     `;
 
@@ -5379,7 +5378,15 @@ init().then(() => {
 });
 window.refreshLayerData = refreshLayerData;
 // refresh tiap 5 detik
-setInterval(refreshLayerData,5000);
+setInterval(() => {
+    refreshLayerData().catch(err => {
+        // udah dicoba retry di dalam fetchDenganRetry_ -- kalau
+        // SAMPAI SINI masih gagal juga, gak usah bikin ribut ke user
+        // (gak throw/alert), toh polling ini bakal jalan lagi
+        // otomatis 5 detik kemudian.
+        console.warn("Polling data gagal, akan dicoba lagi 5 detik lagi:", err);
+    });
+}, 5000);
 
 // ==================================
 // SIDEBAR KANAN: DASHBOARD KESELURUHAN KABUPATEN
@@ -5396,19 +5403,16 @@ setInterval(refreshLayerData,5000);
 (function initSidebarKabupaten(){
     const wrapper = document.createElement("div");
     wrapper.id = "sidebarKabupaten";
-    // Sidebar dipatok 4 sisi (top, right, bottom pakai var() header/
-    // footer, bukan angka mati) -- otomatis ngikut kalau tinggi header/
-    // footer brand (:root --header-h/--footer-h di admin.css) diubah,
-    // gak perlu disesuain manual di sini tiap kali.
-    // `bottom` sekarang cuma jarak nafas kecil ke footer -- SEBELUMNYA
-    // ini `footer-h + 120px` buat ngasih ruang ke tombol FAB
-    // (#fabContainer), tapi FAB udah digeser ke KIRI (lihat CSS-nya,
-    // gak lagi di bawah sidebar ini), jadi clearance segede itu udah
-    // gak perlu lagi -- sidebar bisa lebih panjang, dashboard-nya gak
-    // kepotong/harus discroll buat keliatan.
+    // Sidebar dipatok dua sisi (top + bottom), BUKAN top + max-height
+    // seperti sebelumnya. Alasannya: FAB button (#fabContainer) ada di
+    // pojok kanan-bawah (right:25px; bottom:35px; tinggi 64px), dan
+    // sidebar yang tingginya sampai `100vh - 100px` itu nutupin dia
+    // sampai gak bisa diklik. Dengan `bottom:120px`, sidebar berhenti
+    // 120px di atas dasar viewport -- aman di atas FAB (35 + 64 = 99px)
+    // plus sedikit jarak nafas. Tingginya otomatis ikut tinggi layar,
+    // isinya tetap discroll sendiri lewat overflow-y:auto.
     wrapper.style.cssText = `
-        position:fixed; top:calc(var(--header-h) + 10px); right:16px;
-        bottom:calc(var(--footer-h) + 16px); width:260px;
+        position:fixed; top:90px; right:16px; bottom:120px; width:260px;
         overflow-y:auto; background:#fff; border-radius:10px;
         box-shadow:0 5px 20px rgba(0,0,0,.25); z-index:998;
         font-family:Segoe UI,sans-serif; padding:14px;
@@ -5460,14 +5464,12 @@ setInterval(refreshLayerData,5000);
     // lihat blok "BASEMAP / PETA DASAR" di atas).
     renderBasemapPicker_();
 
-    // Section basemap bisa dilipat biar sidebar gak kepanjangan.
-    // Default: TERTUTUP -- biar begitu sidebar kebuka, langsung
-    // kelihatan statistik Dashboard Kabupaten di bawahnya tanpa perlu
-    // scroll ngelewatin grid basemap dulu. User tetap bisa buka
-    // manual kapan aja lewat klik headernya.
+    // Section basemap bisa dilipat biar sidebar gak kepanjangan pas
+    // dashboard-nya nanti nambah isi. Default: terbuka.
     const bmHead = document.getElementById("basemapSectionHead");
     const bmSection = document.getElementById("basemapSection");
     if(bmHead && bmSection){
+        bmSection.classList.add("open");
         bmHead.addEventListener("click", () => bmSection.classList.toggle("open"));
     }
 })();

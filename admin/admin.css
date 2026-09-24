@@ -9,6 +9,11 @@
        gak perlu cari satu-satu di file lain. */
     --header-h: 72px;
     --footer-h: 40px;
+
+    /* lebar Layer Tree (kiri). Dipakai juga untuk posisi legenda &
+       kolom kontrol Leaflet yang nempel di sebelah kanannya -- ganti di
+       sini aja, jangan di masing-masing tempat. */
+    --tree-w: 250px;
 }
 
     html, body {
@@ -424,7 +429,7 @@ color:white;
 position:absolute;
 top:calc(var(--header-h) + 10px);
 left:16px;
-width:280px;
+width:var(--tree-w);
 max-height:calc(100vh - var(--header-h) - var(--footer-h) - 20px);
 overflow:auto;
 background:white;
@@ -884,6 +889,51 @@ color:white;
     margin-bottom:6px;
 }
 
+/* Kartu angka ringkasan -- dipakai popup klik desa DAN Dashboard
+   Kabupaten. Sebelumnya class ini belum punya CSS sama sekali, makanya
+   angka & labelnya tampil sebagai teks polos bertumpuk. */
+.ringkasan-stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));
+    gap:8px;
+    margin:8px 0;
+}
+
+.ringkasan-card{
+    background:#f8f7ff;
+    border:1px solid #e4e0fb;
+    border-left:4px solid #4338ca;
+    border-radius:10px;
+    padding:8px 12px 9px;
+    min-width:0;
+}
+
+.ringkasan-card:nth-child(4n+2){ background:#fff7fa; border-color:#f7dbe5; border-left-color:#d81b60; }
+.ringkasan-card:nth-child(4n+3){ background:#f4fbf9; border-color:#d3efe9; border-left-color:#0f9d8a; }
+.ringkasan-card:nth-child(4n+4){ background:#fffaf1; border-color:#f5e6c8; border-left-color:#e08a00; }
+
+.ringkasan-card-value{
+    font-size:20px;
+    font-weight:800;
+    color:#1f2937;
+    line-height:1.15;
+    font-variant-numeric:tabular-nums;
+}
+
+.ringkasan-card-label{
+    margin-top:3px;
+    font-size:11.5px;
+    font-weight:600;
+    color:#6b7280;
+    line-height:1.3;
+}
+
+/* sidebar kanan sempit -> kartu ditumpuk 1 kolom, biar label panjang
+   ("Jumlah Penduduk Miskin (Desil 1-5)") gak kepotong 3 baris */
+#kabupatenDashboardBody .ringkasan-stats{
+    grid-template-columns:1fr;
+}
+
 .ringkasan-subtitle{
     display:inline-block;
     font-size:12.5px;
@@ -937,11 +987,16 @@ color:white;
     flex-shrink:0;
 }
 
+/* 3 kolom TETAP: [nama program (melar)] [jumlah penerima] [tombol aksi].
+   Dulu flex + space-between: kolom tengah (angka) posisinya ngikut lebar
+   nama program di kiri & tombol di kanan, jadi tiap baris angkanya
+   geser-geser (miring). Grid dengan lebar kolom tetap bikin semua angka
+   & label "penerima" lurus, rata kanan (digit satuan segaris). */
 .intervensi-program-row{
-    display:flex;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 76px auto;
     align-items:center;
-    justify-content:space-between;
-    gap:10px;
+    column-gap:10px;
     padding:9px 0;
 }
 
@@ -973,7 +1028,6 @@ color:white;
 }
 
 .intervensi-program-count{
-    flex-shrink:0;
     text-align:right;
 }
 
@@ -982,6 +1036,7 @@ color:white;
     font-weight:800;
     color:#1976d2;
     line-height:1.1;
+    font-variant-numeric:tabular-nums;
 }
 
 .intervensi-count-label{
@@ -1292,7 +1347,6 @@ color:white;
     display:flex;
     gap:4px;
     flex-shrink:0;
-    margin-left:8px;
 }
 
 .intervensi-icon-btn{
@@ -1471,10 +1525,10 @@ color:white;
    Dibangun oleh renderLegendPanel() di admin.js.
 
    POSISI: dasar peta, tepat di SEBELAH KANAN Layer Tree
-   (16px + 280px lebar tree + 12px jarak = 308px), di atas footer brand.
+   (16px + lebar tree --tree-w + 12px jarak), di atas footer brand.
    Sebelumnya di left:12px & bottom:12px -> numpuk di Layer Tree dan
-   sebagian kepotong footer. Kalau lebar #layerTree diubah, angka 308px
-   di sini ikut disesuaikan.
+   sebagian kepotong footer. Lebar tree diatur lewat --tree-w di :root
+   (legenda ikut otomatis).
 
    Lebar dibatasi supaya gak nabrak tombol FAB (right:300px, lebar 64px)
    di sisi kanan. Latar semi-transparan (bukan putih penuh) biar peta
@@ -1484,10 +1538,10 @@ color:white;
 
 #legendPanel{
     position:fixed;
-    left:308px;
+    left:calc(16px + var(--tree-w) + 12px);
     bottom:calc(var(--footer-h) + 12px);
     z-index:1000;
-    max-width:min(640px, calc(100vw - 308px - 300px - 64px - 28px));
+    max-width:min(640px, calc(100vw - var(--tree-w) - 420px));
     box-sizing:border-box;
     padding:10px 14px 11px;
     border-radius:12px;
@@ -1600,13 +1654,12 @@ color:white;
    Sebelumnya numpuk di atas Layer Tree (kontrol z-index 1000 > tree 999,
    dan nempel di pojok kiri-atas peta -- sebagian malah di bawah header).
    Sekarang satu kolom ini digeser: mulai TEPAT di bawah header, dan
-   berada di sebelah KANAN Layer Tree (16px kiri + 280px lebar = 296px;
-   kontrol punya margin 10px sendiri). Kalau lebar/posisi #layerTree
-   diubah, angka 296px ikut disesuaikan.
+   berada di sebelah KANAN Layer Tree (16px kiri + lebar tree --tree-w; kontrol punya
+   margin 10px sendiri). Ikut otomatis kalau --tree-w diubah.
 ================================== */
 .leaflet-top.leaflet-left{
     top:var(--header-h);
-    left:296px;
+    left:calc(16px + var(--tree-w));
 }
 
 
@@ -1618,4 +1671,131 @@ color:white;
    dimunculkan lagi: hapus aturan ini. */
 .leaflet-draw{
     display:none !important;
+}
+
+
+/* Panel Detail Intervensi dibuat lewat JS tanpa font-family, jadi jatuh ke
+   font serif bawaan browser (judul OPD, nama program & angka kelihatan
+   "Times"). Disamakan dengan panel lain. */
+#detailIntervensiPanel{
+    font-family:"Segoe UI",sans-serif;
+}
+
+/* ==================================
+   LAYER TREE -- versi ringkas & rapi
+   Masalah sebelumnya: 1 baris layer harus muat checkbox + emoji + nama +
+   badge (n) + 3 tombol aksi di lebar ~200px (setelah dipotong indentasi
+   kategori & tema), sisa untuk nama cuma ~50px -> "Kemiski/nan",
+   emoji nyasar ke baris sendiri. Sekarang: nama layer di atas, jumlah
+   fitur kecil abu-abu di bawahnya, tombol aksi ringkas di kanan; ukuran
+   font & padding semua dikecilkan; indentasi berjenjang dipersempit.
+   Semua pakai prefix #layerTree supaya menang atas aturan lama di atas.
+================================== */
+#layerTree > .tree-header{
+    padding:9px 12px;
+    font-size:14px;
+}
+
+#layerTree .tree-toolbar{
+    padding:6px 6px 8px;
+    margin-bottom:2px;
+}
+
+#layerTree .tree-toolbar-btn{
+    padding:6px 8px;
+    font-size:12px;
+    border-radius:7px;
+}
+
+#treeContent{
+    padding:6px;
+    font-size:13px;
+}
+
+#layerTree .tree-kategori,
+#layerTree .tree-tema{
+    margin-bottom:4px;
+}
+
+#layerTree .kategori-header{
+    padding:6px 10px;
+    font-size:13px;
+    border-radius:8px;
+}
+
+#layerTree .tree-tema > .tree-header{
+    padding:5px 8px;
+    font-size:12.5px;
+}
+
+#layerTree .tree-body{
+    margin-left:6px;
+    margin-top:3px;
+}
+
+#layerTree .tree-layer{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 6px;
+    margin:2px 0;
+}
+
+#layerTree .tree-layer-label{
+    gap:6px;
+    font-size:13px;
+    align-items:center;
+}
+
+#layerTree .tree-layer-label input{
+    width:16px;
+    height:16px;
+}
+
+#layerTree .tree-layer-icon{
+    font-size:14px;
+    line-height:1;
+    flex-shrink:0;
+}
+
+#layerTree .tree-layer-text{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    flex:1;
+    word-break:normal;
+}
+
+#layerTree .tree-layer-name{
+    font-weight:600;
+    line-height:1.25;
+    word-break:normal;
+    overflow-wrap:break-word; /* pecah di dalam kata cuma kalau 1 kata lebih panjang dari baris */
+}
+
+#layerTree .tree-count{
+    background:none;
+    padding:0;
+    margin:1px 0 0;
+    border-radius:0;
+    font-size:10.5px;
+    font-weight:500;
+    color:#9ca3af;
+}
+
+#layerTree .tree-layer-actions{
+    display:flex;
+    flex-shrink:0;
+    gap:0;
+}
+
+#layerTree .tree-style-btn{
+    width:24px;
+    height:24px;
+    font-size:13px;
+    opacity:.7;
+}
+
+#layerTree .tree-style-btn:hover{
+    opacity:1;
 }

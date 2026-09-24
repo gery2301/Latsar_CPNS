@@ -892,22 +892,30 @@ function renderLayerTree(){
                 // toggleLayer()).
                 const isChecked = !isShp || shpVisibleLayers.has(layer);
 
+                // teks di bawah nama layer. SHP yang belum pernah di-load
+                // jumlahnya memang belum diketahui (bukan 0) -- "Belum
+                // dimuat" lebih jujur daripada "0 fitur". Setelah load
+                // selesai, teksnya di-update perbaruiJumlahFiturTree_().
+                const sudahDimuat = !isShp || shpLoadedLayers.has(layer);
+                const teksJumlah = (jumlah > 0 || sudahDimuat)
+                    ? `${jumlah.toLocaleString("id-ID")} fitur`
+                    : "Belum dimuat";
+
                 html += `
-                    <div class="tree-layer" style="display:flex; align-items:center; justify-content:space-between;">
+                    <div class="tree-layer">
                        <label class="tree-layer-label">
-                       
                          <input
                          type="checkbox"
                          data-layer="${layer}"
                          ${isChecked ? "checked" : ""}
                          onchange="handleLayerToggle('${layer}',this.checked)">
+                         <span class="tree-layer-icon">${isShp ? "📦" : "📂"}</span>
                          <span class="tree-layer-text">
-                         ${isShp ? "📦" : "📂"} ${layer}</span>
-                        
-                        <span class="tree-count">
-                         (${jumlah})
-                        </span>
-                        </label>
+                            <span class="tree-layer-name">${layer}</span>
+                            <span class="tree-count" data-count-layer="${layer}">${teksJumlah}</span>
+                         </span>
+                       </label>
+                       <span class="tree-layer-actions">
                         ${isShp ? `
                         <button type="button"
                           class="tree-style-btn"
@@ -928,6 +936,7 @@ function renderLayerTree(){
                           title="Hapus layer ini beserta seluruh datanya">
                           🗑
                         </button>
+                       </span>
                     </div>
                     <div class="tree-layer-progress" id="treeProgress_${layer}"></div>
                 `;
@@ -943,6 +952,13 @@ function renderLayerTree(){
         `;
         div.innerHTML += html;
     }
+}
+
+// Update teks jumlah fitur di baris tree tanpa render ulang seluruh tree
+// (render ulang bakal ngebuang state collapse & progress bar yang lagi jalan).
+function perbaruiJumlahFiturTree_(layerName){
+    const el = document.querySelector(`[data-count-layer="${CSS.escape(layerName)}"]`);
+    if(el) el.textContent = `${(shpFeatureCounts[layerName] || 0).toLocaleString("id-ID")} fitur`;
 }
 
 function setCollapse(header, open){
@@ -2643,6 +2659,7 @@ const LEGENDA_DEFAULT = {
     "kemiskinan": {
         attribute: "jumlah_mis",
         judul: "Jumlah Masyarakat Desil 1-5",
+        dashboard: "Jumlah Penduduk Miskin (Desil 1-5)",
         unit: "orang"
     }
 };
@@ -2651,6 +2668,16 @@ function defaultLegenda_(layerName, attr){
     const def = LEGENDA_DEFAULT[String(layerName || "").toLowerCase()];
     if(def && String(attr || "").toLowerCase() === def.attribute) return def;
     return null;
+}
+
+// Label kartu "jumlah kolom subset" di Dashboard Kabupaten. Prioritas
+// sama dengan legenda: Nama tampilan di panel 🎨 > default di
+// LEGENDA_DEFAULT (.dashboard) > nama kolom mentah.
+function namaUkuranDashboard_(layerName, attr){
+    const custom = (getFieldLabels_(layerName) || {})[attr];
+    if(custom) return custom;
+    const def = defaultLegenda_(layerName, attr);
+    return (def && def.dashboard) ? def.dashboard : attr;
 }
 
 function namaUkuranLegenda_(layerName, attr){
@@ -3419,6 +3446,7 @@ async function muatBulkLayerInternal_(sheetName, layerName, master, onProgress, 
 
     shpLoadedLayers.add(layerName);
     shpFeatureCounts[layerName] = resp.data.length;
+    perbaruiJumlahFiturTree_(layerName);
 
     applyLayerStyle(layerName);
 
@@ -5947,7 +5975,7 @@ async function refreshDashboardKabupaten(){
             </div>
             <div class="ringkasan-card">
                 <div class="ringkasan-card-value">${totalMiskin.toLocaleString('id-ID')}</div>
-                <div class="ringkasan-card-label">${labelKolom_(layerName, donutCfg.subset)} (Se-Mabar)</div>
+                <div class="ringkasan-card-label">${escHtml_(namaUkuranDashboard_(layerName, donutCfg.subset))}</div>
             </div>
         </div>
     ` : `<div class="popup-info" style="font-size:12px;">Atur dulu "Grafik Komposisi (Donut)" di panel 🎨 Style layer ini biar rekap kemiskinan bisa dihitung.</div>`;

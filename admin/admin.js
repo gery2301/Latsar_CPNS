@@ -2186,8 +2186,8 @@ function terapkanConfigKeMasterLayer_(layerName, patch){
 // versi async (return Promise<boolean> berhasil/gagal) -- dipakai
 // migrasiSettingLayerLama() yang perlu nunggu tiap layer kelar 1-1
 // biar bisa laporan hasil akhirnya
-async function syncLayerConfigKeServerAsync_(layerName){
-    const patch = ambilConfigLayerSaatIni_(layerName);
+async function syncLayerConfigKeServerAsync_(layerName, patchOverride){
+    const patch = patchOverride || ambilConfigLayerSaatIni_(layerName);
     terapkanConfigKeMasterLayer_(layerName, patch);
 
     try{
@@ -2212,8 +2212,8 @@ async function syncLayerConfigKeServerAsync_(layerName){
 
 // versi fire-and-forget -- dipakai simpanStyleLayer() biar gak nge-block
 // UI pas user klik Simpan, tapi tetap kasih tau kalau ternyata gagal
-function syncLayerConfigKeServer_(layerName){
-    syncLayerConfigKeServerAsync_(layerName).then(ok => {
+function syncLayerConfigKeServer_(layerName, patchOverride){
+    syncLayerConfigKeServerAsync_(layerName, patchOverride).then(ok => {
         if(!ok){
             alert("Setting tersimpan di browser ini, tapi GAGAL sync ke server. Coba klik Simpan lagi, atau cek koneksi internet.");
         }
@@ -2429,7 +2429,7 @@ function applyLayerStyle(layerName){
     const features = treeLayerObjects[layerName] || [];
     if(!features.length) return;
 
-    let min, max;
+    let min, max, kosong = 0;
     if(config.mode === "gradient" && config.attribute){
         const nilai = features
             .map(l => parseFloat(l._data && l._data.atribut ? l._data.atribut[config.attribute] : NaN))
@@ -2438,8 +2438,11 @@ function applyLayerStyle(layerName){
             min = Math.min(...nilai);
             max = Math.max(...nilai);
         }
+        // fitur yang nilainya kosong/non-angka diwarnai abu netral --
+        // dihitung di sini biar legenda bisa nyebutin "Tidak ada data"
+        kosong = features.length - nilai.length;
     }
-    layerStyleRuntime[layerName] = { min, max, config };
+    layerStyleRuntime[layerName] = { min, max, config, kosong };
 
     const opacity = (config.opacity ?? 70) / 100;
 
@@ -2474,19 +2477,29 @@ function applyLayerStyle(layerName){
     renderLegendPanel();
 }
 
-// panel legenda kecil, fixed di pojok kiri bawah peta. Nampilin
-// gradient bar buat semua layer yang lagi AKTIF (di-load & di-tree
-// dicentang) dan mode style-nya "gradient"
+// Legenda gradient (choropleth). Posisi & tampilan diatur di admin.css
+// (#legendPanel / .wgis-legend-*), bukan inline lagi.
+//
+// Posisi: di dasar peta, TEPAT DI SEBELAH KANAN Layer Tree (bukan di
+// bawah/menimpa tree), di atas footer brand -- jadi gak ketutup tree
+// yang tinggi maupun footer.
+//
+// Isi per layer: nama layer, nama ukuran (nama tampilan kolom dari panel
+// 🎨 Style, fallback nama kolom mentah) + SATUAN (config.unit, diisi di
+// panel 🎨 Style), bar gradient, nilai terendah/tengah/tertinggi
+// lengkap dengan satuan, dan keterangan "Tidak ada data" kalau ada
+// fitur yang nilainya kosong.
+function formatNilaiLegend_(v, unit, maxDigit){
+    const n = Number(v).toLocaleString("id-ID", { maximumFractionDigits: maxDigit });
+    if(!unit) return n;
+    return unit === "%" ? n + "%" : n + " " + unit;
+}
+
 function renderLegendPanel(){
     let panel = document.getElementById("legendPanel");
     if(!panel){
         panel = document.createElement("div");
         panel.id = "legendPanel";
-        panel.style.cssText = `
-            position:fixed; left:12px; bottom:12px; z-index:9000;
-            background:#fff; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.2);
-            padding:8px 10px; font-size:12px; max-width:220px;
-        `;
         document.body.appendChild(panel);
     }
 
@@ -2500,14 +2513,31 @@ function renderLegendPanel(){
         })
         .map(layerName => {
             const rt = layerStyleRuntime[layerName];
+            const unit = (rt.config.unit || "").trim();
+            const ukuran = labelKolom_(layerName, rt.config.attribute);
+            const sama = rt.min === rt.max;
+            const tengah = (rt.min + rt.max) / 2;
+            const digitTengah = (rt.max - rt.min) >= 10 ? 0 : 2;
+
+            const skala = sama
+                ? `<span class="wgis-legend-single">${escHtml_(formatNilaiLegend_(rt.min, unit, 2))} (semua sama)</span>`
+                : `<span>${escHtml_(formatNilaiLegend_(rt.min, unit, 2))}</span>
+                   <span class="wgis-legend-mid">${escHtml_(formatNilaiLegend_(tengah, unit, digitTengah))}</span>
+                   <span>${escHtml_(formatNilaiLegend_(rt.max, unit, 2))}</span>`;
+
             return `
-                <div style="margin-bottom:6px;">
-                    <div style="font-weight:600; margin-bottom:2px;">${layerName}</div>
-                    <div style="height:10px; border-radius:4px; background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
-                    <div style="display:flex; justify-content:space-between; color:#555;">
-                        <span>${rt.min.toLocaleString('id-ID')}</span>
-                        <span>${rt.max.toLocaleString('id-ID')}</span>
+                <div class="wgis-legend-item">
+                    <div class="wgis-legend-layer">${escHtml_(layerName)}</div>
+                    <div class="wgis-legend-metric">
+                        ${escHtml_(ukuran)}${unit ? ` <span class="wgis-legend-unit">(${escHtml_(unit)})</span>` : ""}
                     </div>
+                    <div class="wgis-legend-bar" style="background:linear-gradient(to right, ${rt.config.colorMin}, ${rt.config.colorMax});"></div>
+                    <div class="wgis-legend-scale">${skala}</div>
+                    ${rt.kosong > 0 ? `
+                        <div class="wgis-legend-nodata">
+                            <span class="wgis-legend-nodata-swatch"></span>
+                            Tidak ada data (${rt.kosong})
+                        </div>` : ""}
                 </div>
             `;
         }).join("");
@@ -2516,8 +2546,8 @@ function renderLegendPanel(){
         panel.style.display = "none";
         return;
     }
-    panel.style.display = "block";
-    panel.innerHTML = `<div style="font-weight:700; margin-bottom:4px;">Legenda</div>${rows}`;
+    panel.style.display = "";
+    panel.innerHTML = `<div class="wgis-legend-title">Legenda</div><div class="wgis-legend-items">${rows}</div>`;
 }
 
 // ===============================
@@ -2607,6 +2637,14 @@ function bukaStyleLayer(layerName){
                     <option value="">-- pilih kolom --</option>
                     ${opsiAtribut}
                 </select>
+
+                <label class="popup-label" style="margin-top:8px; display:inline-block;">Satuan Nilai (tampil di legenda)</label><br>
+                <input type="text" class="popup-input" id="style_unit"
+                    placeholder="mis. jiwa, orang, KK, %"
+                    value="${(config.unit || "").replace(/"/g,"&quot;")}">
+                <div class="popup-info" style="font-size:11px; color:#888; margin-top:-2px;">
+                    Nama ukuran di legenda diambil dari "Nama tampilan" kolom di daftar Field (bawah).
+                </div>
 
                 <div style="display:flex; gap:12px; margin-top:6px; margin-bottom:14px;">
                     <div style="flex:1; text-align:center;">
@@ -2721,20 +2759,32 @@ function simpanStyleLayer(layerName){
         config.attribute = attribute;
         config.colorMin = document.getElementById("style_colorMin").value;
         config.colorMax = document.getElementById("style_colorMax").value;
+        config.unit = document.getElementById("style_unit").value.trim();
     } else {
         config.color = document.getElementById("style_color").value;
     }
 
+    // Titik awal patch = config yang berlaku sekarang; field yang ada di
+    // form ditimpa nilai barunya di bawah. Patch ini SATU-SATUNYA yang
+    // dikirim ke server & dicatat ke cache masterLayer -- SENGAJA gak
+    // dibangun ulang lewat getter (getLayerXxx_), karena getter baca
+    // server dulu: kalau server sudah punya nilai lama, getter bakal
+    // ngembaliin nilai LAMA itu dan perubahan user gak pernah kepakai.
+    const patch = ambilConfigLayerSaatIni_(layerName);
+
     saveLayerStyleConfig_(layerName, config);
+    patch.style_config = config;
 
     const labelFieldEl = document.getElementById("style_labelField");
     if(labelFieldEl){
         saveLayerLabelField_(layerName, labelFieldEl.value);
+        patch.label_field = labelFieldEl.value;
     }
 
     const subtitleFieldEl = document.getElementById("style_subtitleField");
     if(subtitleFieldEl){
         saveLayerSubtitleField_(layerName, subtitleFieldEl.value);
+        patch.subtitle_field = subtitleFieldEl.value;
     }
 
     const donutTotalEl = document.getElementById("style_donutTotal");
@@ -2744,6 +2794,9 @@ function simpanStyleLayer(layerName){
             total: donutTotalEl.value,
             subset: donutSubsetEl.value
         });
+        patch.donut_config = (donutTotalEl.value && donutSubsetEl.value)
+            ? { total: donutTotalEl.value, subset: donutSubsetEl.value }
+            : {};
     }
 
     const summaryChecks = document.querySelectorAll(".style_summaryField");
@@ -2752,6 +2805,7 @@ function simpanStyleLayer(layerName){
             .filter(cb => cb.checked)
             .map(cb => cb.value);
         saveSummaryFields_(layerName, dipilih);
+        patch.summary_fields = dipilih;
     }
 
     const labelInputs = document.querySelectorAll(".style_fieldLabel");
@@ -2761,7 +2815,15 @@ function simpanStyleLayer(layerName){
             if(inp.value.trim()) labelMap[inp.dataset.key] = inp.value.trim();
         });
         saveFieldLabels_(layerName, labelMap);
+        patch.field_labels = labelMap;
     }
+
+    // simpan otomatis ke server (master_layer) -- update cache masterLayer
+    // dulu (sinkron, jadi getter langsung baca nilai baru), POST-nya
+    // jalan di belakang. Tombol "Migrasi Pengaturan Layer Lama" cuma
+    // tinggal buat mindahin sisa setting lama dari localStorage.
+    terapkanConfigKeMasterLayer_(layerName, patch);
+    syncLayerConfigKeServer_(layerName, patch);
 
     applyLayerStyle(layerName);
     tutupStyleLayer();
@@ -5465,11 +5527,11 @@ setInterval(() => {
     renderBasemapPicker_();
 
     // Section basemap bisa dilipat biar sidebar gak kepanjangan pas
-    // dashboard-nya nanti nambah isi. Default: terbuka.
+    // dashboard-nya nanti nambah isi. Default: TERTUTUP, jadi yang
+    // pertama kelihatan langsung statistik bantuan se-kabupaten.
     const bmHead = document.getElementById("basemapSectionHead");
     const bmSection = document.getElementById("basemapSection");
     if(bmHead && bmSection){
-        bmSection.classList.add("open");
         bmHead.addEventListener("click", () => bmSection.classList.toggle("open"));
     }
 })();

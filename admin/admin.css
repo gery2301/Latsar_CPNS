@@ -1465,3 +1465,131 @@ color:white;
     0%   { left:-35%; }
     100% { left:100%; }
 }
+
+/* ==================================
+   LEGENDA PETA (gradient / choropleth)
+   Dibangun oleh renderLegendPanel() di admin.js.
+
+   POSISI: dasar peta, tepat di SEBELAH KANAN Layer Tree
+   (16px + 280px lebar tree + 12px jarak = 308px), di atas footer brand.
+   Sebelumnya di left:12px & bottom:12px -> numpuk di Layer Tree dan
+   sebagian kepotong footer. Kalau lebar #layerTree diubah, angka 308px
+   di sini ikut disesuaikan.
+
+   Lebar dibatasi supaya gak nabrak tombol FAB (right:300px, lebar 64px)
+   di sisi kanan. Latar semi-transparan (bukan putih penuh) biar peta
+   di belakangnya tetap kelihatan; pointer-events:none biar klik/drag
+   di area legenda tetap tembus ke peta.
+================================== */
+
+#legendPanel{
+    position:fixed;
+    left:308px;
+    bottom:calc(var(--footer-h) + 12px);
+    z-index:1000;
+    max-width:min(640px, calc(100vw - 308px - 300px - 64px - 28px));
+    box-sizing:border-box;
+    padding:10px 14px 11px;
+    border-radius:12px;
+    background:rgba(255,255,255,.80);
+    -webkit-backdrop-filter:blur(6px);
+    backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.7);
+    box-shadow:0 4px 16px rgba(0,0,0,.18);
+    font-family:"Segoe UI",sans-serif;
+    font-size:12px;
+    color:#1f2937;
+    pointer-events:none;
+}
+
+.wgis-legend-title{
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:#6b7280;
+    margin-bottom:6px;
+}
+
+.wgis-legend-items{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px 22px;
+}
+
+.wgis-legend-item{
+    flex:1 1 240px;
+    min-width:240px;
+}
+
+.wgis-legend-layer{
+    font-weight:700;
+    font-size:13px;
+    line-height:1.25;
+}
+
+.wgis-legend-metric{
+    color:#374151;
+    margin:1px 0 6px;
+    line-height:1.3;
+}
+
+.wgis-legend-unit{
+    color:#6b7280;
+}
+
+.wgis-legend-bar{
+    height:12px;
+    border-radius:6px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);
+}
+
+.wgis-legend-scale{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    margin-top:3px;
+    font-size:11.5px;
+    font-weight:600;
+    color:#374151;
+    font-variant-numeric:tabular-nums;
+}
+
+.wgis-legend-mid{
+    font-weight:400;
+    color:#6b7280;
+}
+
+.wgis-legend-single{
+    width:100%;
+    text-align:center;
+}
+
+.wgis-legend-nodata{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-top:5px;
+    font-size:11px;
+    color:#6b7280;
+}
+
+.wgis-legend-nodata-swatch{
+    width:14px;
+    height:10px;
+    border-radius:3px;
+    background:#cccccc;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);
+}
+
+/* layar sempit: Layer Tree + sidebar kanan sudah makan hampir semua
+   lebar, jadi legenda pindah ke kiri-bawah selebar layar. */
+@media (max-width: 1000px){
+    #legendPanel{
+        left:12px;
+        max-width:calc(100vw - 24px);
+    }
+    .wgis-legend-item{
+        min-width:200px;
+    }
+}

@@ -1608,3 +1608,14 @@ color:white;
     top:var(--header-h);
     left:296px;
 }
+
+
+/* Toolbar digitasi bawaan Leaflet.draw (garis, poligon, marker, edit,
+   hapus) disembunyikan -- pembuatan & edit fitur sudah lewat tombol FAB
+   dan menu popup, jadi toolbar ini cuma memenuhi layar. Sengaja
+   display:none (bukan dihapus dari admin.js) supaya objek drawControl &
+   event Leaflet.draw tetap utuh; tombol zoom +/- tidak disentuh. Mau
+   dimunculkan lagi: hapus aturan ini. */
+.leaflet-draw{
+    display:none !important;
+}

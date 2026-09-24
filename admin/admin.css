@@ -1593,3 +1593,18 @@ color:white;
         min-width:200px;
     }
 }
+
+
+/* ==================================
+   KONTROL LEAFLET KIRI-ATAS (zoom, kompas, digitasi, cari lokasi)
+   Sebelumnya numpuk di atas Layer Tree (kontrol z-index 1000 > tree 999,
+   dan nempel di pojok kiri-atas peta -- sebagian malah di bawah header).
+   Sekarang satu kolom ini digeser: mulai TEPAT di bawah header, dan
+   berada di sebelah KANAN Layer Tree (16px kiri + 280px lebar = 296px;
+   kontrol punya margin 10px sendiri). Kalau lebar/posisi #layerTree
+   diubah, angka 296px ikut disesuaikan.
+================================== */
+.leaflet-top.leaflet-left{
+    top:var(--header-h);
+    left:296px;
+}

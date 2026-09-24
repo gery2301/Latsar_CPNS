@@ -8,39 +8,68 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nz
 // POPUP LEAFLET vs HEADER/FOOTER BRAND
 // ===============================
 // #brandHeader & #brandFooter itu overlay (position:fixed, z-index 20000)
-// di atas peta, sedangkan popup Leaflet hidup DI DALAM pane peta
-// (z-index jauh di bawah) -- jadi popup gak mungkin "menang" di atas
-// mereka, dan peta sendiri tingginya 100vh, artinya Leaflet ngira area
-// di bawah header/footer itu masih ruang kosong yang kelihatan. Akibatnya
-// popup yang muncul dekat tepi atas/bawah layar ketutup header/footer.
-// Solusinya bukan ngangkat z-index, tapi kasih tau Leaflet bahwa area
-// selebar header (atas) dan footer (bawah) itu "terlarang": auto-pan
-// bakal menggeser peta sampai popup sepenuhnya masuk area yang
-// kelihatan. Berlaku untuk SEMUA popup (default global); tinggi maksimum
-// popup yang scrollable ikut disesuaikan tinggi layar lewat
-// tinggiPopupMaks_().
-function ukuranBrandPx_(){
-    const cs = getComputedStyle(document.documentElement);
-    return {
-        header: parseInt(cs.getPropertyValue("--header-h"), 10) || 72,
-        footer: parseInt(cs.getPropertyValue("--footer-h"), 10) || 40
-    };
+// di atas peta, sedangkan popup Leaflet hidup DI DALAM pane peta (z-index
+// jauh di bawah) -- popup gak mungkin "menang" di atas mereka. Jadi
+// solusinya: geser PETA sampai popup sepenuhnya ada di antara header dan
+// footer.
+//
+// Percobaan pertama (autoPanPaddingTopLeft/BottomRight bawaan Leaflet)
+// TERBUKTI GAGAL di layar user -- makanya sekarang bukan nebak lewat
+// padding lagi, tapi UKUR posisi asli popup di layar (getBoundingClientRect)
+// dibanding tepi bawah header & tepi atas footer yang asli, lalu
+// panBy() sebesar selisihnya. autoPan bawaan Leaflet dimatikan supaya
+// dua mekanisme pan gak saling tabrak.
+L.Popup.mergeOptions({ autoPan: false });
+
+const POPUP_MARGIN_PX = 12;
+
+function pastikanPopupTerlihat_(popup){
+    const el = popup && popup.getElement && popup.getElement();
+    const map = popup && popup._map;
+    if(!el || !map) return; // popup sudah ditutup
+
+    const header = document.getElementById("brandHeader");
+    const footer = document.getElementById("brandFooter");
+    const atas = (header ? header.getBoundingClientRect().bottom : 0) + POPUP_MARGIN_PX;
+    const bawah = (footer ? footer.getBoundingClientRect().top : window.innerHeight) - POPUP_MARGIN_PX;
+    const kiri = POPUP_MARGIN_PX;
+    const kanan = window.innerWidth - POPUP_MARGIN_PX;
+
+    // 1. layar pendek: popup lebih tinggi dari ruang yang ada -> kecilin
+    //    area kontennya (jadi scroll) sampai muat
+    let r = el.getBoundingClientRect();
+    const tersedia = bawah - atas;
+    const content = el.querySelector(".leaflet-popup-content");
+    if(content && r.height > tersedia){
+        const kurang = r.height - tersedia;
+        content.style.maxHeight = Math.max(140, content.offsetHeight - kurang) + "px";
+        content.style.overflowY = "auto";
+        r = el.getBoundingClientRect();
+    }
+
+    // 2. geser peta. Sisi atas diprioritaskan (judul + tombol tutup
+    //    harus kelihatan), sisi bawah cuma sejauh gak bikin atasnya
+    //    ketutup lagi.
+    let dy = 0, dx = 0;
+    if(r.top < atas) dy = r.top - atas;
+    else if(r.bottom > bawah) dy = Math.min(r.bottom - bawah, r.top - atas);
+
+    if(r.left < kiri) dx = r.left - kiri;
+    else if(r.right > kanan) dx = Math.min(r.right - kanan, r.left - kiri);
+
+    if(dx || dy) map.panBy([dx, dy]);
 }
 
-L.Popup.mergeOptions({
-    // di Leaflet, autoPanPaddingTopLeft/BottomRight lebih diprioritaskan
-    // daripada autoPanPadding -- jadi popup yang masih pakai
-    // autoPanPadding:[40,40] ikut kena juga
-    autoPanPaddingTopLeft: [40, ukuranBrandPx_().header + 16],
-    autoPanPaddingBottomRight: [40, ukuranBrandPx_().footer + 16]
-});
-
-// tinggi konten popup maksimum: `base` (desain awal), tapi dipangkas kalau
-// layar pendek supaya popup + ekornya tetap muat di antara header & footer
-function tinggiPopupMaks_(base){
-    const b = ukuranBrandPx_();
-    const tersedia = window.innerHeight - b.header - b.footer - 130;
-    return Math.max(180, Math.min(base, tersedia));
+// dipasang di bawah, tepat setelah objek `map` dibuat
+function pasangPenjagaPopup_(map){
+    map.on("popupopen", e => {
+        const popup = e.popup;
+        // 2x rAF: tunggu layout popup beres. Cek ulang setelah animasi pan
+        // & render chart async (donut/bar di popup ringkasan) selesai --
+        // kalau sudah pas, pemanggilan kedua ini gak ngapa-ngapain.
+        requestAnimationFrame(() => requestAnimationFrame(() => pastikanPopupTerlihat_(popup)));
+        setTimeout(() => pastikanPopupTerlihat_(popup), 500);
+    });
 }
 
 // Fetch dengan retry otomatis. Google Apps Script Web App (exec URL)
@@ -313,7 +342,7 @@ function attachEditMenu(layer, data) {
       </div>
       </div>
     `;
-  }, { minWidth: 260, maxWidth: 340, maxHeight: tinggiPopupMaks_(420), autoPanPadding: [40, 40] });
+  }, { minWidth: 260, maxWidth: 340, maxHeight: 420, autoPanPadding: [40, 40] });
 
   // render chart (donut komposisi + bar bantuan per OPD) SETELAH popup
   // beneran kebuka -- gak bisa sinkron di dalam factory function di
@@ -626,7 +655,7 @@ function editAtributShp() {
   L.popup({
     minWidth: 320,
     maxWidth: 340,
-    maxHeight: tinggiPopupMaks_(380),
+    maxHeight: 380,
     autoPanPadding: [40, 40]
   })
     .setLatLng(layer.getLatLng ? layer.getLatLng() : layer.getBounds().getCenter())
@@ -1202,6 +1231,7 @@ function hapusLayerSekarang(){
 // INISIALISASI MAP
 // ===============================
 const map = L.map('map').setView([-8.5, 119.9], 10);
+pasangPenjagaPopup_(map);
 
 // PENTING: matikan keyboard handler bawaan Leaflet (L.Map.Keyboard).
 // Handler ini punya penanganan Escape sendiri (map.closePopup() lalu

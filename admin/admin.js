@@ -693,6 +693,83 @@ function toggleLayer(layerName, visible){
     });
 }
 
+// ===============================
+// KONFIGURASI TAMPILAN AWAL (nama layer persis seperti di master_layer,
+// huruf besar/kecil tidak dibedakan)
+// ===============================
+// Layer yang otomatis tercentang & tampil di peta begitu website dibuka.
+const LAYER_AKTIF_AWAL = ["Kemiskinan"];
+
+// Layer yang ditaruh PALING ATAS di Layer Tree (urutan dalam array =
+// urutan tampil). Ini murni urutan TAMPILAN daftar di tree -- urutan
+// tumpukan/klik di peta (panel "⚙ Urutan Tampilan Layer", Leaflet panes)
+// TIDAK ikut berubah. Kategori & tema yang memuat layer ini ikut naik ke
+// atas supaya layernya benar-benar kelihatan paling atas.
+const LAYER_TREE_PRIORITAS = ["Kemiskinan"];
+
+function urutkanTreeUntukTampilan_(tree){
+    const prio = LAYER_TREE_PRIORITAS.map(n => n.toLowerCase());
+
+    // skor terkecil = paling atas; layer di luar daftar = Infinity
+    const skorLayer = nama => {
+        const i = prio.indexOf(String(nama).toLowerCase());
+        return i === -1 ? Infinity : i;
+    };
+    const urutkanKunci = (obj, skorFn) => Object.keys(obj)
+        .map((k, idx) => ({ k, idx, skor: skorFn(k, obj[k]) }))
+        // sort stabil: yang skornya sama tetap sesuai urutan aslinya
+        .sort((a, b) => (a.skor === b.skor ? a.idx - b.idx : a.skor - b.skor))
+        .map(x => x.k);
+
+    const skorTema = (tema, layers) => Math.min(Infinity, ...Object.keys(layers).map(skorLayer));
+    const skorKategori = (kat, temas) =>
+        Math.min(Infinity, ...Object.keys(temas).map(t => skorTema(t, temas[t])));
+
+    const hasil = {};
+    urutkanKunci(tree, skorKategori).forEach(kat => {
+        hasil[kat] = {};
+        urutkanKunci(tree[kat], skorTema).forEach(tema => {
+            hasil[kat][tema] = {};
+            urutkanKunci(tree[kat][tema], nama => skorLayer(nama)).forEach(layer => {
+                hasil[kat][tema][layer] = tree[kat][tema][layer];
+            });
+        });
+    });
+    return hasil;
+}
+
+// Nyalakan layer di LAYER_AKTIF_AWAL. Pakai jalur yang sama persis
+// dengan user nyentang checkbox (handleLayerToggle) -- jadi lazy-load,
+// progress bar di tree, legenda, dll otomatis ikut. Dipanggil dari
+// init().then(...) di bawah.
+async function aktifkanLayerAwal_(){
+    await Promise.all(LAYER_AKTIF_AWAL.map(async nama => {
+        const master = masterLayer.find(m =>
+            String(m.layer).toLowerCase() === String(nama).toLowerCase());
+        if(!master) return;
+
+        const layerName = master.layer;
+        const cb = document.querySelector(`input[data-layer="${CSS.escape(layerName)}"]`);
+        const isShp = master.source_type === "shp" && master.sheet_name;
+
+        // centang dulu (kelihatan langsung selagi loading). shpVisibleLayers
+        // juga diisi supaya render ulang tree di tengah loading gak
+        // ngebalikin centangnya.
+        if(cb) cb.checked = true;
+        if(isShp) shpVisibleLayers.add(layerName);
+
+        await handleLayerToggle(layerName, true);
+
+        // muatBulkLayer() gagal (alert sudah muncul di sana) -> batalin
+        // centang biar checkbox gak bohong
+        if(isShp && !shpLoadedLayers.has(layerName)){
+            shpVisibleLayers.delete(layerName);
+            const cb2 = document.querySelector(`input[data-layer="${CSS.escape(layerName)}"]`);
+            if(cb2) cb2.checked = false;
+        }
+    }));
+}
+
 function renderLayerTree(){
     const div = document.getElementById("treeContent");
     div.innerHTML = `
@@ -706,7 +783,7 @@ function renderLayerTree(){
             </button>
         </div>
     `;
-   const tree = window.layerTree;
+   const tree = urutkanTreeUntukTampilan_(window.layerTree);
 
     for(const kategori in tree){
           let html = `
@@ -2489,6 +2566,31 @@ function applyLayerStyle(layerName){
 // panel 🎨 Style), bar gradient, nilai terendah/tengah/tertinggi
 // lengkap dengan satuan, dan keterangan "Tidak ada data" kalau ada
 // fitur yang nilainya kosong.
+// Default judul ukuran & satuan legenda per layer, dipakai kalau di panel
+// 🎨 Style belum diisi "Nama tampilan" kolom / "Satuan Nilai". Kalau
+// panel diisi, panel yang menang. Kunci = nama layer (huruf kecil),
+// `attribute` = nama kolom gradient-nya (huruf kecil).
+const LEGENDA_DEFAULT = {
+    "kemiskinan": {
+        attribute: "jumlah_mis",
+        judul: "Jumlah Masyarakat Desil 1-5",
+        unit: "orang"
+    }
+};
+
+function defaultLegenda_(layerName, attr){
+    const def = LEGENDA_DEFAULT[String(layerName || "").toLowerCase()];
+    if(def && String(attr || "").toLowerCase() === def.attribute) return def;
+    return null;
+}
+
+function namaUkuranLegenda_(layerName, attr){
+    const custom = (getFieldLabels_(layerName) || {})[attr];
+    if(custom) return custom;
+    const def = defaultLegenda_(layerName, attr);
+    return def ? def.judul : attr;
+}
+
 function formatNilaiLegend_(v, unit, maxDigit){
     const n = Number(v).toLocaleString("id-ID", { maximumFractionDigits: maxDigit });
     if(!unit) return n;
@@ -2513,8 +2615,9 @@ function renderLegendPanel(){
         })
         .map(layerName => {
             const rt = layerStyleRuntime[layerName];
-            const unit = (rt.config.unit || "").trim();
-            const ukuran = labelKolom_(layerName, rt.config.attribute);
+            const def = defaultLegenda_(layerName, rt.config.attribute);
+            const unit = (rt.config.unit || "").trim() || (def ? def.unit : "");
+            const ukuran = namaUkuranLegenda_(layerName, rt.config.attribute);
             const sama = rt.min === rt.max;
             const tengah = (rt.min + rt.max) / 2;
             const digitTengah = (rt.max - rt.min) >= 10 ? 0 : 2;
@@ -2547,7 +2650,7 @@ function renderLegendPanel(){
         return;
     }
     panel.style.display = "";
-    panel.innerHTML = `<div class="wgis-legend-title">Legenda</div><div class="wgis-legend-items">${rows}</div>`;
+    panel.innerHTML = `<div class="wgis-legend-items">${rows}</div>`;
 }
 
 // ===============================
@@ -3119,7 +3222,29 @@ async function handleLayerToggle(layerName, visible){
 // dengan jeda requestAnimationFrame di antaranya -- browser sempat
 // "napas" (render ulang, respon klik) di antara tiap batch, sekalian
 // itu momen counter progress "draw" ke-update di layar.
-async function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisible = true){
+// Single-flight: kalau layer yang sama diminta lagi selagi masih loading
+// (misal auto-aktif saat startup + Dashboard Kabupaten sama-sama minta
+// layer Kemiskinan), pemanggil kedua cukup NUNGGU load yang sudah
+// jalan -- gak fetch & gambar dobel. `bulkVisibleRequested` nyatat
+// apakah ada pemanggil yang minta layernya TAMPIL; kalau ada, layer
+// gak disembunyikan lagi walau pemanggil pertama makeVisible=false.
+const bulkLoadInflight = {};
+const bulkVisibleRequested = new Set();
+
+function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisible = true){
+    if(makeVisible) bulkVisibleRequested.add(layerName);
+    if(bulkLoadInflight[layerName]) return bulkLoadInflight[layerName];
+
+    const p = muatBulkLayerInternal_(sheetName, layerName, master, onProgress, makeVisible)
+        .finally(() => {
+            delete bulkLoadInflight[layerName];
+            bulkVisibleRequested.delete(layerName);
+        });
+    bulkLoadInflight[layerName] = p;
+    return p;
+}
+
+async function muatBulkLayerInternal_(sheetName, layerName, master, onProgress, makeVisible = true){
     const CHUNK_SIZE = 25;
 
     if(onProgress) onProgress("fetch", 0, 0);
@@ -3234,7 +3359,7 @@ async function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisib
     // sembunyikan lagi di sini. toggleLayer() gak ngutak-atik
     // shpLoadedLayers/treeLayerObjects, jadi datanya tetap kepake buat
     // statistik walau gak kelihatan di peta.
-    if(!makeVisible){
+    if(!makeVisible && !bulkVisibleRequested.has(layerName)){
         toggleLayer(layerName, false);
     }
 }
@@ -5435,6 +5560,10 @@ async function init(){
  await loadDataAwal();
 }
 init().then(() => {
+    // layer default (Kemiskinan) dinyalakan DULU, gak di-await -- kalau
+    // Dashboard Kabupaten minta layer yang sama, muatBulkLayer() cukup
+    // nunggu load yang sudah jalan (single-flight), bukan fetch dobel.
+    aktifkanLayerAwal_().catch(err => console.warn("Gagal mengaktifkan layer awal:", err));
     populateKabupatenDashboardSelector_();
     refreshDashboardKabupaten();
 });

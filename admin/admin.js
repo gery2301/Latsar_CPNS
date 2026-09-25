@@ -536,10 +536,19 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-ddl.addEventListener("change", function(){
+// Sama seperti perbaikan di searchDesaSidebar (lihat catatan di sana):
+// gak pakai "change" lagi, tapi baca langsung opsi yang diklik dari
+// "mousedown" -- gak bergantung ke timing/perilaku "change" bawaan
+// select yang ternyata gak bisa diandalkan di semua browser.
+ddl.addEventListener("mousedown", function(e){
+    const opt = e.target.closest("option");
+    if(!opt) return;
+    e.preventDefault();
+    ddl.value = opt.value;
     updateInfoLayer();
     search.value = ddl.value;
     ddl.classList.remove("show");
+    search.focus();
 });
 
   }
@@ -3897,10 +3906,16 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-ddl.addEventListener("change", function(){
+// lihat catatan perbaikan "change" -> "mousedown" di searchDesaSidebar
+ddl.addEventListener("mousedown", function(e){
+    const opt = e.target.closest("option");
+    if(!opt) return;
+    e.preventDefault();
+    ddl.value = opt.value;
     updateInfoLayer();
     search.value = ddl.value;
     ddl.classList.remove("show");
+    search.focus();
 });
   }
   }, 100);
@@ -5835,11 +5850,27 @@ function initSearchDesaSidebar_(){
         setTimeout(() => ddl.classList.remove("show"), 150);
     });
 
-    ddl.addEventListener("change", function(){
-        const idx = parseInt(ddl.value, 10);
+    // Kenapa BUKAN event "change": versi sebelumnya pakai "change", dan
+    // user LAPOR ITU MASIH GAGAL -- screenshot user nunjukkin opsi yang
+    // diklik SUDAH kesorot biru (browser mencatatnya kepilih), tapi
+    // "change" tetap gak bikin search box ke-update. Supaya gak
+    // bergantung lagi ke asumsi soal kapan tepatnya "change" nembak,
+    // sekarang klik opsi ditangani LANGSUNG di "mousedown" (bukan
+    // nunggu "change"/"click" kelar diproses select-nya), dan nilainya
+    // diambil dari e.target (opsi yang BENERAN diklik) -- bukan dari
+    // ddl.value setelahnya. Ini juga sekalian ngilangin ketergantungan
+    // ke timing blur 150ms buat nutup dropdown: begitu opsi diklik,
+    // langsung disembunyikan di sini juga.
+    ddl.addEventListener("mousedown", function(e){
+        const opt = e.target.closest("option");
+        if(!opt) return;
+        e.preventDefault(); // biar gak ada delay/quirk seleksi bawaan select
+
+        const idx = parseInt(opt.value, 10);
         const terpilih = (ddl._cocok || [])[idx];
         if(terpilih) input.value = namaFitur_(terpilih);
         ddl.classList.remove("show");
+        input.focus();
     });
 
     input.addEventListener("keydown", function(e){

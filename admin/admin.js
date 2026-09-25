@@ -168,6 +168,15 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
 
     }
 
+    // selectedIndex dipaksa -1 dulu SEBELUM diisi. Alasan: <select> native
+    // otomatis nganggep opsi pertama "terpilih" begitu innerHTML diisi
+    // (kecuali ada option lain yang eksplisit selected). Kalau hasil
+    // filter cuma 1 baris DAN itu kebetulan udah jadi opsi pertama, klik
+    // user di opsi itu gak mengubah apa-apa dari sudut pandang browser
+    // (selectedIndex tetap 0) -> event "change" TIDAK PERNAH nembak, jadi
+    // search box gak ke-update. -1 memastikan klik pertama selalu berupa
+    // PERUBAHAN index, jadi "change" pasti nembak.
+    ddl.selectedIndex = -1;
     ddl.innerHTML = hasil.map(item => {
 
         const pilih =
@@ -5380,6 +5389,9 @@ function renderShpFormPanel(fileName, jumlahFitur){
             ? shpLayers.slice(0, 8)
             : shpLayers.filter(item => item.layer.toLowerCase().includes(keyword));
 
+        // lihat catatan selectedIndex=-1 di filterLayerDropdown (atas file)
+        // -- bug yang sama persis berlaku di sini.
+        ddl.selectedIndex = -1;
         ddl.innerHTML = hasil.length
             ? hasil.map(item => `<option value="${item.layer}">${item.layer}</option>`).join("")
             : `<option value="">Tidak ada layer SHP ditemukan</option>`;
@@ -5791,6 +5803,17 @@ function initSearchDesaSidebar_(){
             ? fitur.filter(l => namaFitur_(l).toLowerCase().includes(keyword))
             : fitur;
 
+        // Bug yang dilaporkan user: ketik "macan" -> 1 suggestion muncul
+        // ("Macang Tanggar") -> diklik -> search box TIDAK berubah. Sebab:
+        // <select> native otomatis nganggep opsi PERTAMA terpilih begitu
+        // innerHTML diisi. Kalau hasilnya cuma 1 baris, opsi itu sudah
+        // "terpilih" duluan sebelum diklik -- klik user gak mengubah
+        // selectedIndex (tetap 0), jadi event "change" TIDAK PERNAH
+        // nembak, dan handler yang ngisi search box gak pernah jalan.
+        // -1 di bawah memaksa "belum ada yang kepilih", jadi klik pertama
+        // di opsi manapun (termasuk kalau cuma ada 1) selalu terhitung
+        // PERUBAHAN index -> "change" pasti nembak.
+        ddl.selectedIndex = -1;
         ddl.innerHTML = cocok.slice(0, 50).map((l, i) =>
             `<option value="${i}">${namaFitur_(l)}</option>`
         ).join("");

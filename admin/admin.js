@@ -168,15 +168,6 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
 
     }
 
-    // selectedIndex dipaksa -1 dulu SEBELUM diisi. Alasan: <select> native
-    // otomatis nganggep opsi pertama "terpilih" begitu innerHTML diisi
-    // (kecuali ada option lain yang eksplisit selected). Kalau hasil
-    // filter cuma 1 baris DAN itu kebetulan udah jadi opsi pertama, klik
-    // user di opsi itu gak mengubah apa-apa dari sudut pandang browser
-    // (selectedIndex tetap 0) -> event "change" TIDAK PERNAH nembak, jadi
-    // search box gak ke-update. -1 memastikan klik pertama selalu berupa
-    // PERUBAHAN index, jadi "change" pasti nembak.
-    ddl.selectedIndex = -1;
     ddl.innerHTML = hasil.map(item => {
 
         const pilih =
@@ -536,19 +527,10 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-// Sama seperti perbaikan di searchDesaSidebar (lihat catatan di sana):
-// gak pakai "change" lagi, tapi baca langsung opsi yang diklik dari
-// "mousedown" -- gak bergantung ke timing/perilaku "change" bawaan
-// select yang ternyata gak bisa diandalkan di semua browser.
-ddl.addEventListener("mousedown", function(e){
-    const opt = e.target.closest("option");
-    if(!opt) return;
-    e.preventDefault();
-    ddl.value = opt.value;
+ddl.addEventListener("change", function(){
     updateInfoLayer();
     search.value = ddl.value;
     ddl.classList.remove("show");
-    search.focus();
 });
 
   }
@@ -3906,16 +3888,10 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-// lihat catatan perbaikan "change" -> "mousedown" di searchDesaSidebar
-ddl.addEventListener("mousedown", function(e){
-    const opt = e.target.closest("option");
-    if(!opt) return;
-    e.preventDefault();
-    ddl.value = opt.value;
+ddl.addEventListener("change", function(){
     updateInfoLayer();
     search.value = ddl.value;
     ddl.classList.remove("show");
-    search.focus();
 });
   }
   }, 100);
@@ -4247,6 +4223,51 @@ function clearRenderedData(){
  window.layerTree = {};
 }
 
+// ===============================
+// FIX: clear KHUSUS data manual (Sheet2), JANGAN sentuh layer SHP
+// ===============================
+// Dipakai oleh refreshLayerData() (polling tiap 5 detik). Sebelumnya
+// polling itu manggil clearRenderedData() yang menghapus SEMUA layer
+// -- termasuk layer SHP yang sudah di-bulk-load (mis. Kemiskinan/desa,
+// yang datanya berat & butuh waktu lumayan buat dimuat) -- lalu
+// memuat ulang semuanya dari server tiap kali data manual berubah.
+// Karena SHP itu sendiri MEMANG didesain "load sekali per sesi, gak
+// berubah lewat endpoint polling ini" (lihat catatan source_type di
+// backend), menghapus & memuat ulang layer SHP di sini gak pernah
+// perlu -- dan kalau layer beratnya belum selesai dimuat dalam waktu
+// < 5 detik, siklus polling berikutnya bisa nge-cancel proses yang
+// masih jalan & mulai dari nol lagi, bikin loading-nya kelihatan
+// "gak pernah selesai". Fungsi ini cuma menghapus objek Leaflet &
+// entri tree milik layer yang SUMBER DATANYA manual (bukan "shp" di
+// master_layer); layer SHP yang sudah termuat dibiarkan utuh di peta,
+// di treeLayerObjects, dan di shpLoadedLayers/shpVisibleLayers.
+function clearManualRenderedData_(){
+
+    const namaLayerShp = new Set(
+        masterLayer
+            .filter(m => m.source_type === "shp" && m.sheet_name)
+            .map(m => m.layer)
+    );
+
+    Object.keys(treeLayerObjects).forEach(layerName => {
+        if(namaLayerShp.has(layerName)) return; // layer SHP: biarkan apa adanya
+
+        (treeLayerObjects[layerName] || []).forEach(layer => {
+            drawnItems.removeLayer(layer);
+            Object.values(layerGroups).forEach(group => group.removeLayer(layer));
+        });
+        delete treeLayerObjects[layerName];
+    });
+
+    // treeLayers cuma pernah diisi lewat registerTree(), yang cuma
+    // dipanggil dari renderLayerData() (data manual) -- muatBulkLayer()
+    // untuk SHP TIDAK memanggil registerTree() sama sekali, jadi objek
+    // ini murni data manual & aman dikosongkan total.
+    Object.keys(treeLayers).forEach(key=>{
+        delete treeLayers[key];
+    });
+}
+
 function clearMapLayer(){
 
     drawnItems.clearLayers();
@@ -4367,35 +4388,22 @@ async function refreshLayerData(){
 
     lastData = structuredClone(newData);
 
-    // clearRenderedData() di bawah ini bersih-bersih SEMUA layer di
-    // peta (termasuk layer SHP yang udah di-bulk-load). Simpan dulu
-    // nama layer SHP mana aja yang lagi BENERAN KELIHATAN (shpVisibleLayers,
-    // BUKAN shpLoadedLayers -- kalau pakai shpLoadedLayers, layer yang
-    // cuma di-load diam-diam sama Dashboard Kabupaten, makeVisible=false,
-    // ikut ke-restore jadi kelihatan di sini, padahal harusnya tetap
-    // tersembunyi), supaya abis refresh data manual ini, layer SHP yang
-    // tadinya udah di-ON gak mendadak hilang dari peta / harus di-toggle
-    // manual lagi.
-    const previouslyLoadedShp = Array.from(shpVisibleLayers);
-    shpLoadedLayers.clear();
-    shpVisibleLayers.clear();
-
-    clearRenderedData();
+    // FIX (lihat catatan panjang di clearManualRenderedData_ di atas):
+    // dulu di sini clearRenderedData() menghapus SEMUA layer (termasuk
+    // layer SHP yang udah di-bulk-load, mis. Kemiskinan/desa yang
+    // berat), lalu me-reload ULANG SEMUA layer SHP yang lagi tampil
+    // dari server tiap kali data manual berubah. SHP sendiri MEMANG
+    // didesain "load sekali per sesi, gak berubah lewat endpoint
+    // polling ini" (lihat catatan source_type di backend) -- jadi
+    // menghapus & reload-nya di sini gak pernah perlu. Efek sampingnya:
+    // kalau layer berat itu belum selesai dimuat sebelum siklus 5 detik
+    // berikutnya, prosesnya ke-cancel & mulai dari nol lagi terus-menerus
+    // -> loading-nya kelihatan "gak pernah selesai". Sekarang layer SHP
+    // gak disentuh sama sekali; shpLoadedLayers/shpVisibleLayers TETAP
+    // seperti sebelumnya, cuma bagian data manual yang di-refresh.
+    clearManualRenderedData_();
     renderLayerData(newData);
     window.layerTree = buildLayerTreeFull(newData);
-    renderLayerTree();
-
-    for(const layerName of previouslyLoadedShp){
-        const master = masterLayer.find(item => item.layer === layerName);
-        if(master){
-            await muatBulkLayer(master.sheet_name, layerName, master);
-            // makeVisible default true di atas -> registerLayer() beneran
-            // nampilin ulang fiturnya ke peta. Tandai di shpVisibleLayers
-            // juga (baru aja di-clear() di atas) biar checkbox tree tetap
-            // kecentang setelah refresh data manual ini.
-            shpVisibleLayers.add(layerName);
-        }
-    }
     renderLayerTree();
 
     requestAnimationFrame(() => {
@@ -5404,9 +5412,6 @@ function renderShpFormPanel(fileName, jumlahFitur){
             ? shpLayers.slice(0, 8)
             : shpLayers.filter(item => item.layer.toLowerCase().includes(keyword));
 
-        // lihat catatan selectedIndex=-1 di filterLayerDropdown (atas file)
-        // -- bug yang sama persis berlaku di sini.
-        ddl.selectedIndex = -1;
         ddl.innerHTML = hasil.length
             ? hasil.map(item => `<option value="${item.layer}">${item.layer}</option>`).join("")
             : `<option value="">Tidak ada layer SHP ditemukan</option>`;
@@ -5818,17 +5823,6 @@ function initSearchDesaSidebar_(){
             ? fitur.filter(l => namaFitur_(l).toLowerCase().includes(keyword))
             : fitur;
 
-        // Bug yang dilaporkan user: ketik "macan" -> 1 suggestion muncul
-        // ("Macang Tanggar") -> diklik -> search box TIDAK berubah. Sebab:
-        // <select> native otomatis nganggep opsi PERTAMA terpilih begitu
-        // innerHTML diisi. Kalau hasilnya cuma 1 baris, opsi itu sudah
-        // "terpilih" duluan sebelum diklik -- klik user gak mengubah
-        // selectedIndex (tetap 0), jadi event "change" TIDAK PERNAH
-        // nembak, dan handler yang ngisi search box gak pernah jalan.
-        // -1 di bawah memaksa "belum ada yang kepilih", jadi klik pertama
-        // di opsi manapun (termasuk kalau cuma ada 1) selalu terhitung
-        // PERUBAHAN index -> "change" pasti nembak.
-        ddl.selectedIndex = -1;
         ddl.innerHTML = cocok.slice(0, 50).map((l, i) =>
             `<option value="${i}">${namaFitur_(l)}</option>`
         ).join("");
@@ -5850,27 +5844,11 @@ function initSearchDesaSidebar_(){
         setTimeout(() => ddl.classList.remove("show"), 150);
     });
 
-    // Kenapa BUKAN event "change": versi sebelumnya pakai "change", dan
-    // user LAPOR ITU MASIH GAGAL -- screenshot user nunjukkin opsi yang
-    // diklik SUDAH kesorot biru (browser mencatatnya kepilih), tapi
-    // "change" tetap gak bikin search box ke-update. Supaya gak
-    // bergantung lagi ke asumsi soal kapan tepatnya "change" nembak,
-    // sekarang klik opsi ditangani LANGSUNG di "mousedown" (bukan
-    // nunggu "change"/"click" kelar diproses select-nya), dan nilainya
-    // diambil dari e.target (opsi yang BENERAN diklik) -- bukan dari
-    // ddl.value setelahnya. Ini juga sekalian ngilangin ketergantungan
-    // ke timing blur 150ms buat nutup dropdown: begitu opsi diklik,
-    // langsung disembunyikan di sini juga.
-    ddl.addEventListener("mousedown", function(e){
-        const opt = e.target.closest("option");
-        if(!opt) return;
-        e.preventDefault(); // biar gak ada delay/quirk seleksi bawaan select
-
-        const idx = parseInt(opt.value, 10);
+    ddl.addEventListener("change", function(){
+        const idx = parseInt(ddl.value, 10);
         const terpilih = (ddl._cocok || [])[idx];
         if(terpilih) input.value = namaFitur_(terpilih);
         ddl.classList.remove("show");
-        input.focus();
     });
 
     input.addEventListener("keydown", function(e){

@@ -5712,9 +5712,18 @@ window.refreshLayerData = refreshLayerData;
 //
 // Sekarang auto-poll-nya DIMATIKAN TOTAL. Data manual (Sheet2) cuma
 // disegarkan: (1) sekali di awal saat halaman dibuka (loadDataAwal),
-// dan (2) kapanpun user pencet tombol "🔄 Sinkronkan Data" di bawah.
-// Layer SHP (Kemiskinan dkk) TETAP seperti biasa: sekali dimuat per
-// sesi, gak pernah otomatis di-reload sendiri.
+// dan (2) kapanpun user pencet tombol "🔄 Sinkronkan Data" -- tombolnya
+// ditaruh di dalam panel "📊 Dashboard Kabupaten", paling bawah
+// (setelah chart "Proporsi Bantuan per OPD"), lihat
+// htmlTombolSinkronisasi_() & pasangTombolSinkronisasi_() yang dipakai
+// dari dalam refreshDashboardKabupaten(). Sengaja ditaruh di situ
+// (bukan tombol mengambang sendiri) supaya gak bentrok sama FAB "+"
+// yang sudah ada di peta.
+//
+// Layer SHP (Kemiskinan dkk) TIDAK terpengaruh tombol ini sama sekali
+// -- itu tetap sekali dimuat per sesi seperti biasa, dan sekarang juga
+// sudah di-cache di server (lihat CacheService di appscript.gs), jadi
+// gak butuh "disinkronkan" manual.
 //
 // Kalau nanti butuh data manual ke-update otomatis TANPA pencet
 // tombol (mis. dipakai bareng-bareng banyak OPD yang mengedit di
@@ -5726,23 +5735,31 @@ window.refreshLayerData = refreshLayerData;
 //     refreshLayerData().catch(err => console.warn("Polling gagal:", err));
 // }, 120000); // 2 menit, BUKAN 5 detik
 
-function buatTombolSinkronisasi_(){
-    const btn = document.createElement("button");
-    btn.id = "btnSinkronisasiData";
-    btn.type = "button";
-    btn.textContent = "🔄 Sinkronkan Data";
-    btn.title = "Ambil perubahan terbaru data manual (bukan layer SHP -- itu sudah otomatis dimuat sekali di awal)";
-    btn.style.cssText = [
-        "position:fixed", "right:16px", "bottom:16px", "z-index:2000",
-        "padding:10px 16px", "border:none", "border-radius:8px",
-        "background:#1e3a8a", "color:#fff", "font-size:13px",
-        "font-weight:600", "box-shadow:0 2px 8px rgba(0,0,0,.25)",
-        "cursor:pointer"
-    ].join(";");
+function htmlTombolSinkronisasi_(){
+    return `
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid #e5e7eb;">
+            <button type="button" id="btnSinkronisasiData" style="
+                width:100%; padding:9px 14px; border:none; border-radius:8px;
+                background:#1e3a8a; color:#fff; font-size:12.5px; font-weight:600;
+                cursor:pointer;">
+                🔄 Sinkronkan Data
+            </button>
+            <div id="lblSinkronisasiData" style="font-size:10.5px; color:#9ca3af; margin-top:5px; text-align:center;">
+                Menyegarkan data manual (Sheet2) terbaru -- layer SHP tidak ikut dimuat ulang.
+            </div>
+        </div>
+    `;
+}
+
+function pasangTombolSinkronisasi_(){
+    const btn = document.getElementById("btnSinkronisasiData");
+    const lbl = document.getElementById("lblSinkronisasiData");
+    if(!btn) return;
+
+    const labelAsal = lbl ? lbl.textContent : "";
 
     btn.addEventListener("click", async () => {
         if(btn.disabled) return;
-        const labelAsal = btn.textContent;
         btn.disabled = true;
         btn.style.opacity = "0.6";
         btn.style.cursor = "wait";
@@ -5750,22 +5767,22 @@ function buatTombolSinkronisasi_(){
         try{
             await refreshLayerData();
             btn.textContent = "✓ Tersinkron";
+            if(lbl) lbl.textContent = "Berhasil disinkronkan barusan.";
         } catch(err){
             console.warn("Sinkronisasi manual gagal:", err);
             btn.textContent = "⚠ Gagal, coba lagi";
+            if(lbl) lbl.textContent = "Gagal menyinkronkan, coba lagi.";
         } finally {
             setTimeout(() => {
-                btn.textContent = labelAsal;
+                btn.textContent = "🔄 Sinkronkan Data";
+                if(lbl) lbl.textContent = labelAsal;
                 btn.disabled = false;
                 btn.style.opacity = "";
                 btn.style.cursor = "pointer";
             }, 1500);
         }
     });
-
-    document.body.appendChild(btn);
 }
-buatTombolSinkronisasi_();
 
 // ==================================
 // SIDEBAR KANAN: DASHBOARD KESELURUHAN KABUPATEN
@@ -6106,7 +6123,8 @@ async function refreshDashboardKabupaten(){
         </div>
     ` : `<div class="popup-info" style="font-size:12px;">Belum ada data bantuan tercatat.</div>`;
 
-    body.innerHTML = statHtml + bantuanHtml;
+    body.innerHTML = statHtml + bantuanHtml + htmlTombolSinkronisasi_();
+    pasangTombolSinkronisasi_();
 
     // chart lama di-destroy dulu biar instance Chart.js gak numpuk tiap
     // user ganti layer di dropdown (canvas-nya memang sudah ikut kebuang

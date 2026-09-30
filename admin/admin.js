@@ -5772,58 +5772,72 @@ setInterval(() => {
 (function initSidebarKabupaten(){
     const wrapper = document.createElement("div");
     wrapper.id = "sidebarKabupaten";
-    // Sidebar dipatok dua sisi (top + bottom), BUKAN top + max-height
-    // seperti sebelumnya. Alasannya: FAB button (#fabContainer) ada di
-    // pojok kanan-bawah (right:25px; bottom:35px; tinggi 64px), dan
-    // sidebar yang tingginya sampai `100vh - 100px` itu nutupin dia
-    // sampai gak bisa diklik. Dengan `bottom:120px`, sidebar berhenti
-    // 120px di atas dasar viewport -- aman di atas FAB (35 + 64 = 99px)
-    // plus sedikit jarak nafas. Tingginya otomatis ikut tinggi layar,
-    // isinya tetap discroll sendiri lewat overflow-y:auto.
+    // FIX: dulu dipatok top+bottom (bottom:120px) dengan asumsi FAB
+    // button ada persis di bawah sidebar (right:25px) -- itu asumsi
+    // BASI, FAB sekarang sudah digeser ke `right:300px` di admin.css
+    // (lihat komentar di #fabContainer), sama sekali gak lagi di
+    // bawah kolom sidebar ini secara horizontal. bottom:120px yang
+    // ketinggalan itu yang bikin sidebar kelihatan "menggantung" /
+    // kepotong pendek padahal ruang di bawahnya sebenarnya kosong.
+    // Sekarang dipatok top + max-height, PERSIS pola yang sama kayak
+    // #layerTree (lihat admin.css), jadi otomatis makai tinggi layar
+    // yang tersedia secara penuh & konsisten sama panel tree di kiri.
     wrapper.style.cssText = `
-        position:fixed; top:90px; right:16px; bottom:120px; width:260px;
+        position:fixed; top:calc(var(--header-h) + 10px); right:16px; width:260px;
+        max-height:calc(100vh - var(--header-h) - var(--footer-h) - 20px);
         overflow-y:auto; background:#fff; border-radius:10px;
         box-shadow:0 5px 20px rgba(0,0,0,.25); z-index:998;
-        font-family:Segoe UI,sans-serif; padding:14px;
+        font-family:Segoe UI,sans-serif;
     `;
+    // Header "📊 Statistik Kabupaten" (dulu "Dashboard Kabupaten",
+    // ganti nama sesuai permintaan) sekarang DIRECT CHILD #sidebarKabupaten
+    // (bukan nempel di tengah-tengah isi kayak sebelumnya) + sticky lewat
+    // CSS `#sidebarKabupaten > .sidebar-kabupaten-header` di admin.css --
+    // persis pola judul "🗂 Layer" di #layerTree, tetap nangkring di atas
+    // pas isinya discroll. Sisa konten (cari desa, peta dasar, dashboard)
+    // dipindah ke #sidebarKabupatenBody supaya padding lama (14px) yang
+    // tadinya nempel di wrapper tetap kepake, cuma sekarang di body-nya,
+    // bukan wrapper (biar header sticky-nya nempel rata ke tepi panel).
     wrapper.innerHTML = `
-        <div style="margin-bottom:14px;">
-            <label style="font-size:11px; color:#888;">Cari nama desa:</label>
-            <div style="display:flex; gap:6px; align-items:flex-start; margin-top:2px;">
-                <div class="layer-picker" style="flex:1; margin-bottom:0;">
-                    <input class="popup-input layer-search" id="searchDesaSidebar"
-                        placeholder="Cari nama desa..." autocomplete="off">
-                    <select class="popup-select layer-list" id="searchDesaSidebarList" size="6"></select>
+        <div class="sidebar-kabupaten-header">📊 Statistik Kabupaten</div>
+        <div id="sidebarKabupatenBody" style="padding:14px;">
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11px; color:#888;">Cari nama desa:</label>
+                <div style="display:flex; gap:6px; align-items:flex-start; margin-top:2px;">
+                    <div class="layer-picker" style="flex:1; margin-bottom:0;">
+                        <input class="popup-input layer-search" id="searchDesaSidebar"
+                            placeholder="Cari nama desa..." autocomplete="off">
+                        <select class="popup-select layer-list" id="searchDesaSidebarList" size="6"></select>
+                    </div>
+                    <button type="button" id="searchDesaSidebarBtn" class="tree-style-btn"
+                        title="Tampilkan desa ini di peta"
+                        style="flex-shrink:0; width:36px; height:36px; background:#eef2ff; border-radius:8px;">
+                        🔍
+                    </button>
                 </div>
-                <button type="button" id="searchDesaSidebarBtn" class="tree-style-btn"
-                    title="Tampilkan desa ini di peta"
-                    style="flex-shrink:0; width:36px; height:36px; background:#eef2ff; border-radius:8px;">
-                    🔍
+            </div>
+            <div class="sidebar-section" id="basemapSection">
+                <button type="button" class="sidebar-section-head" id="basemapSectionHead">
+                    <span>🗺️ Peta Dasar</span>
+                    <span class="sidebar-section-arrow">▸</span>
                 </button>
-            </div>
-        </div>
-        <div class="sidebar-section" id="basemapSection">
-            <button type="button" class="sidebar-section-head" id="basemapSectionHead">
-                <span>🗺️ Peta Dasar</span>
-                <span class="sidebar-section-arrow">▸</span>
-            </button>
-            <div class="sidebar-section-body">
-                <div class="basemap-grid" id="basemapGrid"></div>
-                <div class="basemap-opacity">
-                    <label for="basemapOpacity">
-                        Transparansi peta dasar
-                        <span id="basemapOpacityVal">100%</span>
-                    </label>
-                    <input type="range" id="basemapOpacity" min="10" max="100" step="5">
+                <div class="sidebar-section-body">
+                    <div class="basemap-grid" id="basemapGrid"></div>
+                    <div class="basemap-opacity">
+                        <label for="basemapOpacity">
+                            Transparansi peta dasar
+                            <span id="basemapOpacityVal">100%</span>
+                        </label>
+                        <input type="range" id="basemapOpacity" min="10" max="100" step="5">
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div style="font-weight:700; font-size:14px; margin-bottom:8px;">📊 Dashboard Kabupaten</div>
-        <label style="font-size:11px; color:#888;">Sumber data kemiskinan (pilih layer):</label>
-        <select id="kabupatenDashboardLayer" class="popup-input" style="margin-bottom:8px;"></select>
-        <div id="kabupatenDashboardBody">
-            <div class="popup-info" style="font-size:12px;">Memuat...</div>
+            <label style="font-size:11px; color:#888;">Sumber data kemiskinan (pilih layer):</label>
+            <select id="kabupatenDashboardLayer" class="popup-input" style="margin-bottom:8px;"></select>
+            <div id="kabupatenDashboardBody">
+                <div class="popup-info" style="font-size:12px;">Memuat...</div>
+            </div>
         </div>
     `;
     document.body.appendChild(wrapper);

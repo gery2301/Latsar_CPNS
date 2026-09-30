@@ -460,6 +460,24 @@ user-select:none;
     z-index: 20;
 }
 
+/* Judul panel "📊 Statistik Kabupaten" -- PERSIS pola yang sama kayak
+   judul "🗂 Layer" di atas (sticky, direct child dari container yang
+   overflow:auto-nya), dipasangkan di admin.js (initSidebarKabupaten).
+   Dibikin class terpisah (bukan numpang .tree-header) karena judul ini
+   statis/gak bisa diklik buat collapse, jadi gak butuh cursor:pointer
+   atau efek hover translateX yang ada di .tree-header umum. */
+#sidebarKabupaten > .sidebar-kabupaten-header{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 12px;
+    font-weight: bold;
+    background: #1976d2;
+    color: white;
+    font-size: 16px;
+    border-radius: 10px 10px 0 0;
+}
+
 #treeContent{
 padding:8px;
 }

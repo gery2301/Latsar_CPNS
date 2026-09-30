@@ -3716,46 +3716,22 @@ const drawControl = new L.Control.Draw({
 map.addControl(drawControl);
 
 // ===============================
-// SEARCH LOKASI (PHOTON + BOUND MAP)
-let searchMarker;
-
-const photon = new L.Control.Geocoder.Photon();
-
-const geocoder = L.Control.geocoder({
-  defaultMarkGeocode: false,
-  geocoder: photon
-})
-.on('markgeocode', function(e) {
-
-  map.fitBounds(e.geocode.bbox);
-
-  if (searchMarker) map.removeLayer(searchMarker);
-
-  searchMarker = L.marker(e.geocode.center)
-    .addTo(map)
-    .bindPopup(e.geocode.name)
-    .openPopup();
-
-  searchMarker.on('popupclose', function () {
-    map.removeLayer(searchMarker);
-  });
-
-})
-.addTo(map);
-
-// UPDATE BBOX PHOTON SESUAI VIEW MAP
-map.on('moveend', function () {
-  const b = map.getBounds();
-
-  photon.options.params = {
-    bbox: [
-      b.getWest(),
-      b.getSouth(),
-      b.getEast(),
-      b.getNorth()
-    ].join(',')
-  };
-});
+// SEARCH LOKASI (PHOTON + BOUND MAP) -- DIHAPUS
+// ===============================
+// Dulu di sini ada L.Control.geocoder() (pencarian alamat/lokasi umum
+// via Photon), di-addTo(map) -- Leaflet naruh kontrol ini default di
+// pojok kanan-atas PETA. Masalahnya: sidebar "📊 Statistik Kabupaten"
+// JUGA fixed di pojok kanan-atas (lihat initSidebarKabupaten), jadi
+// ikon 🔍 kontrol ini nyempil/nongol di balik header sidebar --
+// kelihatan kayak elemen nyasar. Dihapus total sesuai permintaan user,
+// karena fungsinya juga tumpang tindih sama "Cari nama desa" yang
+// sudah ada built-in di sidebar (beda sumber data -- Photon nyari
+// alamat/tempat umum sedunia, punya sendiri nyari di fitur desa yang
+// sudah dimuat -- tapi user memutuskan gak butuh yang umum ini).
+// Kalau nanti ternyata masih butuh search alamat umum lagi, source asli
+// nya bisa dilihat di riwayat/versi sebelumnya (blok `L.Control.geocoder`),
+// tinggal pasang lagi + kasih CSS `position` custom biar gak nabrak
+// sidebar lagi (misal pindahin ke kiri-atas alih-alih kanan-atas).
 
 // ===============================
 // EVENT: TAMBAH DATA

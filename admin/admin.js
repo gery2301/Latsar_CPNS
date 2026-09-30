@@ -3579,7 +3579,19 @@ const basemapDefs = [
 const baseMaps = {};
 basemapDefs.forEach(b => { baseMaps[b.nama] = b.layer; });
 
-const BASEMAP_KEY = "wgis_basemap";
+// v2: default basemap diganti dari OpenStreetMap ke Satelit (permintaan
+// user, OSM dianggap kurang bagus tampilannya). Key localStorage
+// SENGAJA diganti nama (v1 -> v2), BUKAN cuma ganti nilai fallback di
+// bawah -- soalnya browser yang SUDAH PERNAH buka web ini sebelumnya
+// udah kesimpen "wgis_basemap":"osm" duluan (keisi otomatis waktu itu,
+// bukan berarti user MEMILIH OSM), jadi kalau cuma ganti fallback-nya
+// doang, browser2 lama tetep bakal mentok baca localStorage lama itu
+// dan tetep muncul OSM -- gak keganti ke Satelit. Ganti nama key = SEMUA
+// browser (baru maupun lama) mulai dari kosong lagi -> jatuh ke
+// fallback baru (Satelit) di bawah. Basemap pilihan user sendiri yg
+// dibuat SETELAH perubahan ini tetap kesimpen & keinget normal, cuma
+// lewat key baru ini.
+const BASEMAP_KEY = "wgis_basemap_v2";
 const BASEMAP_OPACITY_KEY = "wgis_basemap_opacity";
 
 let basemapAktif = null;
@@ -3662,8 +3674,8 @@ function renderBasemapPicker_(){
     tandaiBasemapAktif_();
 }
 
-// Pasang basemap terakhir yang dipilih user (default OSM).
-pilihBasemap_(localStorage.getItem(BASEMAP_KEY) || "osm");
+// Pasang basemap terakhir yang dipilih user (default Satelit).
+pilihBasemap_(localStorage.getItem(BASEMAP_KEY) || "satelit");
 
 //Skala Peta
 L.control.scale().addTo(map);

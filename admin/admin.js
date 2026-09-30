@@ -168,6 +168,15 @@ function filterLayerDropdown(keyword, selectId, selected = "") {
 
     }
 
+    // selectedIndex dipaksa -1 dulu SEBELUM diisi. Alasan: <select> native
+    // otomatis nganggep opsi pertama "terpilih" begitu innerHTML diisi
+    // (kecuali ada option lain yang eksplisit selected). Kalau hasil
+    // filter cuma 1 baris DAN itu kebetulan udah jadi opsi pertama, klik
+    // user di opsi itu gak mengubah apa-apa dari sudut pandang browser
+    // (selectedIndex tetap 0) -> event "change" TIDAK PERNAH nembak, jadi
+    // search box gak ke-update. -1 memastikan klik pertama selalu berupa
+    // PERUBAHAN index, jadi "change" pasti nembak.
+    ddl.selectedIndex = -1;
     ddl.innerHTML = hasil.map(item => {
 
         const pilih =
@@ -527,10 +536,19 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-ddl.addEventListener("change", function(){
+// Sama seperti perbaikan di searchDesaSidebar (lihat catatan di sana):
+// gak pakai "change" lagi, tapi baca langsung opsi yang diklik dari
+// "mousedown" -- gak bergantung ke timing/perilaku "change" bawaan
+// select yang ternyata gak bisa diandalkan di semua browser.
+ddl.addEventListener("mousedown", function(e){
+    const opt = e.target.closest("option");
+    if(!opt) return;
+    e.preventDefault();
+    ddl.value = opt.value;
     updateInfoLayer();
     search.value = ddl.value;
     ddl.classList.remove("show");
+    search.focus();
 });
 
   }
@@ -3340,14 +3358,39 @@ function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisible = t
     return p;
 }
 
+// Sheet yang datanya dibaca dari file JSON statis (di repo GitHub Pages
+// yang sama dengan admin.js/admin.css), BUKAN lewat action=bulk ke Apps
+// Script. Dipakai buat layer yang: (a) geometrinya berat/detail, bikin
+// Apps Script kelamaan baca & buka Spreadsheet-nya (kasus Kemiskinan --
+// lihat AI_CONTEXT.md, loading bisa >1 menit / gagal timeout), dan
+// (b) datanya JARANG DIEDIT lewat aplikasi.
+//
+// PENTING soal data BASI: file statis ini SNAPSHOT sesaat. Kalau ada
+// atribut yang diedit lewat form "Edit Data" (Jumlah_Mis, Jumlah_Pen,
+// dst) SETELAH file ini dibuat, popup/legenda peta TETAP nunjukin
+// angka LAMA sampai file JSON-nya di-generate ulang & diupload lagi ke
+// GitHub -- proses simpannya sendiri tetap normal ke Google Sheets,
+// cuma TAMPILAN di peta yang ketinggalan. Kalau suatu layer di sini
+// ternyata mulai sering diedit, keluarkan dari daftar ini (biar balik
+// baca live ke Apps Script) atau bikin proses generate ulang jadi rutin.
+//
+// key = nama SHEET (bukan nama layer), value = nama file JSON-nya,
+// taruh sejajar admin.js/admin.css di repo (path relatif ke halaman).
+const SHEET_STATIS = {
+    "shp_kemiskinan": "kemiskinan.json"
+};
+
 async function muatBulkLayerInternal_(sheetName, layerName, master, onProgress, makeVisible = true){
     const CHUNK_SIZE = 25;
 
     if(onProgress) onProgress("fetch", 0, 0);
 
     let resp;
+    const fileStatis = SHEET_STATIS[sheetName];
     try{
-        const res = await fetchDenganRetry_(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName));
+        const res = fileStatis
+            ? await fetchDenganRetry_(fileStatis) // file JSON statis, bukan Apps Script
+            : await fetchDenganRetry_(GAS_URL + "?action=bulk&sheet=" + encodeURIComponent(sheetName));
         resp = await res.json();
     }catch(err){
         console.error(err);
@@ -3888,10 +3931,16 @@ function updateInfoLayer(){
 
 updateInfoLayer();
 
-ddl.addEventListener("change", function(){
+// lihat catatan perbaikan "change" -> "mousedown" di searchDesaSidebar
+ddl.addEventListener("mousedown", function(e){
+    const opt = e.target.closest("option");
+    if(!opt) return;
+    e.preventDefault();
+    ddl.value = opt.value;
     updateInfoLayer();
     search.value = ddl.value;
     ddl.classList.remove("show");
+    search.focus();
 });
   }
   }, 100);
@@ -4223,51 +4272,6 @@ function clearRenderedData(){
  window.layerTree = {};
 }
 
-// ===============================
-// FIX: clear KHUSUS data manual (Sheet2), JANGAN sentuh layer SHP
-// ===============================
-// Dipakai oleh refreshLayerData() (polling tiap 5 detik). Sebelumnya
-// polling itu manggil clearRenderedData() yang menghapus SEMUA layer
-// -- termasuk layer SHP yang sudah di-bulk-load (mis. Kemiskinan/desa,
-// yang datanya berat & butuh waktu lumayan buat dimuat) -- lalu
-// memuat ulang semuanya dari server tiap kali data manual berubah.
-// Karena SHP itu sendiri MEMANG didesain "load sekali per sesi, gak
-// berubah lewat endpoint polling ini" (lihat catatan source_type di
-// backend), menghapus & memuat ulang layer SHP di sini gak pernah
-// perlu -- dan kalau layer beratnya belum selesai dimuat dalam waktu
-// < 5 detik, siklus polling berikutnya bisa nge-cancel proses yang
-// masih jalan & mulai dari nol lagi, bikin loading-nya kelihatan
-// "gak pernah selesai". Fungsi ini cuma menghapus objek Leaflet &
-// entri tree milik layer yang SUMBER DATANYA manual (bukan "shp" di
-// master_layer); layer SHP yang sudah termuat dibiarkan utuh di peta,
-// di treeLayerObjects, dan di shpLoadedLayers/shpVisibleLayers.
-function clearManualRenderedData_(){
-
-    const namaLayerShp = new Set(
-        masterLayer
-            .filter(m => m.source_type === "shp" && m.sheet_name)
-            .map(m => m.layer)
-    );
-
-    Object.keys(treeLayerObjects).forEach(layerName => {
-        if(namaLayerShp.has(layerName)) return; // layer SHP: biarkan apa adanya
-
-        (treeLayerObjects[layerName] || []).forEach(layer => {
-            drawnItems.removeLayer(layer);
-            Object.values(layerGroups).forEach(group => group.removeLayer(layer));
-        });
-        delete treeLayerObjects[layerName];
-    });
-
-    // treeLayers cuma pernah diisi lewat registerTree(), yang cuma
-    // dipanggil dari renderLayerData() (data manual) -- muatBulkLayer()
-    // untuk SHP TIDAK memanggil registerTree() sama sekali, jadi objek
-    // ini murni data manual & aman dikosongkan total.
-    Object.keys(treeLayers).forEach(key=>{
-        delete treeLayers[key];
-    });
-}
-
 function clearMapLayer(){
 
     drawnItems.clearLayers();
@@ -4388,22 +4392,35 @@ async function refreshLayerData(){
 
     lastData = structuredClone(newData);
 
-    // FIX (lihat catatan panjang di clearManualRenderedData_ di atas):
-    // dulu di sini clearRenderedData() menghapus SEMUA layer (termasuk
-    // layer SHP yang udah di-bulk-load, mis. Kemiskinan/desa yang
-    // berat), lalu me-reload ULANG SEMUA layer SHP yang lagi tampil
-    // dari server tiap kali data manual berubah. SHP sendiri MEMANG
-    // didesain "load sekali per sesi, gak berubah lewat endpoint
-    // polling ini" (lihat catatan source_type di backend) -- jadi
-    // menghapus & reload-nya di sini gak pernah perlu. Efek sampingnya:
-    // kalau layer berat itu belum selesai dimuat sebelum siklus 5 detik
-    // berikutnya, prosesnya ke-cancel & mulai dari nol lagi terus-menerus
-    // -> loading-nya kelihatan "gak pernah selesai". Sekarang layer SHP
-    // gak disentuh sama sekali; shpLoadedLayers/shpVisibleLayers TETAP
-    // seperti sebelumnya, cuma bagian data manual yang di-refresh.
-    clearManualRenderedData_();
+    // clearRenderedData() di bawah ini bersih-bersih SEMUA layer di
+    // peta (termasuk layer SHP yang udah di-bulk-load). Simpan dulu
+    // nama layer SHP mana aja yang lagi BENERAN KELIHATAN (shpVisibleLayers,
+    // BUKAN shpLoadedLayers -- kalau pakai shpLoadedLayers, layer yang
+    // cuma di-load diam-diam sama Dashboard Kabupaten, makeVisible=false,
+    // ikut ke-restore jadi kelihatan di sini, padahal harusnya tetap
+    // tersembunyi), supaya abis refresh data manual ini, layer SHP yang
+    // tadinya udah di-ON gak mendadak hilang dari peta / harus di-toggle
+    // manual lagi.
+    const previouslyLoadedShp = Array.from(shpVisibleLayers);
+    shpLoadedLayers.clear();
+    shpVisibleLayers.clear();
+
+    clearRenderedData();
     renderLayerData(newData);
     window.layerTree = buildLayerTreeFull(newData);
+    renderLayerTree();
+
+    for(const layerName of previouslyLoadedShp){
+        const master = masterLayer.find(item => item.layer === layerName);
+        if(master){
+            await muatBulkLayer(master.sheet_name, layerName, master);
+            // makeVisible default true di atas -> registerLayer() beneran
+            // nampilin ulang fiturnya ke peta. Tandai di shpVisibleLayers
+            // juga (baru aja di-clear() di atas) biar checkbox tree tetap
+            // kecentang setelah refresh data manual ini.
+            shpVisibleLayers.add(layerName);
+        }
+    }
     renderLayerTree();
 
     requestAnimationFrame(() => {
@@ -5412,6 +5429,9 @@ function renderShpFormPanel(fileName, jumlahFitur){
             ? shpLayers.slice(0, 8)
             : shpLayers.filter(item => item.layer.toLowerCase().includes(keyword));
 
+        // lihat catatan selectedIndex=-1 di filterLayerDropdown (atas file)
+        // -- bug yang sama persis berlaku di sini.
+        ddl.selectedIndex = -1;
         ddl.innerHTML = hasil.length
             ? hasil.map(item => `<option value="${item.layer}">${item.layer}</option>`).join("")
             : `<option value="">Tidak ada layer SHP ditemukan</option>`;
@@ -5698,91 +5718,32 @@ init().then(() => {
 });
 window.refreshLayerData = refreshLayerData;
 
-// ===============================
-// SINKRONISASI DATA MANUAL (ganti auto-poll 5 detik)
-// ===============================
-// Dulu di sini ada setInterval yang manggil refreshLayerData() TIAP 5
-// DETIK selama halaman terbuka. Masalahnya: 5 detik itu KETABRAK sama
-// proses-proses berat yang jalan bareng pas halaman BARU dibuka
-// (loadMasterLayer, loadDataAwal, bulk-load layer default yang berat
-// kayak Kemiskinan/desa, load data Dashboard) -- semuanya rebutan
-// jalur yang sama ke Google Apps Script, jadi di komputer/browser yang
-// belum punya apa-apa (cold start, gak ada cache), totalnya gampang
-// lewat 15 detik, kadang kelihatan kayak gak selesai-selesai.
-//
-// Sekarang auto-poll-nya DIMATIKAN TOTAL. Data manual (Sheet2) cuma
-// disegarkan: (1) sekali di awal saat halaman dibuka (loadDataAwal),
-// dan (2) kapanpun user pencet tombol "🔄 Sinkronkan Data" -- tombolnya
-// ditaruh di dalam panel "📊 Dashboard Kabupaten", paling bawah
-// (setelah chart "Proporsi Bantuan per OPD"), lihat
-// htmlTombolSinkronisasi_() & pasangTombolSinkronisasi_() yang dipakai
-// dari dalam refreshDashboardKabupaten(). Sengaja ditaruh di situ
-// (bukan tombol mengambang sendiri) supaya gak bentrok sama FAB "+"
-// yang sudah ada di peta.
-//
-// Layer SHP (Kemiskinan dkk) TIDAK terpengaruh tombol ini sama sekali
-// -- itu tetap sekali dimuat per sesi seperti biasa, dan sekarang juga
-// sudah di-cache di server (lihat CacheService di appscript.gs), jadi
-// gak butuh "disinkronkan" manual.
-//
-// Kalau nanti butuh data manual ke-update otomatis TANPA pencet
-// tombol (mis. dipakai bareng-bareng banyak OPD yang mengedit di
-// waktu bersamaan), lebih aman pakai interval yang JAUH lebih jarang
-// (mis. 2-5 menit) daripada 5 detik -- tinggal un-comment blok
-// setInterval di bawah dan ganti angkanya kalau memang diperlukan.
-//
-// setInterval(() => {
-//     refreshLayerData().catch(err => console.warn("Polling gagal:", err));
-// }, 120000); // 2 menit, BUKAN 5 detik
+// Interval polling. SEBELUMNYA 5 detik -- angka itu terbukti kelewat
+// agresif: log Eksekusi Apps Script user nunjukkin 4.515 eksekusi
+// dalam 7 hari, dan tiap eksekusi (sebelum perbaikan bacaChunkUntukId_
+// di appscript.js) ikut baca SELURUH sheet geometry_chunks walau
+// datanya (Sheet2/manual) sering gak ada yang berubah sama sekali.
+// Kalau ada beberapa staf buka dashboard bersamaan, total requestnya
+// menumpuk sampai kemungkinan kena limit/gangguan sisi Google
+// (echo?user_content_key gagal 404 di Network tab user). 15 detik
+// masih cukup responsif buat data admin (bukan data real-time kritis),
+// tapi motong volume request jadi ~1/3-nya.
+const POLLING_INTERVAL_MS = 15000;
 
-function htmlTombolSinkronisasi_(){
-    return `
-        <div style="margin-top:14px; padding-top:12px; border-top:1px solid #e5e7eb;">
-            <button type="button" id="btnSinkronisasiData" style="
-                width:100%; padding:9px 14px; border:none; border-radius:8px;
-                background:#1e3a8a; color:#fff; font-size:12.5px; font-weight:600;
-                cursor:pointer;">
-                🔄 Sinkronkan Data
-            </button>
-            <div id="lblSinkronisasiData" style="font-size:10.5px; color:#9ca3af; margin-top:5px; text-align:center;">
-                Menyegarkan data manual (Sheet2) terbaru -- layer SHP tidak ikut dimuat ulang.
-            </div>
-        </div>
-    `;
-}
-
-function pasangTombolSinkronisasi_(){
-    const btn = document.getElementById("btnSinkronisasiData");
-    const lbl = document.getElementById("lblSinkronisasiData");
-    if(!btn) return;
-
-    const labelAsal = lbl ? lbl.textContent : "";
-
-    btn.addEventListener("click", async () => {
-        if(btn.disabled) return;
-        btn.disabled = true;
-        btn.style.opacity = "0.6";
-        btn.style.cursor = "wait";
-        btn.textContent = "⏳ Menyinkronkan...";
-        try{
-            await refreshLayerData();
-            btn.textContent = "✓ Tersinkron";
-            if(lbl) lbl.textContent = "Berhasil disinkronkan barusan.";
-        } catch(err){
-            console.warn("Sinkronisasi manual gagal:", err);
-            btn.textContent = "⚠ Gagal, coba lagi";
-            if(lbl) lbl.textContent = "Gagal menyinkronkan, coba lagi.";
-        } finally {
-            setTimeout(() => {
-                btn.textContent = "🔄 Sinkronkan Data";
-                if(lbl) lbl.textContent = labelAsal;
-                btn.disabled = false;
-                btn.style.opacity = "";
-                btn.style.cursor = "pointer";
-            }, 1500);
-        }
+// Kalau tab lagi di-background (user pindah tab lain / minimize),
+// polling DIJEDA -- gak ada gunanya ngecek update tiap sekian detik
+// kalau gak ada yang liat, dan ini ngurangin beban total kalau ada
+// banyak orang ninggalin tab dashboard kebuka di background.
+setInterval(() => {
+    if(document.hidden) return;
+    refreshLayerData().catch(err => {
+        // udah dicoba retry di dalam fetchDenganRetry_ -- kalau
+        // SAMPAI SINI masih gagal juga, gak usah bikin ribut ke user
+        // (gak throw/alert), toh polling ini bakal jalan lagi
+        // otomatis 5 detik kemudian.
+        console.warn("Polling data gagal, akan dicoba lagi 5 detik lagi:", err);
     });
-}
+}, POLLING_INTERVAL_MS);
 
 // ==================================
 // SIDEBAR KANAN: DASHBOARD KESELURUHAN KABUPATEN
@@ -5899,6 +5860,17 @@ function initSearchDesaSidebar_(){
             ? fitur.filter(l => namaFitur_(l).toLowerCase().includes(keyword))
             : fitur;
 
+        // Bug yang dilaporkan user: ketik "macan" -> 1 suggestion muncul
+        // ("Macang Tanggar") -> diklik -> search box TIDAK berubah. Sebab:
+        // <select> native otomatis nganggep opsi PERTAMA terpilih begitu
+        // innerHTML diisi. Kalau hasilnya cuma 1 baris, opsi itu sudah
+        // "terpilih" duluan sebelum diklik -- klik user gak mengubah
+        // selectedIndex (tetap 0), jadi event "change" TIDAK PERNAH
+        // nembak, dan handler yang ngisi search box gak pernah jalan.
+        // -1 di bawah memaksa "belum ada yang kepilih", jadi klik pertama
+        // di opsi manapun (termasuk kalau cuma ada 1) selalu terhitung
+        // PERUBAHAN index -> "change" pasti nembak.
+        ddl.selectedIndex = -1;
         ddl.innerHTML = cocok.slice(0, 50).map((l, i) =>
             `<option value="${i}">${namaFitur_(l)}</option>`
         ).join("");
@@ -5920,11 +5892,27 @@ function initSearchDesaSidebar_(){
         setTimeout(() => ddl.classList.remove("show"), 150);
     });
 
-    ddl.addEventListener("change", function(){
-        const idx = parseInt(ddl.value, 10);
+    // Kenapa BUKAN event "change": versi sebelumnya pakai "change", dan
+    // user LAPOR ITU MASIH GAGAL -- screenshot user nunjukkin opsi yang
+    // diklik SUDAH kesorot biru (browser mencatatnya kepilih), tapi
+    // "change" tetap gak bikin search box ke-update. Supaya gak
+    // bergantung lagi ke asumsi soal kapan tepatnya "change" nembak,
+    // sekarang klik opsi ditangani LANGSUNG di "mousedown" (bukan
+    // nunggu "change"/"click" kelar diproses select-nya), dan nilainya
+    // diambil dari e.target (opsi yang BENERAN diklik) -- bukan dari
+    // ddl.value setelahnya. Ini juga sekalian ngilangin ketergantungan
+    // ke timing blur 150ms buat nutup dropdown: begitu opsi diklik,
+    // langsung disembunyikan di sini juga.
+    ddl.addEventListener("mousedown", function(e){
+        const opt = e.target.closest("option");
+        if(!opt) return;
+        e.preventDefault(); // biar gak ada delay/quirk seleksi bawaan select
+
+        const idx = parseInt(opt.value, 10);
         const terpilih = (ddl._cocok || [])[idx];
         if(terpilih) input.value = namaFitur_(terpilih);
         ddl.classList.remove("show");
+        input.focus();
     });
 
     input.addEventListener("keydown", function(e){
@@ -6123,8 +6111,7 @@ async function refreshDashboardKabupaten(){
         </div>
     ` : `<div class="popup-info" style="font-size:12px;">Belum ada data bantuan tercatat.</div>`;
 
-    body.innerHTML = statHtml + bantuanHtml + htmlTombolSinkronisasi_();
-    pasangTombolSinkronisasi_();
+    body.innerHTML = statHtml + bantuanHtml;
 
     // chart lama di-destroy dulu biar instance Chart.js gak numpuk tiap
     // user ganti layer di dropdown (canvas-nya memang sudah ikut kebuang

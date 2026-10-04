@@ -31,10 +31,17 @@
    sama kayak semua panel lain di app ini), background gradient navy
    yang nge-blend ke foto Labuan Bajo di kanan.
 
-   GANTI GAMBAR: taruh file logo & foto di folder "assets/" (bikin
-   foldernya di GitHub repo kamu), nama filenya HARUS PERSIS:
+   GANTI GAMBAR: taruh file logo & foto di folder "assets/" DI ROOT
+   REPO (SEJAJAR index.html, login.html, folder admin/ -- BUKAN DI
+   DALAM admin/), nama filenya HARUS PERSIS:
    - assets/logo-pemkab-mabar.png   (logo, disaranin PNG transparan)
    - assets/labuan-bajo.jpg         (foto buat background header)
+   url() di bawah ini sengaja pakai "../assets/..." (bukan "assets/..."
+   polos) -- soalnya admin.css ini sendiri ada di folder admin/, dan
+   path di dalam CSS itu dihitung relatif ke LOKASI FILE CSS-NYA
+   SENDIRI (beda sama <img src> di HTML yang dihitung relatif ke
+   halamannya). Kalau assets/ kebetulan dipindah ke dalam admin/ juga,
+   "../" ini malah jadi salah -- JANGAN dipindah, biarin di root.
    Kalau file belum ada, background otomatis fallback ke warna solid
    navy (#0a1e40) polos, logo otomatis ilang (lihat onerror di HTML)
    -- gak bakal muncul ikon gambar rusak/broken image.
@@ -53,7 +60,7 @@
     font-family:"Segoe UI",sans-serif;
     background:
         linear-gradient(to right, rgba(8,28,64,.96) 45%, rgba(8,28,64,.5) 85%, rgba(8,28,64,.15)),
-        url('assets/labuan-bajo.jpg') center/cover no-repeat,
+        url('../assets/labuan-bajo.jpg') center/cover no-repeat,
         #0a1e40;
     box-shadow:0 2px 10px rgba(0,0,0,.25);
     overflow:hidden;

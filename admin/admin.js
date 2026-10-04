@@ -39,7 +39,7 @@ const STATIC_ASSET_PREFIX_ = window.ADMIN_SUBFOLDER ? "../" : "";
 //      YANG SAMA -- 2 saklar ini (frontend & backend) harus barengan,
 //      gak boleh cuma salah satu (lihat komentar panjang soal ini di
 //      appscript.gs).
-const FRONTEND_LOGIN_AKTIF = true;
+const FRONTEND_LOGIN_AKTIF = false;
 
 const TOKEN_STORAGE_KEY = "mantapdata_token";
 
@@ -135,6 +135,15 @@ function cekBolehTambah_(){
     if(window.VIEWER_MODE) return false;
     if(!FRONTEND_LOGIN_AKTIF) return true;
     return !!currentUser;
+}
+
+// Khusus aksi yang di backend "adminOnly" (hapus layer, ubah metadata
+// layer). Viewer: tidak pernah. Mode transisi: tampil. Login aktif: hanya
+// role admin -- OPD biasa TIDAK boleh, jadi tombolnya jangan dimunculkan.
+function cekAdmin_(){
+    if(window.VIEWER_MODE) return false;
+    if(!FRONTEND_LOGIN_AKTIF) return true;
+    return !!currentUser && currentUser.role === "admin";
 }
 
 function logout_(){
@@ -1051,10 +1060,11 @@ function renderLayerTree(){
             <button type="button" class="tree-toolbar-btn" onclick="bukaAturUrutanLayer()">
                 ⚙ Urutan Tampilan Layer
             </button>
+            ${cekAdmin_() ? `
             <button type="button" id="btnMigrasiLayerLama" class="tree-toolbar-btn"
                 onclick="migrasiSettingLayerLama()" style="margin-top:6px;">
                 ⬆ Migrasi Pengaturan Layer Lama
-            </button>
+            </button>` : ""}
         </div>
     `;
    const tree = urutkanTreeUntukTampilan_(window.layerTree);
@@ -1135,7 +1145,7 @@ ${cekBolehEdit_(masterInfo && masterInfo.owner_opd) ? `                        <
                           onclick="bukaStyleLayer('${layer}')"
                           title="Atur warna & transparansi layer ini">
                           🎨
-                        </button>
+                        </button>` : ""}${cekAdmin_() ? `
                         <button type="button"
                           class="tree-style-btn tree-delete-btn"
                           onclick="konfirmasiHapusLayer('${layer}', ${jumlah})"
@@ -1300,6 +1310,7 @@ function editGeometriLayer() {
 // gak sengaja.
 function konfirmasiHapusLayer(layerName, jumlahFitur){
     if(window.VIEWER_MODE) return; // viewer: hanya-lihat
+    if(!cekAdmin_()) return;       // hapus layer: khusus Super Admin
     const master = masterLayer.find(item => item.layer === layerName);
     const isShp = master && master.source_type === "shp";
 
@@ -2614,6 +2625,7 @@ function cariLayerYangPunyaSettingLokal_(){
 }
 
 async function migrasiSettingLayerLama(){
+    if(!cekAdmin_()) return; // khusus Super Admin
     const layers = cariLayerYangPunyaSettingLokal_();
 
     if(!layers.length){
@@ -5121,6 +5133,10 @@ function bukaFormBantuan(mode, recordId){
     const opdUnik = Array.from(new Set((bantuanData || []).map(b => b.opd).filter(Boolean))).sort();
     const programUnik = Array.from(new Set((bantuanData || []).map(b => b.program).filter(Boolean))).sort();
 
+    // User OPD (login aktif, bukan admin): kolom OPD dikunci ke OPD-nya
+    // sendiri. Admin tetap bebas memilih/mengetik OPD apa pun.
+    const kunciOpd = FRONTEND_LOGIN_AKTIF && currentUser && currentUser.role !== "admin";
+
     tutupFormBantuan();
 
     const overlay = document.createElement("div");
@@ -5150,11 +5166,15 @@ function bukaFormBantuan(mode, recordId){
             <input class="popup-input popup-readonly" value="${escHtml_(kecamatan || "-")}" readonly>
 
             <label class="popup-label">OPD / Dinas *</label>
+            ${kunciOpd ? `
+            <select class="popup-input" id="fbOpd">
+                <option value="${escHtml_(currentUser.opd)}" selected>${escHtml_(currentUser.opd)}</option>
+            </select>` : `
             <input class="popup-input" id="fbOpd" list="fbOpdList"
                    value="${escHtml_(rec ? rec.opd : "")}" placeholder="Contoh: Dinas Sosial">
             <datalist id="fbOpdList">
                 ${opdUnik.map(o => `<option value="${escHtml_(o)}"></option>`).join("")}
-            </datalist>
+            </datalist>`}
 
             <label class="popup-label">Program</label>
             <input class="popup-input" id="fbProgram" list="fbProgramList"
@@ -5201,7 +5221,9 @@ function simpanDataBantuan(mode, recordId){
         errBox.style.display = "block";
     };
 
-    const opd = document.getElementById("fbOpd").value.trim();
+    const opd = (FRONTEND_LOGIN_AKTIF && currentUser && currentUser.role !== "admin")
+        ? String(currentUser.opd || "").trim()
+        : document.getElementById("fbOpd").value.trim();
     const program = document.getElementById("fbProgram").value.trim();
     const tahun = document.getElementById("fbTahun").value.trim();
     const jumlahRaw = document.getElementById("fbJumlah").value.trim();

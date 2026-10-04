@@ -129,6 +129,14 @@ function cekBolehEdit_(ownerData){
     return String(ownerData || "").trim() === String(currentUser.opd || "").trim();
 }
 
+// Khusus tombol "tambah/buat baru" (belum ada pemilik data yang dicek).
+// Viewer: tidak pernah. Mode transisi: tampil. Mode login aktif: harus login.
+function cekBolehTambah_(){
+    if(window.VIEWER_MODE) return false;
+    if(!FRONTEND_LOGIN_AKTIF) return true;
+    return !!currentUser;
+}
+
 function logout_(){
     hapusToken_();
     window.location.href = STATIC_ASSET_PREFIX_ + "login.html";
@@ -146,6 +154,26 @@ function logout_(){
 if(window.VIEWER_MODE){
     const fab = document.getElementById("fabContainer");
     if(fab) fab.remove();
+
+    // PENGAMAN TERAKHIR sisi browser: di halaman viewer, SEMUA request
+    // POST ke Apps Script (semua aksi tulis: create/update/delete/
+    // bantuan_*/import_shp/update_layer_config) ditolak sebelum keluar
+    // dari browser, apa pun tombol yang berhasil dimunculkan paksa lewat
+    // devtools. Ini BUKAN keamanan sebenarnya (orang tetap bisa
+    // nembak URL Apps Script langsung) -- keamanan sebenarnya ada di
+    // WAJIB_LOGIN_UNTUK_TULIS = true di appscript.gs.
+    const fetchAsliViewer_ = window.fetch.bind(window);
+    window.fetch = function(input, init){
+        const url = typeof input === "string" ? input : ((input && input.url) || "");
+        const method = String((init && init.method) || (input && input.method) || "GET").toUpperCase();
+        if(method === "POST" && url.indexOf(GAS_URL) === 0){
+            return Promise.resolve(new Response(
+                JSON.stringify({ status: "error", message: "Halaman viewer hanya untuk melihat data, tidak bisa mengubah data." }),
+                { status: 200, headers: { "Content-Type": "application/json" } }
+            ));
+        }
+        return fetchAsliViewer_(input, init);
+    };
 }
 
 // Tombol "👤 Akun" di header -- cuma ada di admin/index.html (bukan di
@@ -501,12 +529,12 @@ function attachEditMenu(layer, data) {
       <button class="popup-button popup-button-secondary" onclick="bukaDashboardShp(window.currentLayer)">📊 Lihat Dashboard</button>
       <button class="popup-button popup-button-secondary" onclick="bukaDetailIntervensi(window.currentLayer)">🧾 Detail Intervensi Bantuan</button>
       ` : ""}
-      <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
+${cekBolehEdit_(d.owner_opd) ? `      <button class="popup-button" onclick="bukaMenuEdit(window.currentLayer)">✏ Edit Data</button>
       <button
       class="popup-button popup-button-danger"
       onclick="hapusLayerSekarang()">
       🗑 Hapus Data
-      </button>
+      </button>` : ""}
       </div>
       </div>
     `;
@@ -528,6 +556,7 @@ function attachEditMenu(layer, data) {
 }
 
 function bukaMenuEdit(layer) {
+    if(window.VIEWER_MODE) return; // viewer: hanya-lihat
   const d = layer._data;
   window.currentLayer = layer;
 
@@ -1101,7 +1130,7 @@ function renderLayerTree(){
                           🔍
                         </button>
                         ` : ""}
-                        <button type="button"
+${cekBolehEdit_(masterInfo && masterInfo.owner_opd) ? `                        <button type="button"
                           class="tree-style-btn"
                           onclick="bukaStyleLayer('${layer}')"
                           title="Atur warna & transparansi layer ini">
@@ -1112,7 +1141,7 @@ function renderLayerTree(){
                           onclick="konfirmasiHapusLayer('${layer}', ${jumlah})"
                           title="Hapus layer ini beserta seluruh datanya">
                           🗑
-                        </button>
+                        </button>` : ""}
                        </span>
                     </div>
                     <div class="tree-layer-progress" id="treeProgress_${layer}"></div>
@@ -1270,6 +1299,7 @@ function editGeometriLayer() {
 // fitur), bukan "Yakin ingin menghapus?" generik yang gampang kepencet
 // gak sengaja.
 function konfirmasiHapusLayer(layerName, jumlahFitur){
+    if(window.VIEWER_MODE) return; // viewer: hanya-lihat
     const master = masterLayer.find(item => item.layer === layerName);
     const isShp = master && master.source_type === "shp";
 
@@ -1361,6 +1391,7 @@ function hapusLayerPenuh_(layerName, isShp){
 }
 
 function hapusLayerSekarang(){
+    if(window.VIEWER_MODE) return; // viewer: hanya-lihat
 
     const layer = window.currentLayer;
 
@@ -2935,6 +2966,7 @@ function tutupStyleLayer(){
 }
 
 function bukaStyleLayer(layerName){
+    if(window.VIEWER_MODE) return; // viewer: hanya-lihat
     tutupStyleLayer();
 
     const config = getLayerStyleConfig_(layerName) || {
@@ -3892,7 +3924,7 @@ const drawControl = new L.Control.Draw({
     circlemarker: false
   }
 });
-map.addControl(drawControl);
+if(!window.VIEWER_MODE) map.addControl(drawControl);
 
 // ===============================
 // SEARCH LOKASI (PHOTON + BOUND MAP) -- DIHAPUS
@@ -4947,7 +4979,7 @@ async function bukaDetailIntervensi(layer){
                 <div class="popup-info">Memuat data...</div>
             </div>
             <div class="popup-actions">
-                <button class="popup-button" onclick="bukaFormBantuan('create')">➕ Tambah Bantuan</button>
+                ${cekBolehTambah_() ? `<button class="popup-button" onclick="bukaFormBantuan('create')">➕ Tambah Bantuan</button>` : ""}
                 <button class="popup-button popup-button-secondary" onclick="tutupDetailIntervensi()">✕ Tutup</button>
             </div>
         </div>
@@ -4998,7 +5030,7 @@ function renderDetailIntervensiBody_(){
                 <div class="intervensi-empty-icon">📭</div>
                 Belum ada data bantuan tercatat untuk desa ini.
                 <div style="margin-top:6px; font-size:12px;">
-                    Klik "➕ Tambah Bantuan" di bawah untuk mencatat yang pertama.
+                    ${cekBolehTambah_() ? 'Klik "➕ Tambah Bantuan" di bawah untuk mencatat yang pertama.' : ""}
                 </div>
             </div>
         `;
@@ -5046,12 +5078,12 @@ function renderDetailIntervensiBody_(){
                             <div class="intervensi-count-number">${jml.toLocaleString('id-ID')}</div>
                             <div class="intervensi-count-label">penerima</div>
                         </div>
-                        <div class="intervensi-row-actions">
+                        ${cekBolehEdit_(r.opd) ? `<div class="intervensi-row-actions">
                             <button class="intervensi-icon-btn" title="${bisaEdit ? "Edit data bantuan ini" : alasan}"
                                 ${bisaEdit ? `onclick="bukaFormBantuan('edit','${escHtml_(r.id)}')"` : "disabled"}>✏</button>
                             <button class="intervensi-icon-btn danger" title="${bisaEdit ? "Hapus data bantuan ini" : alasan}"
                                 ${bisaEdit ? `onclick="hapusDataBantuan('${escHtml_(r.id)}')"` : "disabled"}>🗑</button>
-                        </div>
+                        </div>` : ""}
                     </div>
                 `;
             }).join("")}
@@ -5070,6 +5102,7 @@ function renderDetailIntervensiBody_(){
 // "hilang" (gak ke-join lagi ke polygon manapun). Mau pindah desa?
 // hapus lalu buat lagi dari popup desa yang benar.
 function bukaFormBantuan(mode, recordId){
+    if(window.VIEWER_MODE) return; // viewer: hanya-lihat
     if(!intervensiKonteks_) return;
 
     const { namaDesa, kecamatan } = intervensiKonteks_;
@@ -5226,6 +5259,7 @@ function simpanDataBantuan(mode, recordId){
 }
 
 function hapusDataBantuan(recordId){
+    if(window.VIEWER_MODE) return; // viewer: hanya-lihat
     const rec = (bantuanData || []).find(b => String(b.id) === String(recordId));
     if(!rec) return;
 

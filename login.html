@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login OPD — MANTAP DATA</title>
+  <link rel="stylesheet" href="admin/admin.css">
+  <style>
+    /* Gaya khusus halaman login -- sengaja polos/minimal dulu (lihat
+       AI_CONTEXT.md §8AA: styling boleh belakangan, fungsi duluan).
+       Numpang beberapa warna dasar dari admin.css biar gak terlalu
+       lepas dari tampilan utama, tapi gak gantung ke class-class
+       spesifik yang ada di sana. */
+    html, body{
+        height:100%; margin:0;
+        font-family:'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #0b1b3a, #1e3a8a);
+        display:flex; align-items:center; justify-content:center;
+    }
+    .login-card{
+        width:100%; max-width:340px; background:#fff; border-radius:12px;
+        box-shadow:0 10px 40px rgba(0,0,0,.35); padding:28px 26px;
+        box-sizing:border-box;
+    }
+    .login-title{
+        font-size:20px; font-weight:800; color:#1e3a8a; margin:0 0 2px;
+        text-align:center;
+    }
+    .login-subtitle{
+        font-size:12px; color:#888; text-align:center; margin:0 0 22px;
+    }
+    .login-field{ margin-bottom:14px; }
+    .login-field label{
+        display:block; font-size:12px; color:#555; margin-bottom:4px;
+    }
+    .login-field input{
+        width:100%; box-sizing:border-box; padding:10px 12px;
+        border:1px solid #d7dbe4; border-radius:8px; font-size:14px;
+    }
+    .login-field input:focus{ outline:none; border-color:#1e3a8a; }
+    .login-btn{
+        width:100%; padding:11px; margin-top:6px; border:none; border-radius:8px;
+        background:#1e3a8a; color:#fff; font-size:14px; font-weight:700;
+        cursor:pointer;
+    }
+    .login-btn:disabled{ opacity:.6; cursor:wait; }
+    .login-error{
+        display:none; background:#fdecec; color:#b42318; font-size:12.5px;
+        padding:9px 11px; border-radius:8px; margin-bottom:14px;
+    }
+    .login-back{
+        display:block; text-align:center; font-size:12px; color:#888;
+        margin-top:16px; text-decoration:none;
+    }
+    .login-back:hover{ color:#1e3a8a; }
+  </style>
+</head>
+<body>
+
+  <form class="login-card" id="loginForm" autocomplete="off">
+    <div class="login-title">MANTAP DATA</div>
+    <div class="login-subtitle">Login khusus OPD &amp; Super Admin</div>
+
+    <div class="login-error" id="loginError"></div>
+
+    <div class="login-field">
+      <label for="loginUsername">Username</label>
+      <input type="text" id="loginUsername" name="username" required autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" name="password" required autocomplete="current-password">
+    </div>
+
+    <button type="submit" class="login-btn" id="loginBtn">Masuk</button>
+    <a href="index.html" class="login-back">← Kembali ke peta publik</a>
+  </form>
+
+  <script>
+    // GAS_URL sengaja DITULIS ULANG di sini (bukan impor dari admin.js)
+    // -- halaman ini sengaja BERDIRI SENDIRI, gak nge-load admin.js
+    // sama sekali (gak butuh Leaflet/peta/dkk buat sekadar form login,
+    // biar ringan & gak ketinggalan kalau admin.js berubah struktur).
+    // KALAU GAS_URL di admin.js berubah, URL di bawah ini WAJIB
+    // disamain manual juga.
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
+    const TOKEN_STORAGE_KEY = "mantapdata_token";
+
+    const form = document.getElementById("loginForm");
+    const btn = document.getElementById("loginBtn");
+    const errBox = document.getElementById("loginError");
+
+    function tampilError(pesan){
+        errBox.textContent = pesan;
+        errBox.style.display = "block";
+    }
+
+    form.addEventListener("submit", async function(e){
+        e.preventDefault();
+        errBox.style.display = "none";
+
+        const username = document.getElementById("loginUsername").value.trim();
+        const password = document.getElementById("loginPassword").value;
+        if(!username || !password){
+            tampilError("Username dan password wajib diisi.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "⏳ Memeriksa...";
+
+        try{
+            const res = await fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "login", username, password })
+            });
+            const resp = await res.json();
+
+            if(resp.status !== "ok"){
+                tampilError(resp.message || "Username atau password salah.");
+                return;
+            }
+
+            try{
+                sessionStorage.setItem(TOKEN_STORAGE_KEY, resp.token);
+            }catch(err){
+                tampilError("Browser ini memblokir penyimpanan sesi (sessionStorage). Coba nonaktifkan mode penyamaran/private.");
+                return;
+            }
+
+            window.location.href = "admin/index.html";
+
+        }catch(err){
+            console.error(err);
+            tampilError("Gagal menghubungi server, coba lagi.");
+        }finally{
+            btn.disabled = false;
+            btn.textContent = "Masuk";
+        }
+    });
+  </script>
+</body>
+</html>

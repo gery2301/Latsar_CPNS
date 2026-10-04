@@ -16,21 +16,19 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-compass/dist/leaflet-compass.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-compass/dist/leaflet-compass.min.css" />
 
-  <!-- CSS WebGIS -->
+  <!-- CSS WebGIS -- admin.css SATU FOLDER sama halaman ini (admin/),
+       makanya path-nya polos tanpa "../" -->
   <link rel="stylesheet" href="admin.css">
-  
+
 </head>
 <body>
   <!-- ================================================
-       HEADER BRAND -- ganti gambar dengan upload file ke folder
-       "assets/" di repo GitHub kamu, nama file HARUS PERSIS:
-         assets/logo-pemkab-mabar.png
-         assets/labuan-bajo.jpg   (dipakai sbg background, lihat admin.css)
-       Kalau logo belum ada, onerror di bawah otomatis nyembunyiin
-       <img>-nya (gak muncul ikon gambar rusak).
+       HEADER BRAND -- path assets/ juga "../" karena halaman ini
+       pindah ke folder admin/ (lihat AI_CONTEXT.md §8AA / §8Z soal
+       pemisahan halaman viewer vs admin).
   ================================================= -->
   <header id="brandHeader">
-    <img src="assets/logo-pemkab-mabar.png" alt="Logo Pemkab Manggarai Barat"
+    <img src="../assets/logo-pemkab-mabar.png" alt="Logo Pemkab Manggarai Barat"
          class="brand-logo" onerror="this.style.display='none'">
     <div class="brand-kabupaten">PEMERINTAH KABUPATEN<br>MANGGARAI BARAT</div>
     <div class="brand-center">
@@ -48,8 +46,12 @@
         <button type="button" class="brand-nav-item" title="Segera hadir">
             <span>📄</span>Laporan
         </button>
-        <button type="button" class="brand-nav-item" title="Segera hadir">
-            <span>👤</span>Akun
+        <!-- Label & fungsi tombol ini diisi JS (admin.js, lihat
+             pasangTombolAkun_) kalau lagi login -- default-nya masih
+             "Akun" diam kayak sebelumnya sampai sistem login beneran
+             diaktifkan (FRONTEND_LOGIN_AKTIF masih false). -->
+        <button type="button" class="brand-nav-item" id="navAkunBtn" title="Akun">
+            <span>👤</span><span id="navAkunLabel">Akun</span>
         </button>
     </nav>
   </header>
@@ -112,14 +114,21 @@
     </div>
   </footer>
 
-  <!-- Pastikan plugin siap sebelum admin.js jalan -->
+  <!-- Pastikan plugin siap sebelum admin.js jalan, dan kasih tau
+       admin.js kalau halaman ini ada di SUBFOLDER admin/ (dipakai buat
+       nyesuain path kemiskinan.json & redirect login, lihat admin.js) -->
 <script>
+  window.ADMIN_SUBFOLDER = true;
   window.addEventListener('load', function () {
     console.log("All plugins loaded");
   });
 </script>
 
-  <!-- Hubungkan file JS terpisah -->
+  <!-- Hubungkan file JS terpisah -- admin.js SATU FOLDER sama halaman
+       ini (admin/), path-nya polos. window.ADMIN_SUBFOLDER = true di
+       atas TETAP perlu di-set walau admin.js sekarang co-located --
+       flag itu soal LOKASI HALAMAN (buat path kemiskinan.json &
+       login.html yang masih di root repo), bukan soal lokasi admin.js. -->
   <script src="admin.js"></script>
 </body>
 </html>

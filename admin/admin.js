@@ -39,7 +39,7 @@ const STATIC_ASSET_PREFIX_ = window.ADMIN_SUBFOLDER ? "../" : "";
 //      YANG SAMA -- 2 saklar ini (frontend & backend) harus barengan,
 //      gak boleh cuma salah satu (lihat komentar panjang soal ini di
 //      appscript.gs).
-const FRONTEND_LOGIN_AKTIF = false;
+const FRONTEND_LOGIN_AKTIF = true;
 
 const TOKEN_STORAGE_KEY = "mantapdata_token";
 

@@ -4,6 +4,165 @@
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyKBHseSt8bdyO05fUw52Nzs6sGJ18tIkTvl2FfTKz2Ey0TKiW2hxJu4i_z7Ur7-doP/exec";
 
+// Dipakai di beberapa tempat (redirect login/logout, path kemiskinan.json
+// di SHEET_STATIS di bawah) -- "../" kalau halaman ini admin/index.html
+// (subfolder), kosong kalau index.html biasa (root repo). Diset dari
+// admin/index.html via `window.ADMIN_SUBFOLDER = true` sebelum admin.js
+// dimuat. Didefinisikan di PALING ATAS (bukan deket SHEET_STATIS) karena
+// blok auth di bawah ini juga butuh nilainya buat redirect ke login.html.
+const STATIC_ASSET_PREFIX_ = window.ADMIN_SUBFOLDER ? "../" : "";
+
+// =============================================================
+// LOGIN & HAK AKSES -- fondasi (token, currentUser, saklar transisi)
+// =============================================================
+// Lihat AI_CONTEXT.md §8AA untuk detail lengkap backend-nya
+// (appscript.gs: sheet `users`, action=login, guard di semua endpoint
+// tulis). Blok ini PASANGAN-nya di sisi frontend.
+
+// -------------------------------------------------------------
+// SAKLAR MASA TRANSISI (FRONTEND) -- PASANGAN dari
+// WAJIB_LOGIN_UNTUK_TULIS di appscript.gs. BACA INI SEBELUM DEPLOY.
+// -------------------------------------------------------------
+// Default FALSE. Selama masih false: currentUser selalu null, token
+// yang ditempel ke request tulis selalu kosong, TIDAK ADA redirect ke
+// halaman login, dan SEMUA tombol edit tetap tampil kayak sekarang --
+// alias perilaku app PERSIS SAMA kayak sebelum sistem login ini ada.
+// Jadi admin.js versi ini AMAN DI-DEPLOY SEKARANG JUGA walau
+// login.html / folder admin/ belum sempat disiapkan.
+//
+// JANGAN ubah jadi true sampai SEMUA ini sudah beres:
+//   1. login.html sudah ada & action=login sudah dites jalan
+//   2. Halaman admin (yang sekarang isinya index.html) sudah dipindah
+//      ke admin/index.html, dan root index.html sudah jadi versi
+//      viewer (window.VIEWER_MODE = true sebelum load admin.js)
+//   3. appscript.gs: WAJIB_LOGIN_UNTUK_TULIS DI-FLIP JADI TRUE DI SAAT
+//      YANG SAMA -- 2 saklar ini (frontend & backend) harus barengan,
+//      gak boleh cuma salah satu (lihat komentar panjang soal ini di
+//      appscript.gs).
+const FRONTEND_LOGIN_AKTIF = false;
+
+const TOKEN_STORAGE_KEY = "mantapdata_token";
+
+function getToken_(){
+    try { return sessionStorage.getItem(TOKEN_STORAGE_KEY) || ""; }
+    catch(err){ return ""; }
+}
+
+function simpanToken_(token){
+    try { sessionStorage.setItem(TOKEN_STORAGE_KEY, token); } catch(err){ /* biarin, paling login kebawa cuma 1 tab */ }
+}
+
+function hapusToken_(){
+    try { sessionStorage.removeItem(TOKEN_STORAGE_KEY); } catch(err){}
+}
+
+// Baca ULANG payload token (bagian sebelum titik, cuma base64 JSON
+// biasa) -- SEMATA buat KEPERLUAN TAMPILAN (nama/opd/role user yang
+// lagi login), BUKAN validasi keamanan. Siapa pun bisa decode base64
+// ini sendiri di browser mereka -- itu MEMANG bukan rahasia. Yang
+// rahasia itu tanda tangan HMAC-nya, dan itu cuma bisa diverifikasi
+// ulang di server (appscript.gs, verifikasiToken_()) yang pegang
+// secret-nya. Jangan pernah anggap hasil decode di sini sebagai bukti
+// otorisasi yang sah -- cuma buat nampilin "halo, Dinas Sosial" dkk.
+function decodeTokenPayload_(token){
+    if(!token) return null;
+    const bagian = token.split(".");
+    if(bagian.length !== 2) return null;
+    try{
+        const payload = JSON.parse(atob(bagian[0]));
+        if(!payload.exp || Date.now() > payload.exp) return null; // kedaluwarsa
+        return payload;
+    } catch(err){
+        return null;
+    }
+}
+
+// {username, opd, role} kalau lagi login sah, null kalau viewer/belum
+// login/token kedaluwarsa. Diisi sekali di initAuthState_() di bawah.
+let currentUser = null;
+
+(function initAuthState_(){
+    if(window.VIEWER_MODE) return; // halaman viewer: currentUser tetap null, gak perlu baca token sama sekali
+
+    const payload = decodeTokenPayload_(getToken_());
+
+    if(!payload){
+        if(FRONTEND_LOGIN_AKTIF){
+            // halaman admin tanpa token valid -> paksa balik ke login.
+            window.location.href = STATIC_ASSET_PREFIX_ + "login.html";
+        }
+        return;
+    }
+
+    currentUser = { username: payload.username, opd: payload.opd, role: payload.role };
+})();
+
+// Tempelin token ke payload sebelum JSON.stringify -- WAJIB dipakai di
+// SEMUA request tulis (create/update/delete/bantuan_*/dll). Kalau
+// belum login/viewer, token-nya string kosong -- backend masih
+// nerima ini SELAMA WAJIB_LOGIN_UNTUK_TULIS di server masih false
+// (mode transisi, lihat komentar saklar di atas).
+function tempelToken_(payload){
+    return Object.assign({}, payload, { token: getToken_() });
+}
+
+// Dipakai buat nentuin TAMPIL/GAK-nya tombol edit/tambah/hapus di UI.
+// CUMA UX -- bukan batas keamanan yang sebenarnya (itu tugas guard di
+// appscript.gs, yang tetap jalan walau orang iseng munculin tombol ini
+// paksa lewat devtools). Dipanggil sebagai cekBolehEdit_(ownerData)
+// dengan ownerData = owner_opd/opd milik data yang mau diedit (boleh
+// kosong/undefined kalau konteksnya "buat baru", bukan "edit yang
+// sudah ada").
+//
+// CATATAN STATUS (lihat AI_CONTEXT.md §8AA): fungsi ini DIDEFINISIKAN
+// tapi BELUM dipanggil di tiap tombol edit/hapus individual di
+// popup/panel (lihat blok "if(window.VIEWER_MODE)" di bawah -- itu
+// pekerjaan terpisah yang cukup besar, nyebar di banyak tempat).
+// Keamanan SEBENARNYA sudah aktif di backend begitu
+// WAJIB_LOGIN_UNTUK_TULIS di-flip true, independen dari seberapa
+// lengkap tombol-tombol ini disembunyikan di frontend.
+function cekBolehEdit_(ownerData){
+    if(window.VIEWER_MODE) return false; // viewer publik: TIDAK PERNAH boleh edit apa pun
+    if(!FRONTEND_LOGIN_AKTIF) return true; // mode transisi: semua tombol tetap tampil kayak sebelum ada sistem login
+    if(!currentUser) return false;
+    if(currentUser.role === "admin") return true;
+    return String(ownerData || "").trim() === String(currentUser.opd || "").trim();
+}
+
+function logout_(){
+    hapusToken_();
+    window.location.href = STATIC_ASSET_PREFIX_ + "login.html";
+}
+
+// FAB "+" (#fabContainer) itu elemen STATIS di index.html (bukan
+// dibikin lewat JS) -- jadi cara termudah yang konsisten adalah HAPUS
+// dari DOM (bukan cuma display:none, biar gak bisa dimunculkan paksa
+// lewat devtools) begitu admin.js jalan di halaman viewer. Dijalankan
+// langsung (gak nunggu DOMContentLoaded) karena <script src="admin.js">
+// di index.html ada SETELAH div #fabContainer di body -- elemennya
+// sudah pasti ada di DOM pas baris ini dieksekusi. Nunggu
+// DOMContentLoaded malah beresiko FAB sempat kelihatan sekilas dulu
+// sebelum dihapus.
+if(window.VIEWER_MODE){
+    const fab = document.getElementById("fabContainer");
+    if(fab) fab.remove();
+}
+
+// Tombol "👤 Akun" di header -- cuma ada di admin/index.html (bukan di
+// index.html viewer, yang tombolnya murni link statis ke login.html,
+// gak butuh JS apa-apa). Kalau currentUser sudah keisi (lihat
+// initAuthState_ di atas), label diganti jadi nama OPD-nya & tombolnya
+// jadi tombol logout.
+(function pasangTombolAkun_(){
+    if(window.VIEWER_MODE || !currentUser) return;
+    const btn = document.getElementById("navAkunBtn");
+    const lbl = document.getElementById("navAkunLabel");
+    if(!btn) return;
+    if(lbl) lbl.textContent = currentUser.opd || currentUser.username;
+    btn.title = "Keluar dari akun (" + currentUser.username + ")";
+    btn.addEventListener("click", logout_);
+})();
+
 // ===============================
 // POPUP LEAFLET vs HEADER/FOOTER BRAND
 // ===============================
@@ -587,7 +746,7 @@ btn.innerHTML = "⏳ Menyimpan...";
   
   fetch(GAS_URL, {
     method: "POST",
-    body: JSON.stringify({
+    body: JSON.stringify(tempelToken_({
       action: "update_atribut",
       id: layer._data.id,
       nama: nama,
@@ -596,7 +755,7 @@ btn.innerHTML = "⏳ Menyimpan...";
       tema: tema,
       layer: layerNama,
       owner_opd: ownerOpd
-    })
+    }))
   })
   .then(res => res.text())
   .then(msg => {
@@ -710,12 +869,12 @@ function simpanEditAtributShp() {
 
   fetch(GAS_URL, {
     method: "POST",
-    body: JSON.stringify({
+    body: JSON.stringify(tempelToken_({
       action: "update_shp_atribut",
       sheet_name: d.sheet_name,
       id: d.id,
       attributes
-    })
+    }))
   })
   .then(res => res.text())
   .then(msg => {
@@ -1136,7 +1295,7 @@ function hapusLayerPenuh_(layerName, isShp){
 
     fetch(GAS_URL, {
         method: "POST",
-        body: JSON.stringify({ action: "delete_layer", layer: layerName })
+        body: JSON.stringify(tempelToken_({ action: "delete_layer", layer: layerName }))
     })
     .then(res => res.text())
     .then(msg => {
@@ -1215,11 +1374,11 @@ function hapusLayerSekarang(){
 
     fetch(GAS_URL,{
         method:"POST",
-        body:JSON.stringify({
+        body:JSON.stringify(tempelToken_({
             action:"delete",
             id:layer.options.id,
             sheet_name: d.sheet_name // undefined utk data manual -> backend default ke Sheet2
-        })
+        }))
     })
     .then(res=>res.text())
     .then(msg=>{
@@ -1876,12 +2035,12 @@ function simpanEditGeometriMultiGroup_(layer){
 
     fetch(GAS_URL,{
         method:"POST",
-        body:JSON.stringify({
+        body:JSON.stringify(tempelToken_({
             action:"update",
             id: layer.options.id,
             geometry: geom,
             sheet_name: layer._data ? layer._data.sheet_name : undefined
-        })
+        }))
     })
     .then(res=>res.text())
     .then(msg=>{
@@ -2373,10 +2532,10 @@ async function syncLayerConfigKeServerAsync_(layerName, patchOverride){
     try{
         const res = await fetch(GAS_URL, {
             method: "POST",
-            body: JSON.stringify(Object.assign(
+            body: JSON.stringify(tempelToken_(Object.assign(
                 { action: "update_layer_config", layer: layerName },
                 patch
-            ))
+            )))
         });
         const resp = await res.json();
         if(resp.status !== "ok"){
@@ -3375,9 +3534,22 @@ function muatBulkLayer(sheetName, layerName, master, onProgress, makeVisible = t
 // baca live ke Apps Script) atau bikin proses generate ulang jadi rutin.
 //
 // key = nama SHEET (bukan nama layer), value = nama file JSON-nya,
-// taruh sejajar admin.js/admin.css di repo (path relatif ke halaman).
+// taruh di ROOT REPO (BUKAN di dalam folder admin/ -- walau admin.js
+// dan admin.css sendiri sekarang co-located di admin/, kemiskinan.json
+// ini SENGAJA TETAP di root, biar gak perlu digandakan/di-maintain 2
+// kopi kalau nanti ada halaman lain di root juga yang butuh data ini).
+//
+// PENTING: fetch() pakai path RELATIF itu di-resolve relatif ke URL
+// HALAMAN, BUKAN relatif ke lokasi FILE admin.js. index.html (viewer)
+// ada di root repo -> "kemiskinan.json" nemu file-nya dengan benar.
+// Tapi admin/index.html ada di SUBFOLDER admin/ -> kalau path-nya gak
+// disesuaikan, browser bakal nyari di "admin/kemiskinan.json" (404,
+// file aslinya di root). STATIC_ASSET_PREFIX_ (dideklarasikan di
+// PALING ATAS file ini, dipakai bareng sama redirect login/logout)
+// nambahin "../" kalau HALAMANNYA (bukan admin.js-nya) ketandaan
+// window.ADMIN_SUBFOLDER = true (diset di admin/index.html).
 const SHEET_STATIS = {
-    "shp_kemiskinan": "kemiskinan.json"
+    "shp_kemiskinan": STATIC_ASSET_PREFIX_ + "kemiskinan.json"
 };
 
 async function muatBulkLayerInternal_(sheetName, layerName, master, onProgress, makeVisible = true){
@@ -3413,9 +3585,16 @@ async function muatBulkLayerInternal_(sheetName, layerName, master, onProgress, 
                 `Layer ini akan dibersihkan dari daftar.`
             );
 
+            // CATATAN (pasca sistem login aktif): delete_layer itu
+            // admin-only di backend (lihat appscript.gs §8AA) -- auto-
+            // cleanup ini cuma akan BERHASIL kalau yang lagi login
+            // kebetulan Super Admin. Untuk user role "opd", baris
+            // master_layer yatim ini gak ke-cleanup otomatis (gagal
+            // senyap, cuma ke-log di console) -- butuh Super Admin buka
+            // app sekali, atau dibersihkan manual di Spreadsheet.
             fetch(GAS_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "delete_layer", layer: layerName })
+                body: JSON.stringify(tempelToken_({ action: "delete_layer", layer: layerName }))
             }).catch(err => console.error("Gagal membersihkan master_layer:", err));
 
             const idx = masterLayer.findIndex(item => item.layer === layerName);
@@ -3976,7 +4155,7 @@ btn.innerHTML = "⏳ Menyimpan...";
 
     fetch(GAS_URL, {
   method: "POST",
-  body: JSON.stringify(payload)
+  body: JSON.stringify(tempelToken_(payload))
 })
 .then(res => res.json())
 .then(resp => {
@@ -4051,13 +4230,12 @@ map.on('draw:edited', function (e) {
         const geom = layer.toGeoJSON().geometry;
         fetch(GAS_URL,{
             method:"POST",
-            body:JSON.stringify({
-
+            body:JSON.stringify(tempelToken_({
                 action:"update",
                 id:layer.options.id,
                 geometry:geom,
                 sheet_name: layer._data ? layer._data.sheet_name : undefined
-            })
+            }))
         })
 
         .then(res=>res.text())
@@ -4105,10 +4283,10 @@ map.on('draw:deleted', function (e) {
 
     fetch(GAS_URL, {
       method: "POST",
-      body: JSON.stringify({
+      body: JSON.stringify(tempelToken_({
         action: "delete",
         id: id
-      })
+      }))
     })
     .then(res => res.text())
     .then(msg => {
@@ -5022,7 +5200,7 @@ function simpanDataBantuan(mode, recordId){
     btn.disabled = true;
     btn.innerHTML = "⏳ Menyimpan...";
 
-    fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) })
+    fetch(GAS_URL, { method: "POST", body: JSON.stringify(tempelToken_(payload)) })
         .then(res => res.json())
         .then(resp => {
             if(resp.status !== "ok"){
@@ -5056,7 +5234,7 @@ function hapusDataBantuan(recordId){
 
     fetch(GAS_URL, {
         method: "POST",
-        body: JSON.stringify({ action: "bantuan_delete", id: recordId })
+        body: JSON.stringify(tempelToken_({ action: "bantuan_delete", id: recordId }))
     })
         .then(res => res.json())
         .then(resp => {
@@ -5564,7 +5742,7 @@ function prosesImportShp(){
     const kirimImport = (features) => {
         fetch(GAS_URL, {
             method: "POST",
-            body: JSON.stringify({
+            body: JSON.stringify(tempelToken_({
                 action: "import_shp",
                 layer: layerNama,
                 kategori,
@@ -5572,7 +5750,7 @@ function prosesImportShp(){
                 owner_opd: ownerOpd,
                 attributeKeys: importState.attributeKeys,
                 features
-            })
+            }))
         })
         .then(res => res.json())
         .then(resp => {

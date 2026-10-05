@@ -1619,8 +1619,15 @@ function showEditHint(){
 
     Object.assign(editHint.style,{
         position:"absolute",
-        top:"18px",
-        right:"120px",
+        // Bawah-tengah, di atas footer: area ini longgar (header di atas,
+        // layer tree di kiri, dashboard di kanan, FAB "+" di pojok kanan
+        // bawah). Dulu top:18px itu ketutup header (header fixed 72px).
+        bottom:"calc(var(--footer-h, 40px) + 24px)",
+        left:"0",
+        right:"0",
+        margin:"0 auto",
+        width:"max-content",
+        maxWidth:"calc(100vw - 32px)",
         minWidth:"260px",
         background:"rgba(30,30,30,.78)",
         backdropFilter:"blur(10px)",
@@ -1697,8 +1704,15 @@ function showCreateHint(){
     Object.assign(editHint.style,{
 
         position:"absolute",
-        top:"18px",
-        right:"120px",
+        // Bawah-tengah, di atas footer: area ini longgar (header di atas,
+        // layer tree di kiri, dashboard di kanan, FAB "+" di pojok kanan
+        // bawah). Dulu top:18px itu ketutup header (header fixed 72px).
+        bottom:"calc(var(--footer-h, 40px) + 24px)",
+        left:"0",
+        right:"0",
+        margin:"0 auto",
+        width:"max-content",
+        maxWidth:"calc(100vw - 32px)",
         minWidth:"280px",
         background:"rgba(30,30,30,.78)",
         backdropFilter:"blur(10px)",

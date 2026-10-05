@@ -39,7 +39,7 @@ const STATIC_ASSET_PREFIX_ = window.ADMIN_SUBFOLDER ? "../" : "";
 //      YANG SAMA -- 2 saklar ini (frontend & backend) harus barengan,
 //      gak boleh cuma salah satu (lihat komentar panjang soal ini di
 //      appscript.gs).
-const FRONTEND_LOGIN_AKTIF = false;
+const FRONTEND_LOGIN_AKTIF = true;
 
 const TOKEN_STORAGE_KEY = "mantapdata_token";
 
@@ -123,7 +123,10 @@ function tempelToken_(payload){
 // lengkap tombol-tombol ini disembunyikan di frontend.
 function cekBolehEdit_(ownerData){
     if(window.VIEWER_MODE) return false; // viewer publik: TIDAK PERNAH boleh edit apa pun
-    if(!FRONTEND_LOGIN_AKTIF) return true; // mode transisi: semua tombol tetap tampil kayak sebelum ada sistem login
+    // mode transisi (saklar mati DAN belum login): semua tombol tampil
+    // seperti sebelum ada sistem login. Begitu ADA user login, aturan hak
+    // akses selalu berlaku, apa pun nilai saklar.
+    if(!FRONTEND_LOGIN_AKTIF && !currentUser) return true;
     if(!currentUser) return false;
     if(currentUser.role === "admin") return true;
     return String(ownerData || "").trim() === String(currentUser.opd || "").trim();
@@ -133,7 +136,7 @@ function cekBolehEdit_(ownerData){
 // Viewer: tidak pernah. Mode transisi: tampil. Mode login aktif: harus login.
 function cekBolehTambah_(){
     if(window.VIEWER_MODE) return false;
-    if(!FRONTEND_LOGIN_AKTIF) return true;
+    if(!FRONTEND_LOGIN_AKTIF && !currentUser) return true;
     return !!currentUser;
 }
 
@@ -142,7 +145,7 @@ function cekBolehTambah_(){
 // role admin -- OPD biasa TIDAK boleh, jadi tombolnya jangan dimunculkan.
 function cekAdmin_(){
     if(window.VIEWER_MODE) return false;
-    if(!FRONTEND_LOGIN_AKTIF) return true;
+    if(!FRONTEND_LOGIN_AKTIF && !currentUser) return true;
     return !!currentUser && currentUser.role === "admin";
 }
 
@@ -5226,7 +5229,7 @@ function bukaFormBantuan(mode, recordId){
 
     // User OPD (login aktif, bukan admin): kolom OPD dikunci ke OPD-nya
     // sendiri. Admin tetap bebas memilih/mengetik OPD apa pun.
-    const kunciOpd = FRONTEND_LOGIN_AKTIF && currentUser && currentUser.role !== "admin";
+    const kunciOpd = !!currentUser && currentUser.role !== "admin";
 
     tutupFormBantuan();
 
@@ -5312,7 +5315,7 @@ function simpanDataBantuan(mode, recordId){
         errBox.style.display = "block";
     };
 
-    const opd = (FRONTEND_LOGIN_AKTIF && currentUser && currentUser.role !== "admin")
+    const opd = (currentUser && currentUser.role !== "admin")
         ? String(currentUser.opd || "").trim()
         : document.getElementById("fbOpd").value.trim();
     const program = document.getElementById("fbProgram").value.trim();

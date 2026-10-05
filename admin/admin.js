@@ -4206,7 +4206,12 @@ btn.innerHTML = "⏳ Menyimpan...";
 
     
     if (!resp.id) {
-        alert("Server tidak mengembalikan ID.");
+        // Tampilkan alasan ASLI dari server (mis. sesi habis / bukan
+        // OPD pemilik layer) -- sebelumnya selalu pesan generik, dan
+        // tombol Simpan nyangkut di "Menyimpan..." selamanya.
+        alert(resp.message || "Server tidak mengembalikan ID.");
+        btn.disabled = false;
+        btn.innerHTML = "Simpan";
         return;
     }
  
@@ -5275,7 +5280,7 @@ function simpanDataBantuan(mode, recordId){
         })
         .catch(err => {
             btn.disabled = false;
-            btn.innerHTML = "💾 Simpan";
+            btn.innerHTML = "Simpan";
             tampilError("Gagal menyimpan: " + err.message);
         });
 }

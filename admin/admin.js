@@ -146,6 +146,78 @@ function cekAdmin_(){
     return !!currentUser && currentUser.role === "admin";
 }
 
+// ===============================
+// POPUP PESAN DARI SERVER
+// ===============================
+// Ganti alert() mentah. Menerima teks balasan server (JSON
+// {"status":"error","message":"..."} ATAU teks biasa) dan menampilkan
+// hanya pesannya, dengan judul/ikon yang ramah. Style di-inject lewat JS
+// supaya admin.css tidak perlu diubah.
+function ambilPesanServer_(msg){
+    const s = String(msg == null ? "" : msg).trim();
+    try{
+        const j = JSON.parse(s);
+        if(j && typeof j === "object" && (j.message || j.error)) return String(j.message || j.error);
+    } catch(e){ /* bukan JSON -> pakai teks apa adanya */ }
+    return s || "Server menolak permintaan.";
+}
+
+function tampilPopupPesan_(pesanMentah, judulAwal){
+    const pesan = ambilPesanServer_(pesanMentah);
+
+    let ikon = "⚠️", judul = judulAwal || "Gagal", tombolLogin = false;
+    if(/tidak punya akses|belum punya OPD pemilik/i.test(pesan)){
+        ikon = "🔒"; judul = "Akses ditolak";
+    } else if(/khusus Super Admin/i.test(pesan)){
+        ikon = "🛡️"; judul = "Khusus Super Admin";
+    } else if(/sesi login|belum login|kedaluwarsa/i.test(pesan)){
+        ikon = "⏰"; judul = "Sesi berakhir"; tombolLogin = true;
+    }
+
+    if(!document.getElementById("pesanServerStyle")){
+        const st = document.createElement("style");
+        st.id = "pesanServerStyle";
+        st.textContent = `
+        #pesanServerOverlay{position:fixed;inset:0;z-index:40000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,28,64,.55);font-family:"Segoe UI",sans-serif}
+        .pesan-server-card{width:100%;max-width:360px;background:#fff;border-radius:14px;padding:24px 22px 18px;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+        .pesan-server-ikon{font-size:40px;line-height:1}
+        .pesan-server-judul{margin-top:10px;font-size:17px;font-weight:800;color:#0a1e40}
+        .pesan-server-isi{margin-top:8px;font-size:13.5px;line-height:1.5;color:#36415a;white-space:pre-line}
+        .pesan-server-aksi{margin-top:18px;display:flex;gap:8px;justify-content:center}
+        .pesan-server-btn{flex:1;padding:10px 0;font-size:14px;font-weight:700;font-family:inherit;border:none;border-radius:8px;cursor:pointer;color:#fff;background:#1e6bd6}
+        .pesan-server-btn:hover{background:#1859b3}
+        .pesan-server-btn.sekunder{background:#eef1f6;color:#36415a}
+        .pesan-server-btn.sekunder:hover{background:#e0e5ee}`;
+        document.head.appendChild(st);
+    }
+
+    const lama = document.getElementById("pesanServerOverlay");
+    if(lama) lama.remove();
+
+    const el = document.createElement("div");
+    el.id = "pesanServerOverlay";
+    el.innerHTML = `
+      <div class="pesan-server-card" role="alertdialog" aria-modal="true">
+        <div class="pesan-server-ikon">${ikon}</div>
+        <div class="pesan-server-judul">${escHtml_(judul)}</div>
+        <div class="pesan-server-isi">${escHtml_(pesan)}</div>
+        <div class="pesan-server-aksi">
+          ${tombolLogin ? `<button type="button" class="pesan-server-btn" id="pesanServerLogin">Login ulang</button>` : ""}
+          <button type="button" class="pesan-server-btn ${tombolLogin ? "sekunder" : ""}" id="pesanServerOk">OK</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+
+    const tutup = () => { el.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = e => { if(e.key === "Escape" || e.key === "Enter") tutup(); };
+    document.addEventListener("keydown", onKey);
+    document.getElementById("pesanServerOk").addEventListener("click", tutup);
+    el.addEventListener("mousedown", e => { if(e.target === el) tutup(); });
+    const bl = document.getElementById("pesanServerLogin");
+    if(bl) bl.addEventListener("click", () => logout_());
+    document.getElementById("pesanServerOk").focus();
+}
+
 function logout_(){
     hapusToken_();
     window.location.href = STATIC_ASSET_PREFIX_ + "login.html";
@@ -800,7 +872,7 @@ btn.innerHTML = "⏳ Menyimpan...";
 
     msg = msg.trim();
     if (msg !== "atribut updated") {
-        alert(msg);
+        tampilPopupPesan_(msg, "Gagal menyimpan");
         return;
     }
     layer._data.nama = nama;
@@ -919,7 +991,7 @@ function simpanEditAtributShp() {
 
     msg = msg.trim();
     if (msg !== "atribut updated") {
-        alert(msg);
+        tampilPopupPesan_(msg, "Gagal menyimpan");
         btn.disabled = false;
         btn.innerHTML = "Simpan";
         return;
@@ -1343,7 +1415,7 @@ function hapusLayerPenuh_(layerName, isShp){
         msg = msg.trim();
 
         if(msg !== "layer deleted"){
-            alert("Gagal menghapus layer: " + msg);
+            tampilPopupPesan_(msg, "Gagal menghapus layer");
             return;
         }
 
@@ -1428,7 +1500,7 @@ function hapusLayerSekarang(){
         msg = msg.trim();
 
         if(msg !== "deleted"){
-            alert(msg);
+            tampilPopupPesan_(msg, "Gagal menghapus data");
             return;
         }
 
@@ -2089,7 +2161,7 @@ function simpanEditGeometriMultiGroup_(layer){
         msg = msg.trim();
 
         if(msg !== "updated"){
-            alert(msg);
+            tampilPopupPesan_(msg, "Gagal menyimpan perubahan");
             return;
         }
 
@@ -4209,7 +4281,7 @@ btn.innerHTML = "⏳ Menyimpan...";
         // Tampilkan alasan ASLI dari server (mis. sesi habis / bukan
         // OPD pemilik layer) -- sebelumnya selalu pesan generik, dan
         // tombol Simpan nyangkut di "Menyimpan..." selamanya.
-        alert(resp.message || "Server tidak mengembalikan ID.");
+        tampilPopupPesan_(resp.message || "Server tidak mengembalikan ID.", "Gagal menyimpan");
         btn.disabled = false;
         btn.innerHTML = "Simpan";
         return;
@@ -4292,7 +4364,7 @@ map.on('draw:edited', function (e) {
             msg = msg.trim();
           
             if(msg !== "updated"){
-                alert(msg);
+                tampilPopupPesan_(msg, "Gagal menyimpan perubahan");
                 return;
             }
           layer.editing.disable();
@@ -4343,7 +4415,7 @@ map.on('draw:deleted', function (e) {
     msg = msg.trim();
 
     if(msg !== "deleted"){
-        alert(msg);
+        tampilPopupPesan_(msg, "Gagal menghapus data");
         return;
     }
       
@@ -5281,7 +5353,7 @@ function simpanDataBantuan(mode, recordId){
         .catch(err => {
             btn.disabled = false;
             btn.innerHTML = "Simpan";
-            tampilError("Gagal menyimpan: " + err.message);
+            tampilPopupPesan_(err.message, "Gagal menyimpan bantuan");
         });
 }
 
@@ -5304,7 +5376,7 @@ function hapusDataBantuan(recordId){
             renderDetailIntervensiBody_();
             if(typeof refreshDashboardKabupaten === "function") refreshDashboardKabupaten();
         })
-        .catch(err => alert("Gagal menghapus: " + err.message));
+        .catch(err => tampilPopupPesan_(err.message, "Gagal menghapus bantuan"));
 }
 
 // Sinkronisasi cache `bantuanData` setelah operasi tulis berhasil.
@@ -5817,7 +5889,7 @@ function prosesImportShp(){
         .then(resp => {
 
             if(resp.status !== "ok"){
-                alert("Gagal import: " + (resp.message || "unknown error"));
+                tampilPopupPesan_(resp.message || "unknown error", "Gagal import");
                 btn.disabled = false;
                 btn.innerHTML = "✓ Import";
                 return;

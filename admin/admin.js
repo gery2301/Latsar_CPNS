@@ -6131,7 +6131,12 @@ const POLLING_INTERVAL_MS = 15000;
 // polling DIJEDA -- gak ada gunanya ngecek update tiap sekian detik
 // kalau gak ada yang liat, dan ini ngurangin beban total kalau ada
 // banyak orang ninggalin tab dashboard kebuka di background.
-setInterval(() => {
+// Viewer publik TIDAK perlu polling sama sekali: datanya dibaca saat
+// halaman dibuka, cukup refresh manual untuk data terbaru. Tanpa ini,
+// setiap pengunjung publik yang membiarkan tab terbuka ikut menembak
+// Apps Script tiap 15 detik dan menggerus kuota/concurrency yang sama
+// dipakai login & edit admin.
+if(!window.VIEWER_MODE) setInterval(() => {
     if(document.hidden) return;
     refreshLayerData().catch(err => {
         // udah dicoba retry di dalam fetchDenganRetry_ -- kalau

@@ -343,24 +343,52 @@ function pasangPenjagaPopup_(map){
     });
 }
 
+// BUG YANG DITEMUKAN & DIBENERIN (lihat AI_CONTEXT.md): fetch() bawaan
+// browser TIDAK PUNYA batas waktu default -- kalau request-nya "nyangkut"
+// (koneksi kebuka tapi server gak pernah balas apa-apa, bukan error, bukan
+// sukses, CUMA DIAM), await fetch(...) nunggu SELAMANYA. Ini beda dari
+// "request gagal" (yang sudah diantisipasi retry di bawah) -- kalau cuma
+// nyangkut, promise-nya gak pernah resolve/reject, jadi retry pun gak
+// pernah kepicu, dan UI yang nge-await ini (termasuk init() paling bawah
+// file, yang ngerender Layer Tree & Dashboard) ikut diam selamanya tanpa
+// pesan error APA PUN -- persis gejala "kadang kalau lama dibiarkan, cuma
+// nampilin 'Memuat...' terus" yang dilaporkan user.
+// fetchDenganTimeout_ maksa fetch() punya batas waktu pakai AbortController
+// -- kalau lewat `timeoutMs`, promise-nya DIPAKSA reject (bukan nyangkut
+// terus), supaya fetchDenganRetry_ di bawah ini KEBAGIAN GILIRAN buat
+// nyoba lagi, alih-alih diam gak pernah dikasih kesempatan retry sama
+// sekali.
+async function fetchDenganTimeout_(url, options, timeoutMs = 15000){
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try{
+        return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 // Fetch dengan retry otomatis. Google Apps Script Web App (exec URL)
 // KADANG (jarang, tapi nyata -- dikonfirmasi user: dibuka fresh di tab
 // baru pun kadang tetap gagal, walau deployment-nya cuma 1 & bener)
-// balikin error transient (404 "tidak dapat membuka file", dsb). Ini
-// masalah infrastruktur Google sendiri, BUKAN salah kode/config kita,
-// dan biasanya PULIH SENDIRI dalam hitungan detik. Daripada langsung
-// nyerah/nge-throw ke user pas kena gangguan sesaat kayak gini, coba
-// ulang dulu beberapa kali dengan jeda singkat sebelum benar-benar
-// dianggap gagal.
+// balikin error transient (404 "tidak dapat membuka file", dsb), ATAU
+// (lihat fetchDenganTimeout_ di atas) nyangkut gak pernah balas sama
+// sekali. Ini masalah infrastruktur Google sendiri, BUKAN salah
+// kode/config kita, dan biasanya PULIH SENDIRI dalam hitungan detik.
+// Daripada langsung nyerah/nge-throw (atau diam selamanya) pas kena
+// gangguan sesaat kayak gini, coba ulang dulu beberapa kali dengan
+// jeda singkat sebelum benar-benar dianggap gagal.
 async function fetchDenganRetry_(url, options, maxRetry = 2, delayMs = 1200){
     let lastErr;
     for(let percobaan = 0; percobaan <= maxRetry; percobaan++){
         try{
-            const res = await fetch(url, options);
+            const res = await fetchDenganTimeout_(url, options);
             if(res.ok) return res;
             lastErr = new Error("HTTP " + res.status);
         } catch(err){
-            lastErr = err;
+            lastErr = (err && err.name === "AbortError")
+                ? new Error("Server tidak merespons (timeout)")
+                : err;
         }
         if(percobaan < maxRetry){
             await new Promise(r => setTimeout(r, delayMs));
@@ -376,14 +404,53 @@ async function fetchDenganRetry_(url, options, maxRetry = 2, delayMs = 1200){
 let masterLayer = [];
 let masterReady = false;
 
+// Dipanggil kalau loadMasterLayer()/loadDataAwal() GAGAL TOTAL (sudah
+// dicoba beberapa kali lewat fetchDenganRetry_, termasuk kena timeout --
+// lihat fetchDenganTimeout_ di atas). Dulu kegagalan di titik ini bikin
+// halaman diam selamanya di "Memuat..." (loadMasterLayer gak punya catch
+// sama sekali) atau cuma alert() yang nutup sendiri tanpa cara coba lagi
+// (loadDataAwal) -- user cuma bisa nebak-nebak refresh manual berkali-kali.
+// Sekarang: pesan jelas + tombol "🔄 Coba Lagi" langsung di panel Layer
+// (area yang kelihatan "nyangkut" di laporan user), biar jelas ada yang
+// salah DAN ada jalan keluarnya, gak perlu refresh browser.
+function tampilErrorBootstrap_(pesan){
+    const target = document.getElementById("treeContent");
+    if(!target) { alert(pesan); return; }
+    target.innerHTML = `
+        <div style="padding:16px; text-align:center; font-size:13px; color:#555;">
+            <div style="font-size:28px; margin-bottom:8px;">⚠️</div>
+            <div style="margin-bottom:4px; font-weight:600;">Gagal memuat data</div>
+            <div style="color:#888; margin-bottom:14px;">${pesan}</div>
+            <button type="button" id="btnCobaLagiBootstrap" style="
+                padding:9px 18px; border:none; border-radius:8px;
+                background:#1e3a8a; color:#fff; font-size:13px;
+                font-weight:600; cursor:pointer;">
+                🔄 Coba Lagi
+            </button>
+        </div>
+    `;
+    const btn = document.getElementById("btnCobaLagiBootstrap");
+    if(btn) btn.addEventListener("click", () => window.location.reload());
+}
+
 async function loadMasterLayer() {
-
-  const res = await fetch(GAS_URL + "?action=master");
-  masterLayer = await res.json();
-  masterReady = true;
-  
-
-
+    // fetchDenganRetry_ (bukan fetch() polos) -- dapat timeout +
+    // retry otomatis, lihat catatan panjang di fetchDenganTimeout_/
+    // fetchDenganRetry_ di atas. Dulu fungsi ini SAMA SEKALI gak
+    // punya try/catch -- kalau gagal/nyangkut, diam total tanpa
+    // pesan apa pun (gejala persis yang dilaporkan user).
+    try{
+        const res = await fetchDenganRetry_(GAS_URL + "?action=master");
+        masterLayer = await res.json();
+        masterReady = true;
+    } catch(err){
+        console.error("Gagal memuat master_layer:", err);
+        tampilErrorBootstrap_(
+            "Server Apps Script tidak merespons setelah beberapa kali dicoba. " +
+            "Ini biasanya gangguan sesaat di sisi Google, coba lagi."
+        );
+        throw err; // hentikan init() -- jangan lanjut ke loadDataAwal() dengan masterLayer kosong
+    }
 }
 
 // ===============================
@@ -2366,16 +2433,21 @@ function muatDataBantuan(){
     if(bantuanData !== null) return Promise.resolve(bantuanData);
     if(bantuanFetchPromise) return bantuanFetchPromise;
 
-    bantuanFetchPromise = fetch(GAS_URL + "?action=bantuan")
+    // fetchDenganRetry_ (bukan fetch() polos) -- timeout + retry, lihat
+    // catatan panjang di fetchDenganTimeout_/fetchDenganRetry_ (deket
+    // loadMasterLayer). Sempat balik ke fetch() polos di sesi lain yang
+    // nulis ulang area ini -- kalau server lagi gak respons, "Statistik
+    // Kabupaten" nyangkut di "Memuat..." selamanya, persis yang dilaporkan.
+    bantuanFetchPromise = fetchDenganRetry_(GAS_URL + "?action=bantuan")
         .then(res => res.json())
         .then(resp => {
             bantuanData = (resp.status === "ok" && Array.isArray(resp.data)) ? resp.data : [];
             return bantuanData;
         })
         .catch(err => {
-            console.error("Gagal memuat data bantuan:", err);
-            bantuanData = [];
-            return bantuanData;
+            console.error("Gagal memuat data bantuan, akan dicoba lagi lain kali:", err);
+            bantuanFetchPromise = null; // JANGAN set bantuanData -- biar panggilan berikutnya coba fetch ulang, bukan nyerah selamanya
+            return [];
         });
 
     return bantuanFetchPromise;
@@ -4645,11 +4717,9 @@ function renderLayerData(data){
 async function loadDataAwal() {
 
 try{
-        const res = await fetch(GAS_URL);
- 
-        if(!res.ok){
-            throw new Error("HTTP " + res.status);
-        }
+        // fetchDenganRetry_ (bukan fetch() polos) -- timeout + retry,
+        // sama alasannya kayak loadMasterLayer() di atas.
+        const res = await fetchDenganRetry_(GAS_URL);
         const resp = await res.json();
         const data = resp.data;
         lastData = structuredClone(data);
@@ -4672,8 +4742,11 @@ try{
         setTimeout(refreshTreeHeight,300);
     }
     catch(err){
-        console.error(err);
-        alert("Gagal memuat data.");
+        console.error("Gagal memuat data awal:", err);
+        tampilErrorBootstrap_(
+            "Server Apps Script tidak merespons setelah beberapa kali dicoba. " +
+            "Ini biasanya gangguan sesaat di sisi Google, coba lagi."
+        );
     }
 }
 
@@ -6031,6 +6104,14 @@ init().then(() => {
     aktifkanLayerAwal_().catch(err => console.warn("Gagal mengaktifkan layer awal:", err));
     populateKabupatenDashboardSelector_();
     refreshDashboardKabupaten();
+}).catch(err => {
+    // loadMasterLayer()/loadDataAwal() SUDAH nampilin UI error + tombol
+    // "Coba Lagi" sendiri (tampilErrorBootstrap_) sebelum throw ke sini --
+    // .catch() ini cuma nangkep biar gak jadi "unhandled promise
+    // rejection" yang berisik di console, BUKAN nampilin error kedua.
+    // Dashboard (aktifkanLayerAwal_ dkk) SENGAJA gak dipanggil di sini --
+    // percuma jalan kalau masterLayer-nya gagal/kosong.
+    console.error("Bootstrap awal gagal total:", err);
 });
 window.refreshLayerData = refreshLayerData;
 

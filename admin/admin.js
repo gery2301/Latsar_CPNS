@@ -398,6 +398,110 @@ async function fetchDenganRetry_(url, options, maxRetry = 2, delayMs = 1200){
 }
  
 // ===============================
+// CADANGAN DATA DI BROWSER (kalau server Apps Script lambat/macet)
+// ===============================
+// Pembacaan data awal (master layer, Sheet2, bantuan) lewat Apps Script
+// kadang SANGAT lambat (balasan "echo" dari Google macet puluhan detik, di
+// jaringan mana pun). Strategi: tiap kali berhasil, simpan balasannya di
+// localStorage. Di pemuatan berikutnya, kalau server belum membalas dalam
+// `batasTungguMs`, langsung pakai salinan tersimpan (dan tandai pengguna
+// bahwa ini data tersimpan) -- permintaan ke server TETAP jalan di latar
+// belakang dan memperbarui salinan untuk kunjungan berikutnya. Kunjungan
+// PERTAMA di perangkat baru (belum ada salinan) tetap harus menunggu server.
+const CADANGAN_PREFIX = "mantap_cadangan:";
+
+function bacaCadangan_(url){
+    try{
+        const raw = localStorage.getItem(CADANGAN_PREFIX + url);
+        return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+}
+
+function simpanCadangan_(url, data){
+    try{
+        localStorage.setItem(CADANGAN_PREFIX + url, JSON.stringify({ t: Date.now(), data: data }));
+    } catch(e){ /* kuota penuh / mode privat -> abaikan, cadangan cuma bonus */ }
+}
+
+function tandaiDataTersimpan_(){
+    if(document.getElementById("bannerDataTersimpan")) return;
+    const el = document.createElement("div");
+    el.id = "bannerDataTersimpan";
+    el.textContent = "⚠️ Server sedang lambat. Menampilkan data tersimpan terakhir; muat ulang halaman untuk data terbaru.";
+    Object.assign(el.style, {
+        position: "fixed",
+        top: "calc(var(--header-h, 72px) + 12px)",
+        left: "0",
+        right: "0",
+        margin: "0 auto",
+        width: "max-content",
+        maxWidth: "calc(100vw - 32px)",
+        zIndex: "15000",
+        background: "#fff7e0",
+        color: "#7a5600",
+        border: "1px solid #f0d58a",
+        borderRadius: "10px",
+        padding: "8px 14px",
+        fontSize: "12.5px",
+        fontFamily: '"Segoe UI",sans-serif',
+        boxShadow: "0 4px 14px rgba(0,0,0,.25)"
+    });
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 15000);
+}
+
+// valid(j): fungsi opsional -- balasan yang tidak lolos TIDAK disimpan
+// sebagai cadangan dan dianggap gagal (mis. objek error dari server).
+async function ambilJsonDenganCadangan_(url, batasTungguMs, valid){
+    const cadangan = bacaCadangan_(url);
+
+    const jaringan = fetchDenganRetry_(url)
+        .then(r => r.json())
+        .then(j => {
+            if(valid && !valid(j)) throw new Error("Balasan server tidak valid");
+            simpanCadangan_(url, j);
+            return j;
+        });
+
+    // belum punya salinan -> tidak ada pilihan selain menunggu server
+    if(!cadangan || cadangan.data === undefined) return await jaringan;
+
+    jaringan.catch(() => {}); // cegah "unhandled rejection" kalau kalah balapan
+    const pakaiCadangan = { __pakaiCadangan: true };
+    const hasil = await Promise.race([
+        jaringan.catch(() => pakaiCadangan),
+        new Promise(res => setTimeout(() => res(pakaiCadangan), batasTungguMs))
+    ]);
+
+    if(hasil === pakaiCadangan){
+        tandaiDataTersimpan_();
+        return cadangan.data;
+    }
+    return hasil;
+}
+
+// Satu request gabungan (?action=init) buat master + Sheet2 + bantuan:
+// 3 putaran lambat ke Apps Script jadi 1. Hasilnya dipakai bersama oleh
+// loadMasterLayer, loadDataAwal, dan muatDataBantuan. Kalau gagal (mis.
+// backend lama yang belum punya action=init membalas format lain), balikin
+// null dan masing-masing loader pakai jalur lamanya sendiri.
+let initGabunganPromise_ = null;
+function ambilInitGabungan_(){
+    if(!initGabunganPromise_){
+        initGabunganPromise_ = ambilJsonDenganCadangan_(
+            GAS_URL + "?action=init", 6000,
+            j => j && j.status === "ok" && Array.isArray(j.master)
+                 && j.sheet2 && Array.isArray(j.sheet2.data)
+                 && j.bantuan && Array.isArray(j.bantuan.data)
+        ).catch(err => {
+            console.warn("action=init gagal, pakai permintaan terpisah:", err);
+            return null;
+        });
+    }
+    return initGabunganPromise_;
+}
+
+// ===============================
 // MASTER LAYER
 // ===============================
 
@@ -440,8 +544,12 @@ async function loadMasterLayer() {
     // punya try/catch -- kalau gagal/nyangkut, diam total tanpa
     // pesan apa pun (gejala persis yang dilaporkan user).
     try{
-        const res = await fetchDenganRetry_(GAS_URL + "?action=master");
-        masterLayer = await res.json();
+        const gabungan = await ambilInitGabungan_();
+        masterLayer = gabungan
+            ? gabungan.master
+            : await ambilJsonDenganCadangan_(
+                GAS_URL + "?action=master", 6000, j => Array.isArray(j)
+              );
         masterReady = true;
     } catch(err){
         console.error("Gagal memuat master_layer:", err);
@@ -2438,8 +2546,11 @@ function muatDataBantuan(){
     // loadMasterLayer). Sempat balik ke fetch() polos di sesi lain yang
     // nulis ulang area ini -- kalau server lagi gak respons, "Statistik
     // Kabupaten" nyangkut di "Memuat..." selamanya, persis yang dilaporkan.
-    bantuanFetchPromise = fetchDenganRetry_(GAS_URL + "?action=bantuan")
-        .then(res => res.json())
+    bantuanFetchPromise = ambilInitGabungan_()
+        .then(g => g ? g.bantuan : ambilJsonDenganCadangan_(
+            GAS_URL + "?action=bantuan", 6000,
+            j => j && j.status === "ok" && Array.isArray(j.data)
+        ))
         .then(resp => {
             bantuanData = (resp.status === "ok" && Array.isArray(resp.data)) ? resp.data : [];
             return bantuanData;
@@ -4719,8 +4830,12 @@ async function loadDataAwal() {
 try{
         // fetchDenganRetry_ (bukan fetch() polos) -- timeout + retry,
         // sama alasannya kayak loadMasterLayer() di atas.
-        const res = await fetchDenganRetry_(GAS_URL);
-        const resp = await res.json();
+        const gabungan = await ambilInitGabungan_();
+        const resp = gabungan
+            ? gabungan.sheet2
+            : await ambilJsonDenganCadangan_(
+                GAS_URL, 6000, j => j && Array.isArray(j.data)
+              );
         const data = resp.data;
         lastData = structuredClone(data);
 
